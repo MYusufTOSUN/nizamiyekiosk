@@ -23,9 +23,9 @@ def download_whisper(model: str, output_dir: Path) -> None:
         sys.exit(1)
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    print(f"İndiriliyor: {model} → {output_dir}")
+    print(f"Indiriliyor: {model} -> {output_dir}")
     download_model(model, output_dir=str(output_dir), local_files_only=False)
-    print(f"OK Whisper {model} indirildi.")
+    print(f"[OK] Whisper {model} indirildi.")
 
 
 def main() -> int:

@@ -15,15 +15,38 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+import numpy as np
+from pydantic import BaseModel
 
 from src.core.errors import STTError
 from src.core.interfaces import STTProvider, TranscriptionResult
 from src.core.logger import get_logger
 from src.core.metrics import stt_latency_ms
 from src.stt.audio_buffer import AudioBuffer
-from src.stt.audio_utils import DEFAULT_SAMPLE_RATE, pcm_bytes_to_numpy
+from src.stt.audio_utils import DEFAULT_SAMPLE_RATE, pcm_bytes_to_numpy, rms
 from src.stt.vad import VoiceActivityDetector
+
+# Whisper sıkça uydurduğu altyazı/credit cümleleri. Tam eşleşmede sus.
+HALLUCINATION_BLOCKLIST: frozenset[str] = frozenset(
+    s.lower().strip()
+    for s in (
+        "altyazı m.k.",
+        "altyazı: m.k.",
+        "altyazi m.k.",
+        "altyazı m.k. ile çevrildi",
+        "altyazılar",
+        "alt yazı",
+        "abone ol",
+        "abone olmayı unutmayın",
+        "teşekkürler",
+        "izlediğiniz için teşekkürler",
+        "izlediğiniz için teşekkür ederim",
+        "videolarımıza abone olun",
+        "kanalımıza abone olun",
+        "altyazı: hayrettin g.",
+        "altyazı: ümit özdemir",
+    )
+)
 
 _log = get_logger(component="stt.whisper")
 
@@ -48,6 +71,12 @@ class WhisperConfig(BaseModel):
     min_silence_duration_ms: int = 800
     max_segment_duration_seconds: int = 30  # bu süreyi aşan tek segmentte zorla flush
     min_segment_duration_ms: int = 500       # bu kadarın altındaysa segment yutma
+
+    # Halüsinasyon savunması — Whisper sessizliğe/uğultuya altyazı credit'i uydurur.
+    no_speech_threshold: float = 0.6         # faster-whisper segment no_speech_prob > bu => sus
+    min_avg_logprob: float = -1.0            # ortalama logprob düşükse sahte cevap, sus
+    min_rms_threshold: float = 0.005         # buffer RMS bunun altındaysa Whisper'ı hiç çağırma
+    apply_hallucination_blocklist: bool = True
 
     # Konsol/test için: speech_end olmadan da gelen final transcript'ler için.
     flush_on_stream_end: bool = True
@@ -170,6 +199,17 @@ class WhisperLocalSTT(STTProvider):
         if audio_np.size == 0:
             return None
 
+        # RMS pre-check — sessiz buffer'da Whisper'ı hiç çağırma (halüsinasyon önler).
+        level = rms(audio_np)
+        if level < self.config.min_rms_threshold:
+            _log.debug(
+                "skip_silent_buffer",
+                rms=level,
+                threshold=self.config.min_rms_threshold,
+                duration_ms=duration_ms,
+            )
+            return None
+
         start = time.perf_counter()
         try:
             text, confidence = await asyncio.to_thread(
@@ -186,6 +226,18 @@ class WhisperLocalSTT(STTProvider):
         text = text.strip()
         if not text:
             _log.debug("empty_transcription", duration_ms=duration_ms, latency_ms=latency_ms)
+            return None
+
+        if (
+            self.config.apply_hallucination_blocklist
+            and text.lower().strip().rstrip(".!?") in HALLUCINATION_BLOCKLIST
+        ):
+            _log.info(
+                "hallucination_filtered",
+                text=text,
+                duration_ms=duration_ms,
+                latency_ms=latency_ms,
+            )
             return None
 
         _log.info(
@@ -208,7 +260,6 @@ class WhisperLocalSTT(STTProvider):
         language: str,
     ) -> tuple[str, float]:
         if self._model is None:
-            # _ensure_model çağrıldıktan sonra olmamalı ama type-safe olalım
             raise STTError("STT_001", "Whisper model henüz yüklenmedi")
         segments_iter, info = self._model.transcribe(
             audio,
@@ -218,10 +269,26 @@ class WhisperLocalSTT(STTProvider):
             temperature=self.config.temperature,
             vad_filter=False,  # bizim VAD zaten segmentledi
             condition_on_previous_text=False,
+            no_speech_threshold=self.config.no_speech_threshold,
+            log_prob_threshold=self.config.min_avg_logprob,
         )
-        segments = list(segments_iter)
-        text = " ".join(seg.text for seg in segments).strip()
-        confidence = float(getattr(info, "language_probability", 1.0))
+        kept_texts: list[str] = []
+        confidences: list[float] = []
+        for seg in segments_iter:
+            no_speech_prob = float(getattr(seg, "no_speech_prob", 0.0))
+            avg_logprob = float(getattr(seg, "avg_logprob", 0.0))
+            if no_speech_prob >= self.config.no_speech_threshold:
+                continue
+            if avg_logprob < self.config.min_avg_logprob:
+                continue
+            kept_texts.append(seg.text)
+            # avg_logprob negatif log-likelihood → exp ile [0,1]'e yaklaştır
+            confidences.append(float(np.exp(avg_logprob)) if avg_logprob < 0 else 1.0)
+
+        text = " ".join(kept_texts).strip()
+        confidence = float(np.mean(confidences)) if confidences else float(
+            getattr(info, "language_probability", 1.0)
+        )
         return text, confidence
 
     async def close(self) -> None:

@@ -17,6 +17,7 @@ import sys
 import time
 from collections.abc import AsyncIterator
 
+from src.core.config import get_config
 from src.stt.audio_utils import DEFAULT_SAMPLE_RATE, numpy_to_pcm_bytes
 from src.stt.whisper_local import WhisperConfig, WhisperLocalSTT
 
@@ -28,13 +29,21 @@ async def main(seconds: float, device: str | int | None) -> int:
         import numpy as np
         import sounddevice as sd  # type: ignore[import-not-found]
     except ImportError:
-        print("HATA: sounddevice/numpy kurulu değil. `pip install -e .[stt]`")
+        print("HATA: sounddevice/numpy kurulu degil. pip install -e .[stt]")
         return 1
 
-    print(f"Mikrofon: {sd.query_devices(device, 'input')['name'] if device is not None else 'default'}")
-    print(f"Whisper yükleniyor ({seconds:.1f}s'lik kayıt için)...")
+    # config.yaml'dan model path + VAD parametrelerini al — re-download'u önler.
+    app_cfg = get_config()
+    whisper_cfg = WhisperConfig(**{**app_cfg.stt.config, "flush_on_stream_end": True})
 
-    stt = WhisperLocalSTT(WhisperConfig(flush_on_stream_end=True))
+    if device is not None:
+        info = sd.query_devices(device, "input")
+        print(f"Mikrofon: {info['name']} (index={info['index']})")
+    else:
+        print("Mikrofon: default")
+    print(f"Whisper yukleniyor (model={whisper_cfg.model})...")
+
+    stt = WhisperLocalSTT(whisper_cfg)
     await stt._ensure_model()
 
     audio_q: queue.Queue[bytes | None] = queue.Queue()

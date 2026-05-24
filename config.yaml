@@ -18,7 +18,9 @@ audio:
 stt:
   provider: "whisper_local"
   config:
-    model: "large-v3"
+    # Yerel klasör — internet kesilse bile yüklenir.
+    # Kısa ad "large-v3" verirseniz faster-whisper kendisi HuggingFace'ten indirir.
+    model: "data/models/whisper/faster-whisper-large-v3"
     language: "tr"
     device: "cuda"            # "cuda" varsa otomatik kullanır, yoksa "cpu" yap
     compute_type: "int8_float16"   # 8 GB VRAM için en iyi denge
