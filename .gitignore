@@ -1,0 +1,87 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.eggs/
+dist/
+build/
+develop-eggs/
+downloads/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+MANIFEST
+.installed.cfg
+
+# Virtual env
+.venv/
+venv/
+env/
+ENV/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.cache
+coverage.xml
+*.cover
+.hypothesis/
+
+# Type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+.ruff_cache/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Project-specific large/binary assets
+data/models/*
+!data/models/.gitkeep
+data/voices/*.wav
+data/voices/*.mp3
+!data/voices/.gitkeep
+data/responses/vector_store/
+src/tts/voices/*.wav
+src/tts/voices/*.mp3
+!src/tts/voices/.gitkeep
+src/llm/responses/*.json
+!src/llm/responses/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Local overrides
+local_settings.py
+config.local.yaml
+
+# Claude Code workspace files (per-clone)
+.claude/
+
+# Smoke test artifacts
+uvicorn.out
+uvicorn.err

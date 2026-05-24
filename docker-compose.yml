@@ -1,0 +1,33 @@
+version: "3.9"
+
+# BilimFest yardımcı servisleri.
+# Phase 1'de boş — Phase 3+ Redis/Postgres (RAG için), Phase 5+ Audio2Face Omniverse.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bilimfest-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bilimfest
+      POSTGRES_USER: bilimfest
+      POSTGRES_PASSWORD: bilimfest
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    profiles: ["data"]
+
+  redis:
+    image: redis:7-alpine
+    container_name: bilimfest-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    profiles: ["data"]
+
+volumes:
+  postgres_data:
+  redis_data:

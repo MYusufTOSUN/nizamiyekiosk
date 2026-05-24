@@ -1,0 +1,51 @@
+app:
+  name: "bilimfest"
+  version: "1.0.0"
+  environment: "development"
+
+audio:
+  input:
+    device: "default"
+    sample_rate: 16000
+    channels: 1
+  output:
+    device: "default"
+    sample_rate: 24000
+    channels: 6
+
+# Phase 1: tüm provider'lar mock. Gerçek modeller Phase 2+ ile.
+stt:
+  provider: "mock"
+  config: {}
+
+llm:
+  provider: "mock"
+  config: {}
+  rag:
+    enabled: true
+    similarity_threshold: 0.85
+    store_path: "data/responses/vector_store"
+
+tts:
+  provider: "mock"
+  config: {}
+
+lipsync:
+  provider: "mock"
+  config: {}
+
+unreal_bridge:
+  provider: "mock"
+  udp_host: "127.0.0.1"
+  udp_port: 12345
+  tcp_host: "127.0.0.1"
+  tcp_port: 12346
+
+session:
+  max_duration_seconds: 180
+  silence_timeout_seconds: 15
+
+metrics:
+  prometheus_port: 9090
+  log_level: "INFO"
+  json_logs: true
