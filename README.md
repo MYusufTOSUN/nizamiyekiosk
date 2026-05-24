@@ -17,8 +17,8 @@ Tüm AI bileşenleri **abstraction layer** arkasında: lokal ↔ cloud geçişi 
 
 8 faz halinde geliştirilir — `prompts, readme and pipeline/` klasöründeki master prompt'lara bak.
 
-- **Phase 1 (şu an)** — İskelet + abstraction layer + mock provider'lar
-- Phase 2 — Whisper STT
+- Phase 1 — İskelet + abstraction layer + mock provider'lar (tamamlandı)
+- **Phase 2 (şu an)** — Whisper Large v3 lokal STT + VAD + canlı mikrofon
 - Phase 3 — Llama LLM + RAG hazır cevap havuzu
 - Phase 4 — XTTS ses klonu
 - Phase 5 — Audio2Face lip-sync
@@ -31,10 +31,29 @@ Tüm AI bileşenleri **abstraction layer** arkasında: lokal ↔ cloud geçişi 
 Gereksinim: Python 3.11+, [uv](https://github.com/astral-sh/uv) önerilir (yoksa pip).
 
 ```bash
-make install     # bağımlılıkları kur
+make install     # temel bağımlılıklar (Phase 1: mock pipeline)
 make test        # tüm testleri çalıştır
 make run         # geliştirme sunucusu (http://localhost:8000)
 ```
+
+### Phase 2 — Whisper STT (gerçek mikrofon)
+
+```bash
+# 1) PyTorch CUDA wheel + STT bağımlılıkları (~2 GB)
+make install-stt
+
+# 2) Whisper Large v3 modelini indir (~3 GB) → data/models/whisper
+make download-models
+
+# 3) PC mikrofon ile canlı test (8 sn konuş)
+make test-microphone
+
+# 4) Latency benchmark (fixture .wav dosyaları gerekir)
+make benchmark-stt
+```
+
+Config.yaml `stt.provider = "whisper_local"` ile gelir. Mock'a dönmek için
+`BFEST__STT__PROVIDER=mock` env değişkeni veya config.yaml düzenle.
 
 Smoke test:
 

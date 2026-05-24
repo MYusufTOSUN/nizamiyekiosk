@@ -1,7 +1,14 @@
-.PHONY: install dev test test-e2e test-integration lint format clean run run-prod tree
+.PHONY: install install-stt install-cuda dev test test-e2e test-integration lint format clean run run-prod tree download-models test-microphone
 
 install:
 	uv pip install -e ".[dev]" || pip install -e ".[dev]"
+
+install-stt: install-cuda
+	uv pip install -e ".[stt]" || pip install -e ".[stt]"
+
+install-cuda:
+	# PyTorch CUDA 12.1 wheel (cu121 → 4060/4070 GPU'larıyla uyumlu)
+	pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 dev: install
 
@@ -40,3 +47,12 @@ run-prod:
 
 tree:
 	tree src/ -I '__pycache__|*.pyc'
+
+download-models:
+	python scripts/download_models.py
+
+test-microphone:
+	python scripts/test_microphone.py
+
+benchmark-stt:
+	python scripts/benchmark_stt.py

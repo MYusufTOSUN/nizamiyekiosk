@@ -24,6 +24,17 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+stt = [
+    "faster-whisper>=1.0.3",
+    "silero-vad>=5.1.0",
+    "webrtcvad>=2.0.10",
+    "sounddevice>=0.5.0",
+    # PyTorch CUDA wheel kurulumu için bkz. README "Phase 2 / STT" bölümü:
+    #   pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+    # Buradaki "torch" satırı CPU fallback için; CUDA wheel yüklenirse override eder.
+    "torch>=2.4.0",
+    "torchaudio>=2.4.0",
+]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
@@ -68,4 +79,5 @@ markers = [
     "e2e: end-to-end tests",
     "integration: integration tests",
     "unit: unit tests",
+    "gpu: requires CUDA + faster-whisper",
 ]

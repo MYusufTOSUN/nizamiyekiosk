@@ -13,10 +13,28 @@ audio:
     sample_rate: 24000
     channels: 6
 
-# Phase 1: tüm provider'lar mock. Gerçek modeller Phase 2+ ile.
+# Phase 2 ile gerçek STT (Whisper). Diğer modüller hala mock.
+# Mock'a geri dönmek için: provider: "mock" + config: {}
 stt:
-  provider: "mock"
-  config: {}
+  provider: "whisper_local"
+  config:
+    model: "large-v3"
+    language: "tr"
+    device: "cuda"            # "cuda" varsa otomatik kullanır, yoksa "cpu" yap
+    compute_type: "int8_float16"   # 8 GB VRAM için en iyi denge
+    model_dir: "data/models/whisper"
+    cpu_threads: 4
+    num_workers: 1
+    sample_rate: 16000
+    beam_size: 5
+    best_of: 5
+    temperature: 0.0
+    vad_threshold: 0.5
+    min_speech_duration_ms: 250
+    min_silence_duration_ms: 800
+    max_segment_duration_seconds: 30
+    min_segment_duration_ms: 500
+    flush_on_stream_end: true
 
 llm:
   provider: "mock"
