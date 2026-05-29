@@ -6,7 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from src.tts.xtts_local import XTTSConfig, XTTSLocalTTS
+from src.tts.xtts_local import (
+    MAX_CHARS_PER_LANGUAGE,
+    XTTSConfig,
+    XTTSLocalTTS,
+    split_text_for_xtts,
+)
 
 
 def test_xtts_config_defaults() -> None:
@@ -57,3 +62,48 @@ def test_voice_refs_sorted(tmp_path: Path) -> None:
     refs = tts._scan_voice_refs()
     names = [Path(p).name for p in refs["x"]]
     assert names == ["ref_01.wav", "ref_02.wav", "ref_03.wav"]
+
+
+def test_split_short_text_returns_as_is() -> None:
+    text = "Aleyküm selam evladım."
+    assert split_text_for_xtts(text, "tr") == [text]
+
+
+def test_split_empty_text() -> None:
+    assert split_text_for_xtts("", "tr") == []
+    assert split_text_for_xtts("   ", "tr") == []
+
+
+def test_split_long_text_at_sentence_boundaries() -> None:
+    # Cezerî fil saati cevabı (304 char) — Türkçe limit 226
+    text = (
+        "Bismillah evladım, fil saati benim en güzel eserim. "
+        "Bir fil sırtında saat kulesi, içinde su tankı, dakikalar geçtikçe "
+        "küçük insanlar zil çalar, bir kuş öter. Su düzeyi belli bir noktaya "
+        "gelince mekanizma tetiklenir, hareket başlar. Modeli müzede sergileniyor. "
+        "Görmek ister misin?"
+    )
+    pieces = split_text_for_xtts(text, "tr")
+    assert len(pieces) >= 2
+    for p in pieces:
+        assert len(p) <= MAX_CHARS_PER_LANGUAGE["tr"]
+    # Hiçbir karakter kaybolmadı (boşluk + nokta hassaslığı)
+    reconstructed = " ".join(pieces)
+    # Orijinal metnin tüm kelimeleri parçalarda olmalı
+    for word in ["Bismillah", "evladım", "fil", "saati", "Görmek"]:
+        assert word in reconstructed
+
+
+def test_split_respects_custom_limit() -> None:
+    text = "Bir, iki, üç. Dört, beş, altı. Yedi sekiz dokuz."
+    pieces = split_text_for_xtts(text, "tr", max_chars=15)
+    for p in pieces:
+        assert len(p) <= 15
+
+
+def test_split_hard_cuts_long_unbroken_word() -> None:
+    text = "a" * 500
+    pieces = split_text_for_xtts(text, "tr")
+    assert len(pieces) >= 2
+    for p in pieces:
+        assert len(p) <= MAX_CHARS_PER_LANGUAGE["tr"]

@@ -13,6 +13,9 @@ lipsync ve hoparlör çıkışına aynı formatta gider.
 from __future__ import annotations
 
 import asyncio
+import os
+import re
+import sys
 import time
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -33,6 +36,61 @@ _log = get_logger(component="tts.xtts")
 XTTS_NATIVE_SR = 24000  # XTTS v2 24 kHz çıkış üretir
 OUTPUT_CHUNK_SAMPLES = 480  # 20 ms @ 24 kHz — pipeline std.
 DEFAULT_BUILTIN_SPEAKER = "Damien Black"  # XTTS v2 dahili erkek ses (geliştirme için)
+
+# XTTS v2 dil bazlı maksimum karakter sınırı (TTS paketi içinden):
+# Türkçe için 226, İngilizce 250. Bunu aşan metin truncate olur veya patlar.
+MAX_CHARS_PER_LANGUAGE: dict[str, int] = {
+    "tr": 226, "en": 250, "es": 239, "fr": 273, "de": 253,
+    "it": 213, "pt": 203, "pl": 224, "ru": 182, "nl": 251,
+    "cs": 186, "ar": 166, "zh-cn": 82, "ja": 71, "hu": 224,
+    "ko": 95, "hi": 250,
+}
+
+
+def split_text_for_xtts(text: str, language: str = "tr", max_chars: int | None = None) -> list[str]:
+    """Uzun metni XTTS limitine sığacak parçalara böl.
+
+    Önce nokta/soru/ünlem'de, sonra virgülde böler. Limit altında kalan
+    parçaları birleştirir. Algoritma deterministik.
+    """
+    limit = max_chars or MAX_CHARS_PER_LANGUAGE.get(language, 200)
+    text = text.strip()
+    if len(text) <= limit:
+        return [text] if text else []
+
+    # Cümle sınırlarında böl
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?…])\s+", text) if s.strip()]
+    chunks: list[str] = []
+    buf = ""
+    for sent in sentences:
+        if len(sent) > limit:
+            # Cümle bile limitten uzunsa virgülde böl
+            sub = [p.strip() for p in re.split(r"(?<=[,;:])\s+", sent) if p.strip()]
+            for piece in sub:
+                if len(buf) + len(piece) + 1 <= limit:
+                    buf = (buf + " " + piece).strip()
+                else:
+                    if buf:
+                        chunks.append(buf)
+                    if len(piece) > limit:
+                        # Hala uzunsa karakter düzeyinde kes (son çare)
+                        chunks.extend(_hard_split(piece, limit))
+                        buf = ""
+                    else:
+                        buf = piece
+        elif len(buf) + len(sent) + 1 <= limit:
+            buf = (buf + " " + sent).strip()
+        else:
+            if buf:
+                chunks.append(buf)
+            buf = sent
+    if buf:
+        chunks.append(buf)
+    return chunks
+
+
+def _hard_split(text: str, limit: int) -> list[str]:
+    return [text[i : i + limit] for i in range(0, len(text), limit)]
 
 
 class XTTSConfig(BaseModel):
@@ -82,6 +140,9 @@ class XTTSLocalTTS(TTSProvider):
         return self._model
 
     def _load_sync(self) -> Any:
+        # Windows: torch CUDA wheel'deki cuDNN/cuBLAS DLL'lerini DLL search'e ekle
+        # (XTTS sistem CUDA toolkit yoksa cudnnGetLibConfig'i bulamaz)
+        self._inject_torch_cuda_dll_dir()
         device = self._effective_device()
 
         # Yerel klasör varsa Coqui auto-download'a hiç başvurma — daha hızlı,
@@ -108,6 +169,23 @@ class XTTSLocalTTS(TTSProvider):
             return tts
         except Exception as exc:  # noqa: BLE001
             raise TTSError("TTS_001", f"XTTS yüklenemedi: {exc}", cause=exc) from exc
+
+    @staticmethod
+    def _inject_torch_cuda_dll_dir() -> None:
+        """Windows: torch'un bundle ettiği CUDA/cuDNN DLL'lerini DLL search'e ekle."""
+        if not sys.platform.startswith("win"):
+            return
+        if hasattr(os, "add_dll_directory"):
+            try:
+                import torch
+
+                torch_lib = Path(torch.__file__).resolve().parent / "lib"
+                if torch_lib.exists():
+                    os.add_dll_directory(str(torch_lib))
+            except ImportError:
+                pass
+            except (OSError, FileNotFoundError):
+                pass
 
     def _effective_device(self) -> str:
         device = self.config.device
@@ -179,6 +257,11 @@ class XTTSLocalTTS(TTSProvider):
         if not text.strip():
             return
 
+        # XTTS dil limitini aşan metni cümle sınırlarında parçala
+        pieces = split_text_for_xtts(text, language=self.config.language)
+        if not pieces:
+            return
+
         start = time.perf_counter()
         first_chunk_logged = False
 
@@ -191,36 +274,39 @@ class XTTSLocalTTS(TTSProvider):
         def producer() -> None:
             try:
                 assert self._model is not None
-                # XTTS streaming API: bazı sürümler tts.tts'i destekler, bazıları
-                # synthesizer.tts_model.inference_stream. En sağlam: tts.tts() sync,
-                # sonra biz chunk'lara böleriz.
-                kwargs: dict[str, Any] = {
-                    "text": text,
-                    "language": self.config.language,
-                    "speed": speed,
-                }
-                if speaker_wav:
-                    kwargs["speaker_wav"] = speaker_wav
-                elif builtin_speaker:
-                    kwargs["speaker"] = builtin_speaker
-
-                # tts.tts() float32 numpy döner
-                audio = self._model.tts(**kwargs)
-                # Numpy array'e çevir, normalize et
-                arr = np.asarray(audio, dtype=np.float32)
-                if arr.ndim > 1:
-                    arr = arr.mean(axis=1)
-                # XTTS varsayılan 24 kHz'de döner; başka SR ise resample
-                model_sr = getattr(self._model.synthesizer, "output_sample_rate", XTTS_NATIVE_SR)
-                if model_sr != XTTS_NATIVE_SR:
-                    arr = resample(arr, model_sr, XTTS_NATIVE_SR)
-
-                # Chunk'lara böl + PCM 16-bit'e çevir
                 cs = self.config.output_chunk_samples
-                for i in range(0, arr.size, cs):
-                    chunk = arr[i : i + cs]
-                    asyncio.run_coroutine_threadsafe(
-                        queue.put(numpy_to_pcm_bytes(chunk)), loop
+
+                for idx, piece in enumerate(pieces):
+                    kwargs: dict[str, Any] = {
+                        "text": piece,
+                        "language": self.config.language,
+                        "speed": speed,
+                    }
+                    if speaker_wav:
+                        kwargs["speaker_wav"] = speaker_wav
+                    elif builtin_speaker:
+                        kwargs["speaker"] = builtin_speaker
+
+                    audio = self._model.tts(**kwargs)
+                    arr = np.asarray(audio, dtype=np.float32)
+                    if arr.ndim > 1:
+                        arr = arr.mean(axis=1)
+                    model_sr = getattr(
+                        self._model.synthesizer, "output_sample_rate", XTTS_NATIVE_SR
+                    )
+                    if model_sr != XTTS_NATIVE_SR:
+                        arr = resample(arr, model_sr, XTTS_NATIVE_SR)
+
+                    for i in range(0, arr.size, cs):
+                        chunk = arr[i : i + cs]
+                        asyncio.run_coroutine_threadsafe(
+                            queue.put(numpy_to_pcm_bytes(chunk)), loop
+                        )
+                    _log.debug(
+                        "tts_piece_done",
+                        idx=idx + 1,
+                        of=len(pieces),
+                        chars=len(piece),
                     )
             except Exception as exc:  # noqa: BLE001
                 err = TTSError("TTS_001", f"XTTS sentez hatası: {exc}", cause=exc)
@@ -245,12 +331,13 @@ class XTTSLocalTTS(TTSProvider):
                         first_chunk_ms=first_chunk_ms,
                         voice_id=voice_id,
                         cloned=bool(speaker_wav),
+                        pieces=len(pieces),
                     )
                     first_chunk_logged = True
                 yield item
         finally:
             total_ms = int((time.perf_counter() - start) * 1000)
-            _log.info("tts_complete", total_ms=total_ms, voice_id=voice_id)
+            _log.info("tts_complete", total_ms=total_ms, voice_id=voice_id, pieces=len(pieces))
             await producer_task
 
     async def close(self) -> None:

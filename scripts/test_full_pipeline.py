@@ -18,6 +18,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from src.core.config import get_config
+from src.core.interfaces import SessionState
 from src.core.logger import configure_logging, get_logger
 from src.intent.detector import KeywordIntentDetector
 from src.llm.llama_local import LlamaConfig, LlamaLocalLLM
@@ -47,19 +48,22 @@ async def main(seconds: float, device: str | int | None) -> int:
         print("HATA: cezeri persona yok.")
         return 1
 
-    print("STT, LLM, RAG, TTS yukleniyor (~30s)...")
-    stt = WhisperLocalSTT(WhisperConfig(**cfg.stt.config, flush_on_stream_end=True))
-    llm = LlamaLocalLLM(LlamaConfig(**cfg.llm.config))
+    # 8 GB VRAM'a Whisper + Llama + e5 + XTTS aynı anda sığmıyor.
+    # Sıralı yükleme/boşaltma stratejisi:
+    #   1. Whisper + e5 yüklü kalır (toplam ~3.5 GB)
+    #   2. LLM gerekliyse yükle, üret, boşalt (~5 GB)
+    #   3. TTS yükle, sentezle (~2 GB)
+    print("Whisper + RAG embedding yukleniyor...")
+    stt_kwargs = {**cfg.stt.config}
+    stt_kwargs.setdefault("flush_on_stream_end", True)
+    stt = WhisperLocalSTT(WhisperConfig(**stt_kwargs))
     rag = ChromaRAGStore({"store_path": cfg.llm.rag.store_path})
-    tts = XTTSLocalTTS(XTTSConfig(**cfg.tts.config))
     detector = KeywordIntentDetector()
 
     t0 = time.perf_counter()
     await stt._ensure_model()
-    await llm._ensure_model()
     await rag._ensure_ready()
-    await tts._ensure_model()
-    print(f"Tum modeller hazir ({int(time.perf_counter()-t0)}s).")
+    print(f"Hazir ({int(time.perf_counter()-t0)}s).")
 
     # ----- 1) Mikrofondan kaydet -----
     audio_q: queue.Queue[bytes | None] = queue.Queue()
@@ -105,7 +109,7 @@ async def main(seconds: float, device: str | int | None) -> int:
         return 0
 
     # ----- 2) Intent -----
-    intent = await detector.detect(text, current_state=cfg.session.silence_timeout_seconds)  # any state, sadece keyword
+    intent = await detector.detect(text, current_state=SessionState.LISTENING)
     print(f"[INTENT] {intent.type} target={intent.target}")
 
     # ----- 3) RAG -----
@@ -124,6 +128,9 @@ async def main(seconds: float, device: str | int | None) -> int:
 
     # ----- 4) LLM (RAG miss) -----
     if not response:
+        print("[LLM yukleniyor...]")
+        llm = LlamaLocalLLM(LlamaConfig(**cfg.llm.config))
+        await llm._ensure_model()
         llm_start = time.perf_counter()
         chunks = []
         first_ms = None
@@ -134,10 +141,17 @@ async def main(seconds: float, device: str | int | None) -> int:
         response = "".join(chunks).strip()
         llm_ms = int((time.perf_counter() - llm_start) * 1000)
         print(f"[LLM ttfb={first_ms}ms total={llm_ms}ms] {len(response)} chars")
+        # VRAM bosalt — TTS gelecek
+        await llm.close()
+        del llm
+        _release_gpu()
 
     print(f"\n[Cezeri]: {response}\n")
 
-    # ----- 5) TTS + oynat -----
+    # ----- 5) TTS yukle + sentez + oynat -----
+    print("[TTS yukleniyor...]")
+    tts = XTTSLocalTTS(XTTSConfig(**cfg.tts.config))
+    await tts._ensure_model()
     print("[TTS sentez...]")
     tts_start = time.perf_counter()
     pcm_buffer = bytearray()
@@ -162,6 +176,21 @@ async def main(seconds: float, device: str | int | None) -> int:
 async def _stop_after(seconds: float, q: queue.Queue[bytes | None]) -> None:
     await asyncio.sleep(seconds)
     q.put(None)
+
+
+def _release_gpu() -> None:
+    """Sıralı yükleme için VRAM serbest bırak."""
+    import gc
+
+    gc.collect()
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 if __name__ == "__main__":
