@@ -222,7 +222,7 @@ class XTTSLocalTTS(TTSProvider):
             )
             if device == "cuda":
                 model.cuda()
-            return _LocalXttsWrapper(model, config)
+            return _LocalXttsWrapper(model, config, device=device)
         except Exception as exc:  # noqa: BLE001
             raise TTSError("TTS_001", f"XTTS local yüklenemedi: {exc}", cause=exc) from exc
 
@@ -351,14 +351,19 @@ class _LocalXttsWrapper:
     XTTSLocalTTS._load_from_local() raw Xtts modelini yükler, bunu
     ``model.tts(text, language, speaker, speaker_wav, speed)`` API'sine
     bağlar; ``synthesize_stream`` aynı kodla iki yükleme tarzıyla da çalışır.
+
+    cuDNN konflikti CUDA inference'i patlatırsa otomatik olarak CPU'ya
+    düşer; sonraki çağrılar CPU'da çalışır.
     """
 
-    def __init__(self, model: Any, config: Any) -> None:
+    def __init__(self, model: Any, config: Any, device: str = "cuda") -> None:
         self.model = model
         self.config = config
+        self.device = device
         self.synthesizer = type(
             "_Syn", (), {"output_sample_rate": int(getattr(config, "output_sample_rate", 24000))}
         )()
+        self._fallback_done = False
 
     def tts(
         self,
@@ -387,13 +392,52 @@ class _LocalXttsWrapper:
             gpt_cond_latent = entry["gpt_cond_latent"]
             speaker_embedding = entry["speaker_embedding"]
 
-        out = self.model.inference(
-            text=text,
-            language=language,
-            gpt_cond_latent=gpt_cond_latent,
-            speaker_embedding=speaker_embedding,
-            speed=speed,
-        )
+        try:
+            out = self.model.inference(
+                text=text,
+                language=language,
+                gpt_cond_latent=gpt_cond_latent,
+                speaker_embedding=speaker_embedding,
+                speed=speed,
+            )
+        except RuntimeError as exc:
+            msg = str(exc).lower()
+            if (
+                self.device == "cuda"
+                and not self._fallback_done
+                and (
+                    "cudnn" in msg
+                    or "cublas" in msg
+                    or "cuda" in msg
+                    or "out of memory" in msg
+                )
+            ):
+                _log.warning(
+                    "xtts_cuda_fallback_cpu",
+                    error=str(exc)[:120],
+                    hint="cuDNN/cuBLAS konflikti — XTTS CPU'ya düşürülüyor",
+                )
+                self.model.cpu()
+                self.device = "cpu"
+                self._fallback_done = True
+                # Tek seferlik yeniden dene
+                if speaker_wav is not None:
+                    # GPU'da hesaplanan latentleri CPU'ya taşı
+                    gpt_cond_latent = gpt_cond_latent.cpu()
+                    speaker_embedding = speaker_embedding.cpu()
+                else:
+                    entry = speakers_dict[speaker]
+                    gpt_cond_latent = entry["gpt_cond_latent"].cpu()
+                    speaker_embedding = entry["speaker_embedding"].cpu()
+                out = self.model.inference(
+                    text=text,
+                    language=language,
+                    gpt_cond_latent=gpt_cond_latent,
+                    speaker_embedding=speaker_embedding,
+                    speed=speed,
+                )
+            else:
+                raise
         return out["wav"]
 
 

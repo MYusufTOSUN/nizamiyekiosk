@@ -149,8 +149,11 @@ async def main(seconds: float, device: str | int | None) -> int:
     print(f"\n[Cezeri]: {response}\n")
 
     # ----- 5) TTS yukle + sentez + oynat -----
-    print("[TTS yukleniyor...]")
-    tts = XTTSLocalTTS(XTTSConfig(**cfg.tts.config))
+    # Whisper (CTranslate2) önce cuDNN'i yükler; XTTS torch cuDNN ile çakışıyor.
+    # Sergi makinesinde tek model olunca config'teki "cuda" çalışır, burada CPU.
+    print("[TTS yukleniyor (CPU — cuDNN konflikti)...]")
+    tts_cfg = {**cfg.tts.config, "device": "cpu"}
+    tts = XTTSLocalTTS(XTTSConfig(**tts_cfg))
     await tts._ensure_model()
     print("[TTS sentez...]")
     tts_start = time.perf_counter()

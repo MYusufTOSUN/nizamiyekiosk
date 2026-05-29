@@ -67,6 +67,9 @@ tts:
     model_path: "data/models/xtts_v2"
     model_name: "tts_models/multilingual/multi-dataset/xtts_v2"
     voices_dir: "data/voices"
+    # XTTS tek başına CUDA'da hızlı (RTF 0.8). Ama Whisper+CTranslate2 önce
+    # yüklenirse cuDNN sürüm konflikti çıkar; pipeline script'i bu durumda
+    # device'ı CPU'ya zorlar. Sergi makinesinde tek model olduğu için "cuda" kal.
     device: "cuda"
     language: "tr"
     builtin_speaker: "Damien Black"   # ses klonu yokken default erkek ses
