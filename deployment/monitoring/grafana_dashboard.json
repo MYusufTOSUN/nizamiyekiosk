@@ -1,0 +1,56 @@
+{
+  "title": "BilimFest Sergi",
+  "uid": "bilimfest",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Aktif state",
+      "targets": [{"expr": "bilimfest_current_state"}]
+    },
+    {
+      "type": "graph",
+      "title": "Uçtan uca gecikme (ms) — P50/P95/P99",
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum(rate(bilimfest_end_to_end_latency_ms_bucket[1m])) by (le))", "legendFormat": "P50"},
+        {"expr": "histogram_quantile(0.95, sum(rate(bilimfest_end_to_end_latency_ms_bucket[1m])) by (le))", "legendFormat": "P95"},
+        {"expr": "histogram_quantile(0.99, sum(rate(bilimfest_end_to_end_latency_ms_bucket[1m])) by (le))", "legendFormat": "P99"}
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "STT / LLM / TTS gecikme",
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum(rate(bilimfest_stt_latency_ms_bucket[1m])) by (le))", "legendFormat": "STT P95"},
+        {"expr": "histogram_quantile(0.95, sum(rate(bilimfest_llm_latency_ms_bucket[1m])) by (le, source))", "legendFormat": "LLM P95 ({{source}})"},
+        {"expr": "histogram_quantile(0.95, sum(rate(bilimfest_tts_latency_ms_bucket[1m])) by (le))", "legendFormat": "TTS P95"}
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Toplam oturum",
+      "targets": [{"expr": "sum(bilimfest_sessions_total)"}]
+    },
+    {
+      "type": "graph",
+      "title": "RAG vs LLM dağılımı",
+      "targets": [
+        {"expr": "sum(rate(bilimfest_turns_total[5m])) by (source)", "legendFormat": "{{source}}"}
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Hata sayısı (bileşen)",
+      "targets": [
+        {"expr": "sum(rate(bilimfest_errors_total[5m])) by (component, error_type)", "legendFormat": "{{component}} / {{error_type}}"}
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "GPU VRAM (MB)",
+      "targets": [
+        {"expr": "bilimfest_gpu_vram_usage_mb", "legendFormat": "{{component}}"}
+      ]
+    }
+  ],
+  "schemaVersion": 41
+}

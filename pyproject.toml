@@ -46,6 +46,14 @@ llm = [
     "chromadb>=0.5.0",
     "tiktoken>=0.8.0",
     "huggingface-hub>=0.24.0",
+    "sentencepiece>=0.2.0",
+    "protobuf>=4.0.0",
+]
+tts = [
+    # Coqui TTS — XTTS v2 multi-lingual TTS + ses klonlama.
+    # Windows: torch>=2.0 + CUDA wheel zaten Phase 2'den kurulu.
+    "TTS>=0.22.0",
+    "pydub>=0.25.0",
 ]
 dev = [
     "pytest>=8.3.0",

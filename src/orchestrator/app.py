@@ -28,6 +28,7 @@ from src.orchestrator.pipeline import ConversationPipeline
 from src.orchestrator.routes import router
 from src.orchestrator.session import SessionStore
 from src.orchestrator.state_machine import StateMachine
+from src.orchestrator.watchdog import session_watchdog
 
 _log = get_logger(component="orchestrator.app")
 
@@ -44,7 +45,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     providers = ProviderFactory.build_all(config)
     app.state.config = config
     app.state.providers = providers
-    app.state.sessions = SessionStore()
+    app.state.sessions = SessionStore(
+        max_duration_seconds=config.session.max_duration_seconds,
+    )
     app.state.state_machines = {}
     app.state.event_listeners: list[asyncio.Queue[SessionEvent]] = []
     app.state.pipeline = ConversationPipeline(
@@ -67,9 +70,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
     )
 
+    # Session watchdog — süre limitini aşan oturumu kapatır
+    watchdog_task = asyncio.create_task(
+        session_watchdog(
+            sessions=app.state.sessions,
+            state_machines=app.state.state_machines,
+        )
+    )
+
     yield
 
     _log.info("shutdown")
+    watchdog_task.cancel()
+    try:
+        await watchdog_task
+    except (asyncio.CancelledError, Exception):  # noqa: BLE001
+        pass
     for provider in providers.values():
         close = getattr(provider, "close", None)
         if close is not None:

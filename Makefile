@@ -14,8 +14,14 @@ install-llm: install-llm-cuda
 	uv pip install -e ".[llm]" || pip install -e ".[llm]"
 
 install-llm-cuda:
-	# llama-cpp-python prebuilt CUDA wheel (abetlen hosts wheels for cu121)
-	pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
+	# llama-cpp-python CUDA-linked binary wheel (--index-url, --no-deps to avoid backtrack):
+	pip install llama-cpp-python==0.2.88 --index-url https://abetlen.github.io/llama-cpp-python/whl/cu121 --no-cache-dir --no-deps
+
+install-tts:
+	uv pip install -e ".[tts]" || pip install -e ".[tts]"
+
+test-tts:
+	python scripts/test_tts.py "Aleyküm selam evladım, ben El-Cezerî" --play
 
 dev: install
 

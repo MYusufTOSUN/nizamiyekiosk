@@ -1,0 +1,33 @@
+[Unit]
+Description=BilimFest Sergi Sistemi
+After=network.target
+
+[Service]
+Type=simple
+User=festival
+Group=festival
+WorkingDirectory=/opt/bilimfest
+Environment="PATH=/opt/bilimfest/.venv/bin"
+Environment="PYTHONUNBUFFERED=1"
+Environment="BFEST__APP__ENVIRONMENT=production"
+
+# Sergi sırasında /var/log/bilimfest/* doluyor; journald'ye de düşür.
+StandardOutput=append:/var/log/bilimfest/orchestrator.log
+StandardError=append:/var/log/bilimfest/orchestrator.err.log
+
+ExecStart=/opt/bilimfest/.venv/bin/uvicorn src.orchestrator.app:app --host 0.0.0.0 --port 8000 --workers 1
+
+# Crash → otomatik restart, ama 10 sn aralık (model yükleme süresine yetsin)
+Restart=always
+RestartSec=10
+
+# 28 saat kesintisiz festival için memory leak korunması
+MemoryHigh=12G
+MemoryMax=14G
+
+# Olası hung process koruması
+TimeoutStartSec=120
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

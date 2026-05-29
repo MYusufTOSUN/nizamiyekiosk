@@ -90,9 +90,9 @@ class ProviderFactory:
 
             return MockTTS()
         if cfg.provider == "xtts_local":
-            from src.tts.xtts_local import XTTSLocal  # type: ignore[import-not-found]
+            from src.tts.xtts_local import XTTSLocalTTS
 
-            return XTTSLocal(cfg.config)
+            return XTTSLocalTTS(cfg.config)
         if cfg.provider == "elevenlabs_cloud":
             from src.tts.elevenlabs_cloud import ElevenLabsCloudTTS  # type: ignore[import-not-found]
 
@@ -108,7 +108,7 @@ class ProviderFactory:
 
             return MockLipSync()
         if cfg.provider == "audio2face":
-            from src.lipsync.audio2face import Audio2FaceLipSync  # type: ignore[import-not-found]
+            from src.lipsync.audio2face import Audio2FaceLipSync
 
             return Audio2FaceLipSync(cfg.config)
         raise ConfigError("CFG_002", f"Bilinmeyen LipSync provider: {cfg.provider}")
