@@ -194,10 +194,28 @@ async def run_turn(
     total_ms = int((time.perf_counter() - turn_start) * 1000)
     print(f"\n  >>> TUR TOPLAM: {total_ms}ms (konusmadan sese)")
 
+    # VRAM fragmantasyonunu önle — sonraki tur temiz başlasın
+    _empty_gpu_cache()
+
 
 async def _stop_after(seconds: float, q: queue.Queue[bytes | None]) -> None:
     await asyncio.sleep(seconds)
     q.put(None)
+
+
+def _empty_gpu_cache() -> None:
+    """Her tur sonunda CUDA fragmantasyonunu önle (8 GB VRAM laptop için kritik)."""
+    import gc
+
+    gc.collect()
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 async def main(seconds: float, device: str | int | None) -> int:
