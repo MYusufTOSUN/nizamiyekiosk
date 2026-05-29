@@ -10,6 +10,13 @@ install-cuda:
 	# PyTorch CUDA 12.1 wheel (cu121 → 4060/4070 GPU'larıyla uyumlu)
 	pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
 
+install-llm: install-llm-cuda
+	uv pip install -e ".[llm]" || pip install -e ".[llm]"
+
+install-llm-cuda:
+	# llama-cpp-python prebuilt CUDA wheel (abetlen hosts wheels for cu121)
+	pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
+
 dev: install
 
 test:
@@ -56,3 +63,9 @@ test-microphone:
 
 benchmark-stt:
 	python scripts/benchmark_stt.py
+
+build-rag:
+	python scripts/build_rag_store.py --reset
+
+test-llm:
+	python scripts/test_llm.py

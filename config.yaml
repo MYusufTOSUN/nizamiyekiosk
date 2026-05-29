@@ -39,11 +39,24 @@ stt:
     flush_on_stream_end: true
 
 llm:
-  provider: "mock"
-  config: {}
+  provider: "llama_local"
+  config:
+    model_path: "data/models/llama/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+    n_gpu_layers: -1            # tüm katmanlar GPU'ya (8B Q4 ~5 GB)
+    n_ctx: 4096
+    n_batch: 512
+    n_threads: 4
+    use_mmap: true
+    use_mlock: false
+    verbose: false
+    max_tokens: 220
+    temperature: 0.6
+    top_p: 0.9
+    top_k: 40
+    repeat_penalty: 1.15
   rag:
     enabled: true
-    similarity_threshold: 0.85
+    similarity_threshold: 0.85   # 0.85+ → kesin topic match; 0.65-0.85 false-positive (X nasıl yapılır ↔ X nasıl çalışır)
     store_path: "data/responses/vector_store"
 
 tts:

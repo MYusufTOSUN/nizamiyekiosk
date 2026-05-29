@@ -35,6 +35,18 @@ stt = [
     "torch>=2.4.0",
     "torchaudio>=2.4.0",
 ]
+llm = [
+    # llama-cpp-python CUDA wheel: README "Phase 3 / LLM" bölümüne bak.
+    # Windows için en kolay: prebuilt CUDA wheel
+    #   pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
+    "llama-cpp-python>=0.3.0",
+    # transformers <4.47 — 4.47+ torch 2.6 (AuxRequest) ister, bizde 2.5.1+cu121 var.
+    "transformers>=4.40.0,<4.47.0",
+    "sentence-transformers>=3.0.0,<3.4.0",
+    "chromadb>=0.5.0",
+    "tiktoken>=0.8.0",
+    "huggingface-hub>=0.24.0",
+]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",

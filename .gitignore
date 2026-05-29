@@ -68,8 +68,7 @@ data/responses/vector_store/
 src/tts/voices/*.wav
 src/tts/voices/*.mp3
 !src/tts/voices/.gitkeep
-src/llm/responses/*.json
-!src/llm/responses/.gitkeep
+# NOT: src/llm/responses/*.json kaynak veri — track edilir.
 
 # Logs
 *.log

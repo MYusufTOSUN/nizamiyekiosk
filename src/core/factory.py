@@ -76,10 +76,10 @@ class ProviderFactory:
             from src.llm.rag_mock import MockRAGStore
 
             return MockRAGStore()
-        # Gerçek RAG store Phase 3'te gelecek.
-        from src.llm.rag_mock import MockRAGStore
+        # Phase 3+ gerçek RAG: ChromaDB + multilingual embedding.
+        from src.llm.rag_store import ChromaRAGStore
 
-        return MockRAGStore()
+        return ChromaRAGStore({"store_path": cfg.rag.store_path})
 
     # --- TTS ---------------------------------------------------------------
 
