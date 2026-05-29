@@ -62,6 +62,9 @@ llm:
 tts:
   provider: "xtts_local"
   config:
+    # Yerel snapshot — config.json + model.pth + vocab.json bekler.
+    # Boş bırakırsan Coqui gateway'inden otomatik indirir (yavaş/güvenilmez).
+    model_path: "data/models/xtts_v2"
     model_name: "tts_models/multilingual/multi-dataset/xtts_v2"
     voices_dir: "data/voices"
     device: "cuda"

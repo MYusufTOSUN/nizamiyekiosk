@@ -38,6 +38,10 @@ DEFAULT_BUILTIN_SPEAKER = "Damien Black"  # XTTS v2 dahili erkek ses (geliştirm
 class XTTSConfig(BaseModel):
     """XTTS v2 ayarları."""
 
+    # Yerel snapshot klasörü (config.json + model.pth + vocab.json bekler).
+    # Boş bırakırsan TTS paketi Coqui gateway'inden indirir (yavaş/güvenilmez).
+    model_path: str = "data/models/xtts_v2"
+    # TTS paketi auto-download için kullanılan ad (fallback).
     model_name: str = "tts_models/multilingual/multi-dataset/xtts_v2"
     voices_dir: str = "data/voices"
     device: str = "cuda"            # "cuda" varsa, yoksa "cpu"
@@ -78,6 +82,17 @@ class XTTSLocalTTS(TTSProvider):
         return self._model
 
     def _load_sync(self) -> Any:
+        device = self._effective_device()
+
+        # Yerel klasör varsa Coqui auto-download'a hiç başvurma — daha hızlı,
+        # internet kesintisinde çalışır.
+        local_dir = Path(self.config.model_path) if self.config.model_path else None
+        if local_dir and (local_dir / "config.json").exists() and (
+            local_dir / "model.pth"
+        ).exists():
+            return self._load_from_local(local_dir, device)
+
+        # Fallback: TTS.api auto-download (Coqui gateway)
         try:
             from TTS.api import TTS  # type: ignore[import-not-found]
         except ImportError as exc:
@@ -86,7 +101,15 @@ class XTTSLocalTTS(TTSProvider):
                 "Coqui TTS kurulu değil. `pip install -e .[tts]`",
                 cause=exc,
             ) from exc
+        _log.info("loading_xtts_auto", model=self.config.model_name, device=device)
+        try:
+            tts = TTS(model_name=self.config.model_name, progress_bar=False)
+            tts.to(device)
+            return tts
+        except Exception as exc:  # noqa: BLE001
+            raise TTSError("TTS_001", f"XTTS yüklenemedi: {exc}", cause=exc) from exc
 
+    def _effective_device(self) -> str:
         device = self.config.device
         try:
             import torch  # type: ignore[import-not-found]
@@ -95,14 +118,35 @@ class XTTSLocalTTS(TTSProvider):
                 device = "cpu"
         except ImportError:
             device = "cpu"
+        return device
 
-        _log.info("loading_xtts", model=self.config.model_name, device=device)
+    def _load_from_local(self, model_dir: Path, device: str) -> Any:
+        """Local snapshot'tan doğrudan Xtts modelini yükle (auto-download yok)."""
         try:
-            tts = TTS(model_name=self.config.model_name, progress_bar=False)
-            tts.to(device)
-            return tts
+            from TTS.tts.configs.xtts_config import XttsConfig  # type: ignore[import-not-found]
+            from TTS.tts.models.xtts import Xtts  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise TTSError(
+                "TTS_001",
+                "Coqui TTS kurulu değil. `pip install -e .[tts]`",
+                cause=exc,
+            ) from exc
+
+        _log.info("loading_xtts_local", model_dir=str(model_dir), device=device)
+        try:
+            config = XttsConfig()
+            config.load_json(str(model_dir / "config.json"))
+            model = Xtts.init_from_config(config)
+            model.load_checkpoint(
+                config,
+                checkpoint_dir=str(model_dir),
+                use_deepspeed=False,
+            )
+            if device == "cuda":
+                model.cuda()
+            return _LocalXttsWrapper(model, config)
         except Exception as exc:  # noqa: BLE001
-            raise TTSError("TTS_001", f"XTTS yüklenemedi: {exc}", cause=exc) from exc
+            raise TTSError("TTS_001", f"XTTS local yüklenemedi: {exc}", cause=exc) from exc
 
     def _scan_voice_refs(self) -> dict[str, list[str]]:
         refs: dict[str, list[str]] = {}
@@ -212,6 +256,58 @@ class XTTSLocalTTS(TTSProvider):
     async def close(self) -> None:
         self._model = None
         self._voice_refs.clear()
+
+
+class _LocalXttsWrapper:
+    """TTS.api.TTS arayüzünü taklit eden hafif wrapper.
+
+    XTTSLocalTTS._load_from_local() raw Xtts modelini yükler, bunu
+    ``model.tts(text, language, speaker, speaker_wav, speed)`` API'sine
+    bağlar; ``synthesize_stream`` aynı kodla iki yükleme tarzıyla da çalışır.
+    """
+
+    def __init__(self, model: Any, config: Any) -> None:
+        self.model = model
+        self.config = config
+        self.synthesizer = type(
+            "_Syn", (), {"output_sample_rate": int(getattr(config, "output_sample_rate", 24000))}
+        )()
+
+    def tts(
+        self,
+        text: str,
+        language: str = "tr",
+        speaker_wav: Any = None,
+        speaker: str | None = None,
+        speed: float = 1.0,
+    ) -> Any:
+        if speaker_wav is not None:
+            wavs = speaker_wav if isinstance(speaker_wav, list) else [speaker_wav]
+            gpt_cond_latent, speaker_embedding = self.model.get_conditioning_latents(
+                audio_path=wavs
+            )
+        else:
+            speakers = getattr(self.model, "speaker_manager", None)
+            speakers_dict = getattr(speakers, "speakers", {}) if speakers else {}
+            if speaker not in speakers_dict and speakers_dict:
+                speaker = next(iter(speakers_dict.keys()))
+            if not speakers_dict:
+                raise TTSError(
+                    "TTS_002",
+                    "Yerel XTTS modelinde dahili speaker yok; speaker_wav vermelisin",
+                )
+            entry = speakers_dict[speaker]
+            gpt_cond_latent = entry["gpt_cond_latent"]
+            speaker_embedding = entry["speaker_embedding"]
+
+        out = self.model.inference(
+            text=text,
+            language=language,
+            gpt_cond_latent=gpt_cond_latent,
+            speaker_embedding=speaker_embedding,
+            speed=speed,
+        )
+        return out["wav"]
 
 
 __all__ = ["XTTSLocalTTS", "XTTSConfig", "XTTS_NATIVE_SR"]
