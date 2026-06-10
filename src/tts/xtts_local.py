@@ -275,6 +275,12 @@ class XTTSLocalTTS(TTSProvider):
         if not text.strip():
             return
 
+        # Türkçe için sayı/kısaltma normalize: "12. yüzyıl" → "on iki yüzyıl"
+        if self.config.language == "tr":
+            from src.tts.text_normalize import normalize_for_tts
+
+            text = normalize_for_tts(text)
+
         # B4: Disk audio cache — RAG hit'ler aynı cevabı üretir, ikinci kullanıcıya
         # XTTS'i hiç çağırma, disk'ten chunk'la stream et.
         cache_path = self._cache_path(text, voice_id, speed)

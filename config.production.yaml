@@ -1,0 +1,104 @@
+# BilimFest — sergi makinesi (RTX 4090 / 4080 / 4070 Ti Super, 16+ GB VRAM)
+# Bu config aceasync.local.yaml kapatılması durumunda main config olarak kullanılır.
+# Yükleme:  BFEST_CONFIG=config.production.yaml uvicorn ...
+#
+# Laptop (8 GB VRAM) için config.yaml; sergi makinesinde bu dosya.
+
+app:
+  name: "bilimfest"
+  version: "1.0.0"
+  environment: "production"
+
+audio:
+  input:
+    device: "default"      # sergi makinesinde Shure MV5 ID'sini ata
+    sample_rate: 16000
+    channels: 1
+  output:
+    device: "default"      # 5.1 Genelec surround
+    sample_rate: 24000
+    channels: 6
+
+stt:
+  provider: "whisper_local"
+  config:
+    model: "data/models/whisper/faster-whisper-large-v3"
+    language: "tr"
+    device: "cuda"
+    compute_type: "int8_float16"
+    model_dir: "data/models/whisper"
+    cpu_threads: 4
+    num_workers: 1
+    sample_rate: 16000
+    beam_size: 5            # sergi makinesi: kalite > hız, beam 5 geri açıldı
+    best_of: 5
+    temperature: 0.0
+    vad_threshold: 0.5
+    min_speech_duration_ms: 250
+    min_silence_duration_ms: 250
+    max_segment_duration_seconds: 30
+    min_segment_duration_ms: 500
+    flush_on_stream_end: true
+    no_speech_threshold: 0.6
+    min_avg_logprob: -1.0
+    min_rms_threshold: 0.005
+    apply_hallucination_blocklist: true
+
+llm:
+  provider: "llama_local"
+  config:
+    model_path: "data/models/llama/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+    n_gpu_layers: -1        # SERGI: tüm 32 katman GPU'da → 30-50 tok/s
+    n_ctx: 4096
+    n_batch: 512
+    n_threads: 4
+    use_mmap: true
+    use_mlock: false
+    verbose: false
+    max_tokens: 150         # 100 → 150: sergi makinesinde uzunluk lüksü
+    temperature: 0.6
+    top_p: 0.9
+    top_k: 40
+    repeat_penalty: 1.15
+  rag:
+    enabled: true
+    similarity_threshold: 0.78   # laptop 0.75 → sergi 0.78 (false positive azalt)
+    store_path: "data/responses/vector_store"
+
+tts:
+  provider: "xtts_local"
+  config:
+    model_path: "data/models/xtts_v2"
+    model_name: "tts_models/multilingual/multi-dataset/xtts_v2"
+    voices_dir: "data/voices"
+    device: "cuda"                # sergi: hızlı GPU TTS
+    language: "tr"
+    builtin_speaker: "Damien Black"
+    stream_chunk_size: 20
+    output_chunk_samples: 480
+    cache_enabled: true
+    cache_dir: "data/tts_cache"
+    cache_max_entries: 1000       # sergi: daha fazla cache (28 saat)
+
+lipsync:
+  provider: "audio2face"           # sergi makinesinde Omniverse kurulu
+  config:
+    host: "127.0.0.1"
+    port: 8011
+    sample_rate: 24000
+
+unreal_bridge:
+  provider: "live_link"            # sergi: Unreal MetaHuman aktif
+  udp_host: "127.0.0.1"
+  udp_port: 12345
+  tcp_host: "127.0.0.1"
+  tcp_port: 12346
+
+session:
+  max_duration_seconds: 180
+  silence_timeout_seconds: 15
+
+metrics:
+  prometheus_port: 9090
+  log_level: "INFO"
+  json_logs: true
