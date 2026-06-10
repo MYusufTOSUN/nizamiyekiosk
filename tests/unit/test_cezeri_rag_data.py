@@ -18,7 +18,7 @@ def cezeri_data() -> dict:
 def test_top_level_shape(cezeri_data: dict) -> None:
     assert cezeri_data["persona_id"] == "cezeri"
     assert isinstance(cezeri_data["responses"], list)
-    assert len(cezeri_data["responses"]) >= 15
+    assert len(cezeri_data["responses"]) >= 200
 
 
 def test_every_entry_has_required_fields(cezeri_data: dict) -> None:
@@ -38,6 +38,34 @@ def test_ids_unique(cezeri_data: dict) -> None:
 
 
 def test_response_uses_persona_voice(cezeri_data: dict) -> None:
-    # Cezerî kimliği: "evladım" hitabı çoğu cevapta geçmeli (en az %60)
+    # Cezerî kimliği: "evladım" hitabı çoğu cevapta geçmeli (en az %75 — 200 entry için)
     evladım_count = sum(1 for r in cezeri_data["responses"] if "evladım" in r["response"].lower())
-    assert evladım_count / len(cezeri_data["responses"]) >= 0.6
+    assert evladım_count / len(cezeri_data["responses"]) >= 0.75
+
+
+def test_all_responses_under_xtts_limit(cezeri_data: dict) -> None:
+    """Türkçe XTTS limiti 226 char. Aşan response splitter çağırır; ama 250'yi
+    çok aşan response zayıf yazılmış demektir — kalite kontrolü."""
+    long_ones = [r for r in cezeri_data["responses"] if len(r["response"]) > 290]
+    assert not long_ones, f"Response > 290 char: {[r['id'] for r in long_ones]}"
+
+
+def test_each_response_ends_with_question(cezeri_data: dict) -> None:
+    """Persona kuralı: cevap soru ile bitsin (ziyaretçiyi konuşmaya teşvik et).
+    Hedef %85+ — kısa fallback tipi cevaplarda istisna olabilir."""
+    with_question = sum(
+        1 for r in cezeri_data["responses"] if r["response"].rstrip().endswith("?")
+    )
+    ratio = with_question / len(cezeri_data["responses"])
+    assert ratio >= 0.80, f"Soruyla biten: {ratio:.0%} (hedef ≥80%)"
+
+
+def test_topic_distribution_diverse(cezeri_data: dict) -> None:
+    """Tek bir topic 200'ün %20'sinden fazlasını oluşturmamalı — çeşitlilik."""
+    from collections import Counter
+
+    topics = Counter(r.get("topic", "") for r in cezeri_data["responses"])
+    most_common_topic, most_common_count = topics.most_common(1)[0]
+    assert most_common_count <= len(cezeri_data["responses"]) * 0.2, (
+        f"Topic '{most_common_topic}' over-represented: {most_common_count}"
+    )
