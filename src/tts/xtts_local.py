@@ -13,6 +13,7 @@ lipsync ve hoparlör çıkışına aynı formatta gider.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
 import re
 import sys
@@ -25,7 +26,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 
-from src.core.errors import TTSError
+from src.core.errors import ConfigError, TTSError, validate_model_path
 from src.core.interfaces import TTSProvider
 from src.core.logger import get_logger
 from src.core.metrics import tts_latency_ms
@@ -109,8 +110,18 @@ class XTTSConfig(BaseModel):
     stream_chunk_size: int = 20      # XTTS streaming token sayısı (~200 ms chunk)
     # Çıkış audio chunk boyutu (PCM 16-bit byte cinsinden hedef chunk)
     output_chunk_samples: int = OUTPUT_CHUNK_SAMPLES
+    # Disk audio cache — aynı (text, voice_id, speed) sorgusunda XTTS bypass
+    cache_enabled: bool = True
+    cache_dir: str = "data/tts_cache"
+    cache_max_entries: int = 500    # cache büyür → en eski silinir
 
-    model_config = {"extra": "ignore", "protected_namespaces": ()}
+    model_config = {"extra": "forbid", "protected_namespaces": ()}
+
+
+def _cache_key(text: str, voice_id: str, speed: float, language: str) -> str:
+    """Deterministik hash → cache dosya adı."""
+    payload = f"{language}|{voice_id}|{speed:.3f}|{text}".encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()[:24]
 
 
 class XTTSLocalTTS(TTSProvider):
@@ -121,6 +132,9 @@ class XTTSLocalTTS(TTSProvider):
         self._model: Any | None = None
         self._lock = asyncio.Lock()
         self._voice_refs: dict[str, list[str]] = {}
+        # In-process speaker latent cache: voice_id → (gpt_cond_latent, speaker_embed)
+        # B5 optimizasyonu: aynı voice_id için her tts() çağrısında re-compute yok.
+        self._speaker_cache: dict[str, tuple[Any, Any]] = {}
 
     @staticmethod
     def _normalize(config: dict[str, Any] | XTTSConfig | None) -> XTTSConfig:
@@ -147,7 +161,12 @@ class XTTSLocalTTS(TTSProvider):
 
         # Yerel klasör varsa Coqui auto-download'a hiç başvurma — daha hızlı,
         # internet kesintisinde çalışır.
-        local_dir = Path(self.config.model_path) if self.config.model_path else None
+        local_dir: Path | None = None
+        if self.config.model_path:
+            try:
+                local_dir = validate_model_path(self.config.model_path)
+            except ConfigError as exc:
+                raise TTSError("TTS_001", str(exc), cause=exc) from exc
         if local_dir and (local_dir / "config.json").exists() and (
             local_dir / "model.pth"
         ).exists():
@@ -253,9 +272,19 @@ class XTTSLocalTTS(TTSProvider):
         voice_id: str,
         speed: float = 1.0,
     ) -> AsyncIterator[bytes]:
-        await self._ensure_model()
         if not text.strip():
             return
+
+        # B4: Disk audio cache — RAG hit'ler aynı cevabı üretir, ikinci kullanıcıya
+        # XTTS'i hiç çağırma, disk'ten chunk'la stream et.
+        cache_path = self._cache_path(text, voice_id, speed)
+        if cache_path is not None and cache_path.exists():
+            _log.info("tts_cache_hit", key=cache_path.stem, voice_id=voice_id)
+            async for chunk in self._stream_cached(cache_path):
+                yield chunk
+            return
+
+        await self._ensure_model()
 
         # XTTS dil limitini aşan metni cümle sınırlarında parçala
         pieces = split_text_for_xtts(text, language=self.config.language)
@@ -264,12 +293,22 @@ class XTTSLocalTTS(TTSProvider):
 
         start = time.perf_counter()
         first_chunk_logged = False
+        cache_buffer: bytearray | None = bytearray() if cache_path is not None else None
 
         speaker_wav = self._voice_refs.get(voice_id)
         builtin_speaker = self.config.builtin_speaker if not speaker_wav else None
 
         loop = asyncio.get_running_loop()
         queue: asyncio.Queue[bytes | None | Exception] = asyncio.Queue()
+
+        def _safe_put(item: Any) -> bool:
+            try:
+                asyncio.run_coroutine_threadsafe(queue.put(item), loop)
+                return True
+            except RuntimeError as exc:
+                if "loop is closed" in str(exc).lower():
+                    return False
+                raise
 
         def producer() -> None:
             try:
@@ -290,11 +329,9 @@ class XTTSLocalTTS(TTSProvider):
                         kwargs["speaker"] = builtin_speaker
 
                     if has_stream:
-                        # True streaming: Xtts.inference_stream() chunk yield eder
                         kwargs["stream_chunk_size"] = self.config.stream_chunk_size
                         residual = np.zeros(0, dtype=np.float32)
                         for raw_chunk in self._model.tts_stream(**kwargs):
-                            # raw_chunk: torch.Tensor 1D fp32 (sample_rate=24000)
                             if hasattr(raw_chunk, "cpu"):
                                 raw_chunk = raw_chunk.cpu().numpy()
                             arr = np.asarray(raw_chunk, dtype=np.float32).reshape(-1)
@@ -303,12 +340,10 @@ class XTTSLocalTTS(TTSProvider):
                             usable = (arr.size // cs) * cs
                             residual = arr[usable:].copy()
                             for i in range(0, usable, cs):
-                                pcm = numpy_to_pcm_bytes(arr[i : i + cs])
-                                asyncio.run_coroutine_threadsafe(queue.put(pcm), loop)
-                        if residual.size:
-                            asyncio.run_coroutine_threadsafe(
-                                queue.put(numpy_to_pcm_bytes(residual)), loop
-                            )
+                                if not _safe_put(numpy_to_pcm_bytes(arr[i : i + cs])):
+                                    return
+                        if residual.size and not _safe_put(numpy_to_pcm_bytes(residual)):
+                            return
                     else:
                         audio = self._model.tts(**kwargs)
                         arr = np.asarray(audio, dtype=np.float32)
@@ -320,10 +355,8 @@ class XTTSLocalTTS(TTSProvider):
                         if model_sr != XTTS_NATIVE_SR:
                             arr = resample(arr, model_sr, XTTS_NATIVE_SR)
                         for i in range(0, arr.size, cs):
-                            chunk = arr[i : i + cs]
-                            asyncio.run_coroutine_threadsafe(
-                                queue.put(numpy_to_pcm_bytes(chunk)), loop
-                            )
+                            if not _safe_put(numpy_to_pcm_bytes(arr[i : i + cs])):
+                                return
                     _log.debug(
                         "tts_piece_done",
                         idx=idx + 1,
@@ -333,9 +366,9 @@ class XTTSLocalTTS(TTSProvider):
                     )
             except Exception as exc:  # noqa: BLE001
                 err = TTSError("TTS_001", f"XTTS sentez hatası: {exc}", cause=exc)
-                asyncio.run_coroutine_threadsafe(queue.put(err), loop)
+                _safe_put(err)
             finally:
-                asyncio.run_coroutine_threadsafe(queue.put(None), loop)
+                _safe_put(None)
 
         producer_task = asyncio.create_task(asyncio.to_thread(producer))
 
@@ -357,15 +390,73 @@ class XTTSLocalTTS(TTSProvider):
                         pieces=len(pieces),
                     )
                     first_chunk_logged = True
+                if cache_buffer is not None:
+                    cache_buffer.extend(item)
                 yield item
         finally:
             total_ms = int((time.perf_counter() - start) * 1000)
             _log.info("tts_complete", total_ms=total_ms, voice_id=voice_id, pieces=len(pieces))
             await producer_task
+            if cache_buffer and cache_path is not None:
+                try:
+                    self._write_cache(cache_path, bytes(cache_buffer))
+                except OSError as exc:
+                    _log.warning("tts_cache_write_failed", error=str(exc))
+
+    def _cache_path(self, text: str, voice_id: str, speed: float) -> Path | None:
+        if not self.config.cache_enabled:
+            return None
+        key = _cache_key(text, voice_id, speed, self.config.language)
+        cache_dir = Path(self.config.cache_dir)
+        try:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            return None
+        return cache_dir / f"{key}.pcm"
+
+    async def _stream_cached(self, path: Path) -> AsyncIterator[bytes]:
+        cs = self.config.output_chunk_samples * 2  # int16 → 2 byte/sample
+        with path.open("rb") as f:
+            while True:
+                chunk = f.read(cs)
+                if not chunk:
+                    break
+                yield chunk
+                # event loop'a nefes ver — sd.OutputStream backlog kalmasın
+                await asyncio.sleep(0)
+
+    def _write_cache(self, path: Path, data: bytes) -> None:
+        path.write_bytes(data)
+        self._prune_cache()
+
+    def _prune_cache(self) -> None:
+        """En eski cache'leri sil (LRU değil mtime-based, basit)."""
+        cache_dir = Path(self.config.cache_dir)
+        if not cache_dir.exists():
+            return
+        files = sorted(cache_dir.glob("*.pcm"), key=lambda p: p.stat().st_mtime)
+        excess = len(files) - self.config.cache_max_entries
+        for f in files[: max(0, excess)]:
+            try:
+                f.unlink()
+            except OSError:
+                pass
 
     async def close(self) -> None:
         self._model = None
         self._voice_refs.clear()
+        self._speaker_cache.clear()
+        # GPU memory free (28-saat sergi için kümülatif fragmantasyon korunur).
+        import gc
+
+        gc.collect()
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except ImportError:
+            pass
 
 
 class _LocalXttsWrapper:
@@ -390,6 +481,9 @@ class _LocalXttsWrapper:
             "_Syn", (), {"output_sample_rate": int(getattr(config, "output_sample_rate", 24000))}
         )()
         self._fallback_done = False
+        # B5: clone latent cache. Aynı speaker_wav listesi 2. çağrıda recompute yok.
+        # Key: tuple(sorted(speaker_wavs)) — list dedup'lu, deterministik.
+        self._clone_cache: dict[tuple[str, ...], tuple[Any, Any]] = {}
 
     def _resolve_speaker(
         self,
@@ -399,9 +493,15 @@ class _LocalXttsWrapper:
         """Speaker latent + embedding tuple döndür."""
         if speaker_wav is not None:
             wavs = speaker_wav if isinstance(speaker_wav, list) else [speaker_wav]
+            cache_key = tuple(sorted(wavs))
+            cached = self._clone_cache.get(cache_key)
+            if cached is not None:
+                return cached[0], cached[1], None
             gpt_cond_latent, speaker_embedding = self.model.get_conditioning_latents(
                 audio_path=wavs
             )
+            # B5 cache: aynı ses ref'leri sonraki cevapta recompute edilmez.
+            self._clone_cache[cache_key] = (gpt_cond_latent, speaker_embedding)
             return gpt_cond_latent, speaker_embedding, None
 
         speakers = getattr(self.model, "speaker_manager", None)

@@ -72,6 +72,28 @@ class ConfigError(BilimFestError):
     component: ClassVar[str] = "config"
 
 
+def validate_model_path(raw_path: str, base_dir: str = "data/models") -> "Path":
+    """Whitelist: model path'i ``base_dir`` altında olmalı.
+
+    Path traversal saldırılarına karşı koruma + erişim sınırlama. Hata
+    mesajı kullanıcıya tam path'i ifşa etmez.
+    """
+    from pathlib import Path
+
+    base = Path(base_dir).resolve()
+    resolved = Path(raw_path).resolve()
+    try:
+        resolved.relative_to(base)
+    except ValueError as exc:
+        raise ConfigError(
+            "CFG_001",
+            f"Model path izin verilen dizin dışında: {raw_path}",
+            user_message="Model konfigürasyonu hatalı, yönetici ile irtibata geç.",
+            cause=exc,
+        ) from exc
+    return resolved
+
+
 ERROR_CODES: dict[str, str] = {
     # STT
     "STT_001": "Ses tanıma servisi başlamadı",

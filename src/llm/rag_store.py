@@ -33,7 +33,7 @@ class RAGStoreConfig(BaseModel):
     e5_query_prefix: str = "query: "      # intfloat/multilingual-e5 modellerinin gerektirdiği prefix
     e5_passage_prefix: str = "passage: "
 
-    model_config = {"extra": "ignore"}
+    model_config = {"extra": "forbid"}
 
 
 class ChromaRAGStore(RAGStore):

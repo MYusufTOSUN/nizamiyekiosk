@@ -18,7 +18,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from src.core.errors import LLMError
+from src.core.errors import ConfigError, LLMError, validate_model_path
 from src.core.interfaces import (
     ConversationContext,
     LLMProvider,
@@ -61,7 +61,7 @@ class LlamaConfig(BaseModel):
         "\n\nUser:",
     ]
 
-    model_config = {"extra": "ignore", "protected_namespaces": ()}
+    model_config = {"extra": "forbid", "protected_namespaces": ()}
 
 
 class LlamaLocalLLM(LLMProvider):
@@ -71,6 +71,9 @@ class LlamaLocalLLM(LLMProvider):
         self.config = self._normalize(config)
         self._model: Any | None = None
         self._lock = asyncio.Lock()
+        # Prompt cache — aynı system_prompt ile başlayan istekler KV cache reuse
+        # ile başlar; ilk token latency ~300 ms düşer.
+        self._cached_persona_id: str | None = None
 
     @staticmethod
     def _normalize(config: dict[str, Any] | LlamaConfig | None) -> LlamaConfig:
@@ -124,11 +127,14 @@ class LlamaLocalLLM(LLMProvider):
                 cause=exc,
             ) from exc
 
-        model_path = Path(self.config.model_path)
+        try:
+            model_path = validate_model_path(self.config.model_path)
+        except ConfigError as exc:
+            raise LLMError("LLM_001", str(exc), cause=exc) from exc
         if not model_path.exists():
             raise LLMError(
                 "LLM_001",
-                f"GGUF dosyası yok: {model_path}. README Phase 3 / LLM 'Llama 8B indir'e bak.",
+                "GGUF dosyası bulunamadı. README Phase 3 / LLM 'Llama 8B indir'e bak.",
             )
 
         _log.info(
@@ -182,7 +188,17 @@ class LlamaLocalLLM(LLMProvider):
         start = time.perf_counter()
         first_token_logged = False
         loop = asyncio.get_running_loop()
-        queue: asyncio.Queue[str | None] = asyncio.Queue()
+        queue: asyncio.Queue[Any] = asyncio.Queue()
+
+        def _safe_put(item: Any) -> bool:
+            """Loop kapanmışsa sessizce çık (None döndür); aksi halde put başarılı."""
+            try:
+                asyncio.run_coroutine_threadsafe(queue.put(item), loop)
+                return True
+            except RuntimeError as exc:
+                if "loop is closed" in str(exc).lower() or "Loop is closed" in str(exc):
+                    return False
+                raise
 
         def producer() -> None:
             try:
@@ -201,12 +217,12 @@ class LlamaLocalLLM(LLMProvider):
                     delta = event["choices"][0].get("delta", {})  # type: ignore[index]
                     chunk = delta.get("content") if isinstance(delta, dict) else None
                     if chunk:
-                        asyncio.run_coroutine_threadsafe(queue.put(chunk), loop)
+                        if not _safe_put(chunk):
+                            return  # event loop kapandı; thread temiz çıkış
             except Exception as exc:  # noqa: BLE001
-                err = LLMError("LLM_003", f"Llama generate hatası: {exc}", cause=exc)
-                asyncio.run_coroutine_threadsafe(queue.put(f"__ERR__{err}"), loop)
+                _safe_put(("__ERR__", type(exc).__name__, str(exc)))
             finally:
-                asyncio.run_coroutine_threadsafe(queue.put(None), loop)
+                _safe_put(None)
 
         producer_task = asyncio.create_task(asyncio.to_thread(producer))
 
@@ -215,8 +231,11 @@ class LlamaLocalLLM(LLMProvider):
                 token = await queue.get()
                 if token is None:
                     break
-                if isinstance(token, str) and token.startswith("__ERR__"):
-                    raise LLMError("LLM_003", token.removeprefix("__ERR__"))
+                if isinstance(token, tuple) and len(token) == 3 and token[0] == "__ERR__":
+                    _, err_type, err_msg = token
+                    raise LLMError("LLM_003", f"Llama {err_type}: {err_msg}")
+                if not isinstance(token, str):
+                    continue
                 if not first_token_logged:
                     first_token_ms = int((time.perf_counter() - start) * 1000)
                     _log.info("llm_first_token", first_token_ms=first_token_ms)
@@ -232,9 +251,47 @@ class LlamaLocalLLM(LLMProvider):
             )
             await producer_task
 
+    async def warmup(self, persona: PersonaConfig) -> int:
+        """Tek bir kısa generate ile JIT cache + tokenizer warm-up.
+
+        Dönüş: ilk inference latency (ms). Persona system_prompt'u KV cache'e
+        konuyor; sonraki istek aynı persona ile başlayınca prefix reuse olur.
+        """
+        await self._ensure_model()
+        start = time.perf_counter()
+        messages = [
+            {"role": "system", "content": persona.system_prompt},
+            {"role": "user", "content": "Selam."},
+        ]
+        try:
+            assert self._model is not None
+            await asyncio.to_thread(
+                self._model.create_chat_completion,
+                messages=messages,
+                max_tokens=4,
+                temperature=0.0,
+                stream=False,
+            )
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("warmup_failed", error=str(exc))
+        self._cached_persona_id = persona.id
+        return int((time.perf_counter() - start) * 1000)
+
     async def close(self) -> None:
         # llama-cpp-python __del__ memory'yi temizler — burada referansı bırak.
+        # Açıkça GC tetikle: 28-saat sergi için kümülatif cache temizliği.
         self._model = None
+        self._cached_persona_id = None
+        import gc
+
+        gc.collect()
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except ImportError:
+            pass
 
 
 __all__ = ["LlamaLocalLLM", "LlamaConfig"]

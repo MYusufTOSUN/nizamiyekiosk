@@ -35,7 +35,7 @@ class Audio2FaceConfig(BaseModel):
     connect_timeout_seconds: float = 5.0
     recv_timeout_seconds: float = 0.5
 
-    model_config = {"extra": "ignore"}
+    model_config = {"extra": "forbid"}
 
 
 class Audio2FaceLipSync(LipSyncProvider):
@@ -81,31 +81,52 @@ class Audio2FaceLipSync(LipSyncProvider):
 
             url = f"ws://{self.config.host}:{self.config.port}{self.config.path}"
             _log.info("a2f_connect", url=url)
+
+            # Temp socket — handshake fail olursa açık bırakmamak için
+            ws_temp: Any | None = None
             try:
-                self._ws = await asyncio.wait_for(
+                ws_temp = await asyncio.wait_for(
                     websockets.connect(url, max_size=None),
                     timeout=self.config.connect_timeout_seconds,
                 )
-            except (TimeoutError, OSError, Exception) as exc:  # noqa: BLE001
+            except (TimeoutError, OSError) as exc:
+                if ws_temp is not None:
+                    try:
+                        await ws_temp.close()
+                    except Exception:  # noqa: BLE001
+                        pass
                 raise LipSyncError(
                     "LS_001",
                     f"Audio2Face bağlantı başarısız: {exc}",
                     cause=exc,
                 ) from exc
 
-            # Handshake
             init_msg = {
                 "command": "init",
                 "character": character_id,
                 "sample_rate": self.config.sample_rate,
                 "audio_format": self.config.audio_format,
             }
-            await self._ws.send(json.dumps(init_msg))
             try:
-                ack = await asyncio.wait_for(self._ws.recv(), timeout=2.0)
-                _log.info("a2f_handshake_ok", ack=str(ack)[:100])
-            except TimeoutError:
-                _log.warning("a2f_handshake_timeout")
+                await ws_temp.send(json.dumps(init_msg))
+                try:
+                    ack = await asyncio.wait_for(ws_temp.recv(), timeout=2.0)
+                    _log.info("a2f_handshake_ok", ack=str(ack)[:100])
+                except TimeoutError:
+                    _log.warning("a2f_handshake_timeout")
+            except Exception as exc:  # noqa: BLE001
+                # Handshake fail → socket leak'i önle
+                try:
+                    await ws_temp.close()
+                except Exception:  # noqa: BLE001
+                    pass
+                raise LipSyncError(
+                    "LS_001",
+                    f"Audio2Face handshake başarısız: {exc}",
+                    cause=exc,
+                ) from exc
+
+            self._ws = ws_temp
         return self._ws
 
     async def generate_blendshapes(

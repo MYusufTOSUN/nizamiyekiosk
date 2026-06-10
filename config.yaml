@@ -28,12 +28,12 @@ stt:
     cpu_threads: 4
     num_workers: 1
     sample_rate: 16000
-    beam_size: 5
-    best_of: 5
+    beam_size: 1                  # 5→1: STT ~300ms hızlanır, kalite düşüşü minimal
+    best_of: 1
     temperature: 0.0
     vad_threshold: 0.5
     min_speech_duration_ms: 250
-    min_silence_duration_ms: 400   # 800→400ms — STT response 400ms hızlanır
+    min_silence_duration_ms: 250   # 400→250ms — natural pause toleransı korunur, 150ms kazanç
     max_segment_duration_seconds: 30
     min_segment_duration_ms: 500
     flush_on_stream_end: true

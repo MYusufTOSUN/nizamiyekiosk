@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import datetime
 from typing import Literal, Optional
@@ -55,6 +56,9 @@ class SessionStore:
 
     Süre limiti aşan oturumlar otomatik sonlandırılır (``is_expired``).
     Festival için ``recent`` ile son N oturumun özetine ulaşabilirsin.
+
+    Thread-safety: ``asyncio.Lock`` ile create/end/prune atomik. Festival'de
+    aynı anda iki ziyaretçi WebSocket açarsa race condition olmaz.
     """
 
     def __init__(
@@ -66,13 +70,35 @@ class SessionStore:
         self._active_id: Optional[str] = None
         self.max_duration_seconds = max_duration_seconds
         self.retain_history = retain_history
+        # asyncio.Lock yalnızca event loop içinde init edilebilir; lazy init.
+        self._lock: Optional[asyncio.Lock] = None
+
+    def _get_lock(self) -> asyncio.Lock:
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
 
     def create(self, visitor_metadata: dict[str, object] | None = None) -> Session:
+        """Synchronous create — basit kullanım için (test/REPL).
+
+        Concurrent WebSocket senaryosunda ``create_async`` tercih edilir.
+        """
         session = Session(visitor_metadata=visitor_metadata)
         self._sessions[session.session_id] = session
         self._active_id = session.session_id
         self._prune_history()
         return session
+
+    async def create_async(
+        self, visitor_metadata: dict[str, object] | None = None
+    ) -> Session:
+        """Concurrent-safe session create — async loop içinde kullan."""
+        async with self._get_lock():
+            session = Session(visitor_metadata=visitor_metadata)
+            self._sessions[session.session_id] = session
+            self._active_id = session.session_id
+            self._prune_history()
+            return session
 
     @property
     def active(self) -> Optional[Session]:
@@ -91,6 +117,10 @@ class SessionStore:
         if self._active_id == session_id:
             self._active_id = None
         return session
+
+    async def end_async(self, session_id: str) -> Optional[Session]:
+        async with self._get_lock():
+            return self.end(session_id)
 
     def clear_active(self) -> None:
         self._active_id = None

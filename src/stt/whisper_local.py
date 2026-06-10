@@ -48,6 +48,27 @@ HALLUCINATION_BLOCKLIST: frozenset[str] = frozenset(
     )
 )
 
+_HALLUCINATION_STRIP_CHARS = ' \t\n\r.!?:,;"\''
+
+
+def _normalize_for_blocklist(text: str) -> str:
+    """Lowercase + trim leading/trailing punctuation + collapse whitespace.
+
+    Whisper "ALTYAZI: M.K." / "altyazı m.k." / " Altyazi M.K. " hepsini aynı
+    nokta'ya indirir — case + whitespace + noktalama varyasyonlarına dayanıklı.
+    """
+    return " ".join(text.lower().strip(_HALLUCINATION_STRIP_CHARS).split())
+
+
+_HALLUCINATION_NORMALIZED: frozenset[str] = frozenset(
+    _normalize_for_blocklist(s) for s in HALLUCINATION_BLOCKLIST
+)
+
+
+def _is_hallucination(text: str) -> bool:
+    return _normalize_for_blocklist(text) in _HALLUCINATION_NORMALIZED
+
+
 _log = get_logger(component="stt.whisper")
 
 
@@ -81,7 +102,7 @@ class WhisperConfig(BaseModel):
     # Konsol/test için: speech_end olmadan da gelen final transcript'ler için.
     flush_on_stream_end: bool = True
 
-    model_config = {"extra": "ignore"}
+    model_config = {"extra": "forbid"}
 
 
 class WhisperLocalSTT(STTProvider):
@@ -230,7 +251,7 @@ class WhisperLocalSTT(STTProvider):
 
         if (
             self.config.apply_hallucination_blocklist
-            and text.lower().strip().rstrip(".!?") in HALLUCINATION_BLOCKLIST
+            and _is_hallucination(text)
         ):
             _log.info(
                 "hallucination_filtered",
