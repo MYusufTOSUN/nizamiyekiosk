@@ -416,31 +416,12 @@ class _LocalXttsWrapper:
         entry = speakers_dict[speaker]
         return entry["gpt_cond_latent"], entry["speaker_embedding"], speakers_dict
 
-    def tts_stream(
-        self,
-        text: str,
-        language: str = "tr",
-        speaker_wav: Any = None,
-        speaker: str | None = None,
-        speed: float = 1.0,
-        stream_chunk_size: int = 20,
-    ) -> Any:
-        """Generator: Xtts.inference_stream() ile chunk-by-chunk audio."""
-        gpt_cond_latent, speaker_embedding, _ = self._resolve_speaker(speaker_wav, speaker)
-        if self.device == "cpu":
-            if hasattr(gpt_cond_latent, "cpu"):
-                gpt_cond_latent = gpt_cond_latent.cpu()
-            if hasattr(speaker_embedding, "cpu"):
-                speaker_embedding = speaker_embedding.cpu()
-        return self.model.inference_stream(
-            text=text,
-            language=language,
-            gpt_cond_latent=gpt_cond_latent,
-            speaker_embedding=speaker_embedding,
-            stream_chunk_size=stream_chunk_size,
-            speed=speed,
-            enable_text_splitting=False,
-        )
+    # NOT: Xtts.inference_stream() transformers 4.46+ ile uyumsuz —
+    # `isin_mps_friendly(eos_token_id, ...)` int üstünde patlıyor.
+    # Coqui upstream'de düzelene kadar batch mode'da kalıyoruz.
+    # Hız etkisi: TTS first-byte gecikmesi artar ama short response
+    # cap'ı (max 2 cümle / 100 token) zaten audio'yu kısaltıyor.
+    # def tts_stream(self, ...): ...  # disabled, see _xtts_streaming_known_issue
 
     def tts(
         self,
