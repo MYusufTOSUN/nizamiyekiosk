@@ -275,6 +275,8 @@ class XTTSLocalTTS(TTSProvider):
             try:
                 assert self._model is not None
                 cs = self.config.output_chunk_samples
+                # _LocalXttsWrapper varsa true streaming, yoksa fallback batch
+                has_stream = hasattr(self._model, "tts_stream")
 
                 for idx, piece in enumerate(pieces):
                     kwargs: dict[str, Any] = {
@@ -287,26 +289,47 @@ class XTTSLocalTTS(TTSProvider):
                     elif builtin_speaker:
                         kwargs["speaker"] = builtin_speaker
 
-                    audio = self._model.tts(**kwargs)
-                    arr = np.asarray(audio, dtype=np.float32)
-                    if arr.ndim > 1:
-                        arr = arr.mean(axis=1)
-                    model_sr = getattr(
-                        self._model.synthesizer, "output_sample_rate", XTTS_NATIVE_SR
-                    )
-                    if model_sr != XTTS_NATIVE_SR:
-                        arr = resample(arr, model_sr, XTTS_NATIVE_SR)
-
-                    for i in range(0, arr.size, cs):
-                        chunk = arr[i : i + cs]
-                        asyncio.run_coroutine_threadsafe(
-                            queue.put(numpy_to_pcm_bytes(chunk)), loop
+                    if has_stream:
+                        # True streaming: Xtts.inference_stream() chunk yield eder
+                        kwargs["stream_chunk_size"] = self.config.stream_chunk_size
+                        residual = np.zeros(0, dtype=np.float32)
+                        for raw_chunk in self._model.tts_stream(**kwargs):
+                            # raw_chunk: torch.Tensor 1D fp32 (sample_rate=24000)
+                            if hasattr(raw_chunk, "cpu"):
+                                raw_chunk = raw_chunk.cpu().numpy()
+                            arr = np.asarray(raw_chunk, dtype=np.float32).reshape(-1)
+                            if residual.size:
+                                arr = np.concatenate([residual, arr])
+                            usable = (arr.size // cs) * cs
+                            residual = arr[usable:].copy()
+                            for i in range(0, usable, cs):
+                                pcm = numpy_to_pcm_bytes(arr[i : i + cs])
+                                asyncio.run_coroutine_threadsafe(queue.put(pcm), loop)
+                        if residual.size:
+                            asyncio.run_coroutine_threadsafe(
+                                queue.put(numpy_to_pcm_bytes(residual)), loop
+                            )
+                    else:
+                        audio = self._model.tts(**kwargs)
+                        arr = np.asarray(audio, dtype=np.float32)
+                        if arr.ndim > 1:
+                            arr = arr.mean(axis=1)
+                        model_sr = getattr(
+                            self._model.synthesizer, "output_sample_rate", XTTS_NATIVE_SR
                         )
+                        if model_sr != XTTS_NATIVE_SR:
+                            arr = resample(arr, model_sr, XTTS_NATIVE_SR)
+                        for i in range(0, arr.size, cs):
+                            chunk = arr[i : i + cs]
+                            asyncio.run_coroutine_threadsafe(
+                                queue.put(numpy_to_pcm_bytes(chunk)), loop
+                            )
                     _log.debug(
                         "tts_piece_done",
                         idx=idx + 1,
                         of=len(pieces),
                         chars=len(piece),
+                        streaming=has_stream,
                     )
             except Exception as exc:  # noqa: BLE001
                 err = TTSError("TTS_001", f"XTTS sentez hatası: {exc}", cause=exc)
@@ -352,6 +375,9 @@ class _LocalXttsWrapper:
     ``model.tts(text, language, speaker, speaker_wav, speed)`` API'sine
     bağlar; ``synthesize_stream`` aynı kodla iki yükleme tarzıyla da çalışır.
 
+    Gerçek streaming için ``tts_stream()`` — Xtts.inference_stream() üzerinden
+    chunk-by-chunk audio yield eder, kullanıcı ilk byte gelir gelmez duyar.
+
     cuDNN konflikti CUDA inference'i patlatırsa otomatik olarak CPU'ya
     düşer; sonraki çağrılar CPU'da çalışır.
     """
@@ -364,6 +390,57 @@ class _LocalXttsWrapper:
             "_Syn", (), {"output_sample_rate": int(getattr(config, "output_sample_rate", 24000))}
         )()
         self._fallback_done = False
+
+    def _resolve_speaker(
+        self,
+        speaker_wav: Any,
+        speaker: str | None,
+    ) -> tuple[Any, Any, dict | None]:
+        """Speaker latent + embedding tuple döndür."""
+        if speaker_wav is not None:
+            wavs = speaker_wav if isinstance(speaker_wav, list) else [speaker_wav]
+            gpt_cond_latent, speaker_embedding = self.model.get_conditioning_latents(
+                audio_path=wavs
+            )
+            return gpt_cond_latent, speaker_embedding, None
+
+        speakers = getattr(self.model, "speaker_manager", None)
+        speakers_dict = getattr(speakers, "speakers", {}) if speakers else {}
+        if speaker not in speakers_dict and speakers_dict:
+            speaker = next(iter(speakers_dict.keys()))
+        if not speakers_dict:
+            raise TTSError(
+                "TTS_002",
+                "Yerel XTTS modelinde dahili speaker yok; speaker_wav vermelisin",
+            )
+        entry = speakers_dict[speaker]
+        return entry["gpt_cond_latent"], entry["speaker_embedding"], speakers_dict
+
+    def tts_stream(
+        self,
+        text: str,
+        language: str = "tr",
+        speaker_wav: Any = None,
+        speaker: str | None = None,
+        speed: float = 1.0,
+        stream_chunk_size: int = 20,
+    ) -> Any:
+        """Generator: Xtts.inference_stream() ile chunk-by-chunk audio."""
+        gpt_cond_latent, speaker_embedding, _ = self._resolve_speaker(speaker_wav, speaker)
+        if self.device == "cpu":
+            if hasattr(gpt_cond_latent, "cpu"):
+                gpt_cond_latent = gpt_cond_latent.cpu()
+            if hasattr(speaker_embedding, "cpu"):
+                speaker_embedding = speaker_embedding.cpu()
+        return self.model.inference_stream(
+            text=text,
+            language=language,
+            gpt_cond_latent=gpt_cond_latent,
+            speaker_embedding=speaker_embedding,
+            stream_chunk_size=stream_chunk_size,
+            speed=speed,
+            enable_text_splitting=False,
+        )
 
     def tts(
         self,
