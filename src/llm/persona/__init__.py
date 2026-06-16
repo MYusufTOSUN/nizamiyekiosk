@@ -1,4 +1,10 @@
-"""Persona registry — yeni karakterler eklenince buraya kaydedilir."""
+"""Persona registry — yeni karakterler eklenince buraya kaydedilir.
+
+Yeni karakter eklemek için:
+    python scripts/new_character.py <id> --name "Ad" --era "yıllar"
+ardından üretilen persona dosyasını doldurup import edip aşağıdaki PERSONAS
+dict'ine ekle. (Diğer 4 karakter kullanıcı tarafından henüz belirlenmedi.)
+"""
 
 from __future__ import annotations
 

@@ -75,3 +75,27 @@ build-rag:
 
 test-llm:
 	python scripts/test_llm.py
+
+prewarm-tts:
+	python scripts/prewarm_tts_cache.py
+
+hardware-check:
+	python scripts/hardware_check.py
+
+hardware-check-prod:
+	python scripts/hardware_check.py --profile production
+
+load-test:
+	python scripts/load_test.py --mode load --turns 50
+
+soak-test:
+	python scripts/load_test.py --mode soak --minutes 30
+
+test-unreal:
+	python scripts/test_unreal_send.py
+
+backup:
+	bash scripts/backup_state.sh
+
+ci-local: lint
+	pytest tests/ -q -m "not gpu"
