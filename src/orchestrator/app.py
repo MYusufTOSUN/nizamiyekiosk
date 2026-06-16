@@ -87,7 +87,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
     )
 
-    # Nice-to-have: LLM warmup — ilk ziyaretçi cold KV-cache yaşamasın
+    # Warmup SIRASI KRİTİK: TTS (XTTS) önce yüklenmeli ki torch cuDNN context'i
+    # kurulsun; sonra Whisper (CTranslate2) ilk turda bunu kullanır ve XTTS
+    # GPU'da kalır (aksi halde Whisper-önce yüklenince XTTS CPU'ya düşüp 10x
+    # yavaşlardı). İlk inference JIT cezası da burada yutulur.
+    tts = providers["tts"]
+    if hasattr(tts, "warmup"):
+        try:
+            ms = await tts.warmup("cezeri")  # type: ignore[attr-defined]
+            _log.info("tts_warmup_done", ms=ms)
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("tts_warmup_failed", error=str(exc))
+
+    # LLM warmup — ilk ziyaretçi cold KV-cache yaşamasın
     llm = providers["llm"]
     persona = get_persona("cezeri")
     if persona is not None and hasattr(llm, "warmup"):

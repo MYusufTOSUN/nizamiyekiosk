@@ -152,6 +152,24 @@ class XTTSLocalTTS(TTSProvider):
                 self._voice_refs = self._scan_voice_refs()
         return self._model
 
+    async def warmup(self, voice_id: str = "cezeri") -> int:
+        """Modeli ÖNCEDEN yükle + ilk inference JIT cezasını yut.
+
+        Startup'ta Whisper'dan ÖNCE çağrılırsa torch cuDNN context'i kurulur,
+        sonraki CTranslate2 (Whisper) bunu kullanır → XTTS GPU'da kalır
+        (cuDNN konflikti olmaz). Dönüş: warmup süresi (ms).
+        """
+        import time as _t
+
+        start = _t.perf_counter()
+        await self._ensure_model()
+        try:
+            async for _ in self.synthesize_stream("Bir, iki, üç.", voice_id):
+                pass
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("tts_warmup_failed", error=str(exc))
+        return int((_t.perf_counter() - start) * 1000)
+
     def _load_sync(self) -> Any:
         # Windows: torch CUDA wheel'deki cuDNN/cuBLAS DLL'lerini DLL search'e ekle
         # (XTTS sistem CUDA toolkit yoksa cudnnGetLibConfig'i bulamaz)
