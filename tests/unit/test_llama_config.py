@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.core.interfaces import ConversationContext, ConversationTurn, PersonaConfig
+from src.core.interfaces import ConversationContext, DialogueTurn, PersonaConfig
 from src.llm.llama_local import LlamaConfig, LlamaLocalLLM
 
 
@@ -38,7 +38,9 @@ def test_build_messages_system_only() -> None:
     persona = _persona()
     msgs = llm._build_messages("Robot nedir?", persona, None)
     assert msgs[0]["role"] == "system"
-    assert msgs[0]["content"] == persona.system_prompt
+    # M11: system prompt persona + injection guard içerir
+    assert persona.system_prompt in msgs[0]["content"]
+    assert "GÜVENLİK KURALI" in msgs[0]["content"]
     assert msgs[-1]["role"] == "user"
     assert msgs[-1]["content"] == "Robot nedir?"
     assert len(msgs) == 2
@@ -51,8 +53,8 @@ def test_build_messages_with_context() -> None:
         session_id="abc",
         persona_id="cezeri",
         turns=[
-            ConversationTurn(role="visitor", text="Merhaba", timestamp=datetime.utcnow()),
-            ConversationTurn(role="persona", text="Aleyküm selam", timestamp=datetime.utcnow()),
+            DialogueTurn(role="visitor", text="Merhaba", timestamp=datetime.utcnow()),
+            DialogueTurn(role="persona", text="Aleyküm selam", timestamp=datetime.utcnow()),
         ],
     )
     msgs = llm._build_messages("Robot nedir?", persona, ctx)
@@ -66,7 +68,7 @@ def test_build_messages_trims_long_history() -> None:
     llm = LlamaLocalLLM()
     persona = _persona()
     turns = [
-        ConversationTurn(role="visitor", text=f"q{i}", timestamp=datetime.utcnow())
+        DialogueTurn(role="visitor", text=f"q{i}", timestamp=datetime.utcnow())
         for i in range(10)
     ]
     ctx = ConversationContext(session_id="x", persona_id="cezeri", turns=turns)

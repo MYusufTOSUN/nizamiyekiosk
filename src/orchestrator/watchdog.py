@@ -12,6 +12,7 @@ from typing import Any
 
 from src.core.interfaces import SessionState
 from src.core.logger import get_logger
+from src.core.metrics import sessions_total
 from src.orchestrator.session import SessionStore
 from src.orchestrator.state_machine import StateMachine
 
@@ -44,7 +45,9 @@ async def session_watchdog(
                 duration_s=active.duration_seconds,
                 state=sm.state.value,
             )
-            await _terminate(sm, sessions, active.session_id)
+            # Süre aşımı = ziyaretçi terk etti / sergici geçti say
+            sessions_total.labels(status="abandoned").inc()
+            await _terminate(sm, sessions, session_id=active.session_id, state_machines=state_machines)
     except asyncio.CancelledError:
         return
 
@@ -53,6 +56,7 @@ async def _terminate(
     sm: StateMachine,
     sessions: SessionStore,
     session_id: str,
+    state_machines: dict[str, StateMachine] | None = None,
 ) -> None:
     """State akışını güvenli şekilde IDLE'a çek."""
     current = sm.state
@@ -77,6 +81,8 @@ async def _terminate(
         _log.warning("watchdog_transition_failed", error=str(exc), state=current.value)
     finally:
         sessions.end(session_id)
+        if state_machines is not None:  # M7: sm sızıntısını önle
+            state_machines.pop(session_id, None)
 
 
 __all__ = ["session_watchdog"]

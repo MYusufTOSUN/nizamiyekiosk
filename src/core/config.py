@@ -85,10 +85,27 @@ class MetricsSection(BaseModel):
     json_logs: bool = True
 
 
-def _default_yaml_path() -> Path:
-    """Proje kökündeki config.yaml'a giden yol."""
+def _project_root() -> Path:
     # src/core/config.py  → parents[2] = proje kökü
-    return Path(__file__).resolve().parents[2] / "config.yaml"
+    return Path(__file__).resolve().parents[2]
+
+
+def _default_yaml_path() -> Path:
+    """Aktif config dosyasının yolu.
+
+    ``BFEST_CONFIG`` env değişkeni ayarlıysa onu kullanır (örn. sergi
+    makinesinde ``config.production.yaml``); aksi halde proje kökündeki
+    ``config.yaml``. Mutlak veya köke göre rölatif path kabul eder.
+    """
+    import os
+
+    override = os.environ.get("BFEST_CONFIG")
+    if override:
+        p = Path(override)
+        if not p.is_absolute():
+            p = _project_root() / p
+        return p
+    return _project_root() / "config.yaml"
 
 
 class _YamlSource(PydanticBaseSettingsSource):
@@ -104,6 +121,15 @@ class _YamlSource(PydanticBaseSettingsSource):
 
     def __call__(self) -> dict[str, Any]:
         if not self.yaml_path.exists():
+            import os
+
+            # BFEST_CONFIG açıkça verildiyse ve dosya yoksa SESSİZ KALMA — patla.
+            if os.environ.get("BFEST_CONFIG"):
+                raise ConfigError(
+                    "CFG_001",
+                    f"BFEST_CONFIG belirtildi ama dosya yok: {self.yaml_path}",
+                    user_message="Konfigürasyon dosyası bulunamadı, yönetici ile irtibata geç.",
+                )
             return {}
         try:
             with self.yaml_path.open("r", encoding="utf-8") as f:

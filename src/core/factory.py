@@ -151,4 +151,34 @@ class ProviderFactory:
         }
 
 
-__all__ = ["ProviderFactory"]
+def validate_startup(config: "AppConfig") -> list[str]:
+    """M5: lifespan'de fail-fast doğrulama.
+
+    Seçili (mock olmayan) provider'lar için model/dosya varlığını kontrol et.
+    Eksikleri liste olarak döndürür. ``app.environment == 'production'`` ise
+    çağıran taraf bu liste boş değilse açılmayı reddetmeli.
+    """
+    from pathlib import Path
+
+    problems: list[str] = []
+
+    def _check(path_str: str, label: str) -> None:
+        if path_str and not Path(path_str).exists():
+            problems.append(f"{label}: {path_str} yok")
+
+    if config.stt.provider == "whisper_local":
+        _check(str(config.stt.config.get("model", "")), "STT model")
+    if config.llm.provider == "llama_local":
+        _check(str(config.llm.config.get("model_path", "")), "LLM model")
+        if config.llm.rag.enabled:
+            _check(
+                "data/models/embeddings/multilingual-e5-large", "RAG embedder"
+            )
+    if config.tts.provider == "xtts_local":
+        mp = str(config.tts.config.get("model_path", ""))
+        if mp:
+            _check(str(Path(mp) / "model.pth"), "XTTS model.pth")
+    return problems
+
+
+__all__ = ["ProviderFactory", "validate_startup"]

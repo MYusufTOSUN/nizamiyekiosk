@@ -108,18 +108,31 @@ class PersonaConfig(BaseModel):
     farewell_messages: list[str] = Field(default_factory=list)
 
 
-class ConversationTurn(BaseModel):
+class DialogueTurn(BaseModel):
+    """LLM'e verilen tek konuşma mesajı (ziyaretçi veya persona).
+
+    NOT: ``src/orchestrator/session.py``'deki ``ConversationTurn`` zengin oturum
+    kaydı (turn_id, intent, latency...) içindir; bu ise LLM bağlamı için
+    sadeleştirilmiş mesaj birimi. İkisi bilerek ayrı.
+    """
+
     role: Literal["visitor", "persona"]
     text: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
 class ConversationContext(BaseModel):
-    """LLM'e verilen kısa konuşma geçmişi."""
+    """LLM'e verilen kısa konuşma geçmişi + RAG grounding.
+
+    ``retrieved``: RAG'den gelen ama eşik altında kalan en yakın onaylı
+    cevaplar. LLM bunları few-shot örnek olarak kullanır (gerçek
+    "augmented generation") — üslup + bilgi tutarlılığı + güvenlik artar.
+    """
 
     session_id: str
     persona_id: str
-    turns: list[ConversationTurn] = Field(default_factory=list)
+    turns: list[DialogueTurn] = Field(default_factory=list)
+    retrieved: list[str] = Field(default_factory=list)
 
 
 class RAGResult(BaseModel):
@@ -295,7 +308,7 @@ __all__ = [
     "IntentType",
     "IntentDetector",
     "PersonaConfig",
-    "ConversationTurn",
+    "DialogueTurn",
     "ConversationContext",
     "RAGResult",
     "RAGStore",

@@ -13,8 +13,21 @@ from typing import Optional
 from src.core.errors import OrchestratorError
 from src.core.interfaces import SessionEvent, SessionState
 from src.core.logger import get_logger
+from src.core.metrics import current_state as _current_state_gauge
 
 _log = get_logger(component="orchestrator.state_machine")
+
+# M3: state → sayısal kod (Prometheus gauge için)
+_STATE_CODE: dict[SessionState, int] = {
+    SessionState.IDLE: 0,
+    SessionState.WELCOME: 1,
+    SessionState.LISTENING: 2,
+    SessionState.SELECTION: 3,
+    SessionState.THINKING: 4,
+    SessionState.SPEAKING: 5,
+    SessionState.FAREWELL: 6,
+    SessionState.ERROR: 7,
+}
 
 
 EventListener = Callable[[SessionEvent], Awaitable[None]]
@@ -78,6 +91,7 @@ class StateMachine:
                 )
             previous = self._state
             self._state = new_state
+            _current_state_gauge.set(_STATE_CODE.get(new_state, -1))  # M3
             _log.info(
                 "state_changed",
                 session_id=self.session_id,

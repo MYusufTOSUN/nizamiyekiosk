@@ -17,13 +17,16 @@ from typing import Any
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from src.core.config import AppConfig, get_config
-from src.core.factory import ProviderFactory
+from src.core.errors import ConfigError
+from src.core.factory import ProviderFactory, validate_startup
 from src.core.interfaces import (
     SceneCommand,
     SessionEvent,
     SessionState,
 )
 from src.core.logger import configure_logging, get_logger
+from src.llm.persona import get_persona
+from src.orchestrator.monitor import gpu_vram_monitor
 from src.orchestrator.pipeline import ConversationPipeline
 from src.orchestrator.routes import router
 from src.orchestrator.session import SessionStore
@@ -42,6 +45,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     _log.info("startup", environment=config.app.environment, version=config.app.version)
 
+    # M5: fail-fast — eksik model/dosya production'da açılmayı engeller
+    problems = validate_startup(config)
+    if problems:
+        if config.app.environment == "production":
+            raise ConfigError(
+                "CFG_001",
+                "Üretim başlatma doğrulaması başarısız: " + "; ".join(problems),
+            )
+        _log.warning("startup_validation_warnings", problems=problems)
+
     providers = ProviderFactory.build_all(config)
     app.state.config = config
     app.state.providers = providers
@@ -50,6 +63,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     app.state.state_machines = {}
     app.state.event_listeners: list[asyncio.Queue[SessionEvent]] = []
+    app.state.active_cancel_event = None  # M9: çalışan turun iptal bayrağı
     app.state.pipeline = ConversationPipeline(
         stt=providers["stt"],  # type: ignore[arg-type]
         intent=providers["intent"],  # type: ignore[arg-type]
@@ -70,22 +84,34 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
     )
 
-    # Session watchdog — süre limitini aşan oturumu kapatır
+    # Nice-to-have: LLM warmup — ilk ziyaretçi cold KV-cache yaşamasın
+    llm = providers["llm"]
+    persona = get_persona("cezeri")
+    if persona is not None and hasattr(llm, "warmup"):
+        try:
+            ms = await llm.warmup(persona)  # type: ignore[attr-defined]
+            _log.info("llm_warmup_done", ms=ms)
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("llm_warmup_failed", error=str(exc))
+
+    # Arka plan görevleri: watchdog + VRAM monitor (M3)
     watchdog_task = asyncio.create_task(
         session_watchdog(
             sessions=app.state.sessions,
             state_machines=app.state.state_machines,
         )
     )
+    vram_task = asyncio.create_task(gpu_vram_monitor())
 
     yield
 
     _log.info("shutdown")
-    watchdog_task.cancel()
-    try:
-        await watchdog_task
-    except (asyncio.CancelledError, Exception):  # noqa: BLE001
-        pass
+    for t in (watchdog_task, vram_task):
+        t.cancel()
+        try:
+            await t
+        except (asyncio.CancelledError, Exception):  # noqa: BLE001
+            pass
     for provider in providers.values():
         close = getattr(provider, "close", None)
         if close is not None:
@@ -156,11 +182,14 @@ async def ws_audio(websocket: WebSocket) -> None:
             await audio_queue.put(None)
 
     reader_task = asyncio.create_task(reader())
+    cancel_event = asyncio.Event()
+    app_state.active_cancel_event = cancel_event  # M9: /interrupt + /emergency_stop bunu set eder
     try:
         result = await app_state.pipeline.run_turn(
             session=session,
             sm=sm,
             audio_stream=audio_iter(),
+            cancel_event=cancel_event,
         )
         await websocket.send_json(
             {
@@ -186,6 +215,8 @@ async def ws_audio(websocket: WebSocket) -> None:
         except Exception:  # noqa: BLE001
             pass
     finally:
+        if app_state.active_cancel_event is cancel_event:
+            app_state.active_cancel_event = None
         reader_task.cancel()
         try:
             await reader_task
