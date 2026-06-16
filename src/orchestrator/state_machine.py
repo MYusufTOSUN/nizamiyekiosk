@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from typing import Optional
 
 from src.core.errors import OrchestratorError
 from src.core.interfaces import SessionEvent, SessionState
@@ -81,7 +80,7 @@ class StateMachine:
         self,
         new_state: SessionState,
         *,
-        data: Optional[dict[str, object]] = None,
+        data: dict[str, object] | None = None,
     ) -> None:
         async with self._lock:
             if not self.can_transition_to(new_state):

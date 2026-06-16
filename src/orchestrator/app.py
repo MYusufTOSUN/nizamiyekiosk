@@ -12,7 +12,7 @@ import asyncio
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
@@ -21,6 +21,7 @@ from src.core.errors import ConfigError
 from src.core.factory import ProviderFactory, validate_startup
 from src.core.interfaces import (
     SceneCommand,
+    SceneController,
     SessionEvent,
     SessionState,
 )
@@ -62,7 +63,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         max_duration_seconds=config.session.max_duration_seconds,
     )
     app.state.state_machines = {}
-    app.state.event_listeners: list[asyncio.Queue[SessionEvent]] = []
+    event_listeners: list[asyncio.Queue[SessionEvent]] = []
+    app.state.event_listeners = event_listeners
     app.state.active_cancel_event = None  # M9: çalışan turun iptal bayrağı
     app.state.pipeline = ConversationPipeline(
         stt=providers["stt"],  # type: ignore[arg-type]
@@ -76,7 +78,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
 
     # Scene controller'a init komutu
-    await providers["scene"].send_command(  # type: ignore[union-attr]
+    scene_ctl = cast(SceneController, providers["scene"])
+    await scene_ctl.send_command(
         SceneCommand(
             command="init",
             params={"environment": config.app.environment},

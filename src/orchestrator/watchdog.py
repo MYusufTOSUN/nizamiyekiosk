@@ -8,7 +8,6 @@ SPEAKING/LISTENING → FAREWELL → IDLE'a sürer.
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 
 from src.core.interfaces import SessionState
 from src.core.logger import get_logger
@@ -47,7 +46,9 @@ async def session_watchdog(
             )
             # Süre aşımı = ziyaretçi terk etti / sergici geçti say
             sessions_total.labels(status="abandoned").inc()
-            await _terminate(sm, sessions, session_id=active.session_id, state_machines=state_machines)
+            await _terminate(
+                sm, sessions, session_id=active.session_id, state_machines=state_machines
+            )
     except asyncio.CancelledError:
         return
 
@@ -61,10 +62,7 @@ async def _terminate(
     """State akışını güvenli şekilde IDLE'a çek."""
     current = sm.state
     try:
-        if current == SessionState.SPEAKING:
-            await sm.transition_to(SessionState.FAREWELL)
-            await sm.transition_to(SessionState.IDLE)
-        elif current == SessionState.LISTENING:
+        if current == SessionState.SPEAKING or current == SessionState.LISTENING:
             await sm.transition_to(SessionState.FAREWELL)
             await sm.transition_to(SessionState.IDLE)
         elif current in (

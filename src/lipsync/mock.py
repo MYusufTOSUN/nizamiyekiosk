@@ -64,7 +64,7 @@ class MockLipSync(LipSyncProvider):
             phase = timestamp_ms % BLINK_INTERVAL_MS
             blink_value = 1.0 if phase < BLINK_DURATION_MS else 0.0
 
-            values = {k: 0.0 for k in ARKIT_BLENDSHAPE_KEYS}
+            values = dict.fromkeys(ARKIT_BLENDSHAPE_KEYS, 0.0)
             values["jawOpen"] = jaw
             values["mouthFunnel"] = float(max(0.0, min(1.0, funnel)))
             values["mouthPucker"] = float(max(0.0, min(1.0, pucker)))

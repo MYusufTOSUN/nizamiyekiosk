@@ -23,7 +23,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
 from pydantic import BaseModel
 
 from src.core.errors import ConfigError, TTSError, validate_model_path
@@ -120,7 +119,7 @@ class XTTSConfig(BaseModel):
 
 def _cache_key(text: str, voice_id: str, speed: float, language: str) -> str:
     """Deterministik hash → cache dosya adı."""
-    payload = f"{language}|{voice_id}|{speed:.3f}|{text}".encode("utf-8")
+    payload = f"{language}|{voice_id}|{speed:.3f}|{text}".encode()
     return hashlib.sha256(payload).hexdigest()[:24]
 
 
@@ -495,7 +494,7 @@ class _LocalXttsWrapper:
         self,
         speaker_wav: Any,
         speaker: str | None,
-    ) -> tuple[Any, Any, dict | None]:
+    ) -> tuple[Any, Any, dict[str, Any] | None]:
         """Speaker latent + embedding tuple döndür."""
         if speaker_wav is not None:
             wavs = speaker_wav if isinstance(speaker_wav, list) else [speaker_wav]

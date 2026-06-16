@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -17,29 +17,29 @@ class ConversationTurn(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     visitor_text: str = ""
     visitor_audio_duration_ms: int = 0
-    detected_intent: Optional[Intent] = None
+    detected_intent: Intent | None = None
 
-    selected_persona: Optional[str] = None
-    llm_response: Optional[str] = None
+    selected_persona: str | None = None
+    llm_response: str | None = None
     llm_source: Literal["rag", "generated", "fallback"] = "generated"
-    llm_latency_ms: Optional[int] = None
+    llm_latency_ms: int | None = None
 
-    tts_audio_path: Optional[str] = None
-    tts_latency_ms: Optional[int] = None
+    tts_audio_path: str | None = None
+    tts_latency_ms: int | None = None
 
-    total_latency_ms: Optional[int] = None
+    total_latency_ms: int | None = None
 
 
 class Session(BaseModel):
     session_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     started_at: datetime = Field(default_factory=datetime.utcnow)
-    ended_at: Optional[datetime] = None
+    ended_at: datetime | None = None
     state: SessionState = SessionState.IDLE
 
-    current_persona: Optional[str] = None
+    current_persona: str | None = None
     turns: list[ConversationTurn] = Field(default_factory=list)
 
-    visitor_metadata: Optional[dict[str, object]] = None
+    visitor_metadata: dict[str, object] | None = None
 
     @property
     def duration_seconds(self) -> int:
@@ -67,11 +67,11 @@ class SessionStore:
         retain_history: int = 50,
     ) -> None:
         self._sessions: dict[str, Session] = {}
-        self._active_id: Optional[str] = None
+        self._active_id: str | None = None
         self.max_duration_seconds = max_duration_seconds
         self.retain_history = retain_history
         # asyncio.Lock yalnızca event loop içinde init edilebilir; lazy init.
-        self._lock: Optional[asyncio.Lock] = None
+        self._lock: asyncio.Lock | None = None
 
     def _get_lock(self) -> asyncio.Lock:
         if self._lock is None:
@@ -101,15 +101,15 @@ class SessionStore:
             return session
 
     @property
-    def active(self) -> Optional[Session]:
+    def active(self) -> Session | None:
         if self._active_id is None:
             return None
         return self._sessions.get(self._active_id)
 
-    def get(self, session_id: str) -> Optional[Session]:
+    def get(self, session_id: str) -> Session | None:
         return self._sessions.get(session_id)
 
-    def end(self, session_id: str) -> Optional[Session]:
+    def end(self, session_id: str) -> Session | None:
         session = self._sessions.get(session_id)
         if session and session.ended_at is None:
             session.ended_at = datetime.utcnow()
@@ -118,7 +118,7 @@ class SessionStore:
             self._active_id = None
         return session
 
-    async def end_async(self, session_id: str) -> Optional[Session]:
+    async def end_async(self, session_id: str) -> Session | None:
         async with self._get_lock():
             return self.end(session_id)
 

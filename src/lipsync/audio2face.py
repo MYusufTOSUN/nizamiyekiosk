@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import time
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -34,6 +33,9 @@ class Audio2FaceConfig(BaseModel):
     audio_format: str = "pcm_s16le"
     connect_timeout_seconds: float = 5.0
     recv_timeout_seconds: float = 0.5
+    # M6: yeniden bağlanma
+    max_reconnect_attempts: int = 3
+    reconnect_backoff_base: float = 0.5  # 0.5, 1.0, 2.0 sn
 
     model_config = {"extra": "forbid"}
 
@@ -80,26 +82,36 @@ class Audio2FaceLipSync(LipSyncProvider):
                 ) from exc
 
             url = f"ws://{self.config.host}:{self.config.port}{self.config.path}"
-            _log.info("a2f_connect", url=url)
 
-            # Temp socket — handshake fail olursa açık bırakmamak için
+            # M6: exponential backoff ile birkaç deneme
             ws_temp: Any | None = None
-            try:
-                ws_temp = await asyncio.wait_for(
-                    websockets.connect(url, max_size=None),
-                    timeout=self.config.connect_timeout_seconds,
-                )
-            except (TimeoutError, OSError) as exc:
-                if ws_temp is not None:
-                    try:
-                        await ws_temp.close()
-                    except Exception:  # noqa: BLE001
-                        pass
+            last_exc: Exception | None = None
+            for attempt in range(self.config.max_reconnect_attempts):
+                _log.info("a2f_connect", url=url, attempt=attempt + 1)
+                try:
+                    ws_temp = await asyncio.wait_for(
+                        websockets.connect(url, max_size=None),
+                        timeout=self.config.connect_timeout_seconds,
+                    )
+                    break
+                except (TimeoutError, OSError) as exc:
+                    last_exc = exc
+                    if ws_temp is not None:
+                        try:
+                            await ws_temp.close()
+                        except Exception:  # noqa: BLE001
+                            pass
+                        ws_temp = None
+                    backoff = self.config.reconnect_backoff_base * (2**attempt)
+                    _log.warning("a2f_connect_retry", attempt=attempt + 1, backoff=backoff)
+                    await asyncio.sleep(backoff)
+            if ws_temp is None:
+                attempts = self.config.max_reconnect_attempts
                 raise LipSyncError(
                     "LS_001",
-                    f"Audio2Face bağlantı başarısız: {exc}",
-                    cause=exc,
-                ) from exc
+                    f"Audio2Face bağlantı başarısız ({attempts} deneme): {last_exc}",
+                    cause=last_exc,
+                )
 
             init_msg = {
                 "command": "init",
@@ -161,6 +173,10 @@ class Audio2FaceLipSync(LipSyncProvider):
                         break
                     continue
                 except Exception as exc:  # noqa: BLE001
+                    # M6: bağlantı koptu — soketi temizle ki sonraki çağrı
+                    # yeniden bağlansın (kopuk ws tekrar kullanılmaz).
+                    _log.warning("a2f_recv_failed_reconnect_next", error=str(exc))
+                    await self._reset_connection()
                     raise LipSyncError(
                         "LS_002",
                         f"Audio2Face recv hatası: {exc}",
@@ -196,6 +212,16 @@ class Audio2FaceLipSync(LipSyncProvider):
         bs = data.get("blendshapes") or data.get("values") or {}
         values = {k: float(bs.get(k, 0.0)) for k in ARKIT_BLENDSHAPE_KEYS}
         return BlendshapeFrame(timestamp_ms=ts_us // 1000, values=values)
+
+    async def _reset_connection(self) -> None:
+        """Kopuk soketi kapat + None yap → sonraki çağrı yeniden bağlanır."""
+        ws = self._ws
+        self._ws = None
+        if ws is not None:
+            try:
+                await ws.close()
+            except Exception:  # noqa: BLE001
+                pass
 
     async def close(self) -> None:
         if self._ws is not None:

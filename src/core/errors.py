@@ -7,7 +7,10 @@ Tüm domain exception'ları :class:`BilimFestError` türevidir. Her hatanın bir
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class BilimFestError(Exception):
@@ -72,7 +75,7 @@ class ConfigError(BilimFestError):
     component: ClassVar[str] = "config"
 
 
-def validate_model_path(raw_path: str, base_dir: str = "data/models") -> "Path":
+def validate_model_path(raw_path: str, base_dir: str = "data/models") -> Path:
     """Whitelist: model path'i ``base_dir`` altında olmalı.
 
     Path traversal saldırılarına karşı koruma + erişim sınırlama. Hata

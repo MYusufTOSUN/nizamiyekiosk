@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from src.core.config import (
     AppConfig,
-    LLMSection,
     LipSyncSection,
+    LLMSection,
     STTSection,
     TTSSection,
     UnrealBridgeSection,
@@ -18,8 +18,8 @@ from src.core.config import (
 from src.core.errors import ConfigError
 from src.core.interfaces import (
     IntentDetector,
-    LLMProvider,
     LipSyncProvider,
+    LLMProvider,
     RAGStore,
     SceneController,
     STTProvider,
@@ -45,7 +45,7 @@ class ProviderFactory:
         if cfg.provider == "deepgram_cloud":
             from src.stt.deepgram_cloud import DeepgramCloudSTT  # type: ignore[import-not-found]
 
-            return DeepgramCloudSTT(cfg.config)
+            return DeepgramCloudSTT(cfg.config)  # type: ignore[no-any-return]
         raise ConfigError("CFG_002", f"Bilinmeyen STT provider: {cfg.provider}")
 
     # --- LLM ---------------------------------------------------------------
@@ -63,7 +63,7 @@ class ProviderFactory:
         if cfg.provider == "claude_cloud":
             from src.llm.claude_cloud import ClaudeCloudLLM  # type: ignore[import-not-found]
 
-            return ClaudeCloudLLM(cfg.config)
+            return ClaudeCloudLLM(cfg.config)  # type: ignore[no-any-return]
         raise ConfigError("CFG_002", f"Bilinmeyen LLM provider: {cfg.provider}")
 
     @staticmethod
@@ -94,9 +94,11 @@ class ProviderFactory:
 
             return XTTSLocalTTS(cfg.config)
         if cfg.provider == "elevenlabs_cloud":
-            from src.tts.elevenlabs_cloud import ElevenLabsCloudTTS  # type: ignore[import-not-found]
+            from src.tts.elevenlabs_cloud import (
+                ElevenLabsCloudTTS,  # type: ignore[import-not-found]
+            )
 
-            return ElevenLabsCloudTTS(cfg.config)
+            return ElevenLabsCloudTTS(cfg.config)  # type: ignore[no-any-return]
         raise ConfigError("CFG_002", f"Bilinmeyen TTS provider: {cfg.provider}")
 
     # --- Lip-sync ----------------------------------------------------------
@@ -122,7 +124,9 @@ class ProviderFactory:
 
             return MockSceneController()
         if cfg.provider == "live_link":
-            from src.unreal_bridge.live_link import LiveLinkSceneController  # type: ignore[import-not-found]
+            from src.unreal_bridge.live_link import (
+                LiveLinkSceneController,  # type: ignore[import-not-found]
+            )
 
             return LiveLinkSceneController(cfg)
         raise ConfigError("CFG_002", f"Bilinmeyen Unreal bridge provider: {cfg.provider}")
@@ -151,7 +155,7 @@ class ProviderFactory:
         }
 
 
-def validate_startup(config: "AppConfig") -> list[str]:
+def validate_startup(config: AppConfig) -> list[str]:
     """M5: lifespan'de fail-fast doğrulama.
 
     Seçili (mock olmayan) provider'lar için model/dosya varlığını kontrol et.

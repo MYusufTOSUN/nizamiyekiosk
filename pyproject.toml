@@ -79,16 +79,31 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "ASYNC", "S", "A", "C4", "T20", "SIM"]
-ignore = ["S101"]
+ignore = [
+    "S101",     # assert kullanımı — testlerde ve iç invariant'larda kabul
+    "S110",     # try-except-pass — bilinçli cleanup blokları (close/cancel)
+    "S607",     # partial executable path — nvidia-smi gibi bilinen araçlar
+    "UP042",    # str+Enum — pydantic uyumu için bilinçli (StrEnum yerine)
+    "ASYNC230", # async'te open() — config/cache okuması, sıcak yol değil
+    "ASYNC240", # async'te pathlib metodu — ucuz fs metadata, kabul
+    "SIM105",   # try-except-pass yerine contextlib.suppress — stil tercihi
+    "SIM102",   # iç içe if — okunabilirlik için bilinçli
+    "SIM117",   # iç içe with — testlerde okunabilirlik
+]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S", "T20"]
-"scripts/**" = ["T20"]
+"tests/**" = ["S", "T20", "ASYNC"]
+# Operasyonel/etkileşimli script'ler: input(), while-sleep, uzun satır serbest
+"scripts/**" = ["T20", "ASYNC250", "ASYNC110", "E501"]
 
 [tool.mypy]
 python_version = "3.11"
 strict = true
 ignore_missing_imports = true
+# GPU bağımlılıkları (torch/faster-whisper/TTS/llama-cpp) CI'da kurulu değil;
+# o ortamda type: ignore[import-not-found] gerekli, lokalde "unused" görünür.
+# Ortam-bağımsız tutarlılık için unused-ignore uyarısını kapat.
+warn_unused_ignores = false
 plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]

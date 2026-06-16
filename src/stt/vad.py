@@ -10,7 +10,7 @@ Torch yoksa veya yüklenmezse RMSFallbackVAD devreye girer — sergiyi durdurmaz
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
 from numpy.typing import NDArray
@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from src.stt.audio_utils import DEFAULT_SAMPLE_RATE, is_silent
 
 if TYPE_CHECKING:  # pragma: no cover
-    import torch
+    pass
 
 _log = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class VoiceActivityDetector:
         threshold: float = 0.5,
         min_speech_duration_ms: int = 250,
         min_silence_duration_ms: int = 800,
-        backend: Optional[VADBackend] = None,
+        backend: VADBackend | None = None,
     ) -> None:
         if sample_rate != DEFAULT_SAMPLE_RATE:
             raise ValueError("Silero VAD yalnızca 16 kHz destekler")

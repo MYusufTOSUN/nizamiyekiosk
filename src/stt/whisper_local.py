@@ -166,9 +166,12 @@ class WhisperLocalSTT(STTProvider):
         language: str = "tr",
     ) -> AsyncIterator[TranscriptionResult]:
         cfg = self.config
+        # Buffer'a headroom ver: aksi halde ring-trim tam max_segment'te kesip
+        # zorla-flush koşulunu (duration >= max_segment) hiç tetiklemez,
+        # uzun monologda cümle başı sessizce düşerdi.
         buffer = AudioBuffer(
             sample_rate=cfg.sample_rate,
-            max_duration_seconds=cfg.max_segment_duration_seconds,
+            max_duration_seconds=cfg.max_segment_duration_seconds + 5,
         )
         vad = VoiceActivityDetector(
             sample_rate=cfg.sample_rate,

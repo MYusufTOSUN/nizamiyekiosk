@@ -40,7 +40,7 @@ async def udp_mock_server(port: int, stop: asyncio.Event, stats: dict[str, int])
             data, _addr = await asyncio.wait_for(
                 loop.sock_recvfrom(sock, 4096), timeout=0.5
             )
-        except (TimeoutError, asyncio.TimeoutError):
+        except TimeoutError:
             continue
         try:
             ts_us, char_id, _values = unpack_blendshape_packet(data)
@@ -92,7 +92,7 @@ async def tcp_mock_server(port: int, stop: asyncio.Event, stats: dict[str, int])
 
 
 async def main(duration: float, rate: int, udp_port: int, tcp_port: int) -> int:
-    print(f"\n=== Unreal Bridge Protokol Testi (mock) ===")
+    print("\n=== Unreal Bridge Protokol Testi (mock) ===")
     print(f"  UDP port: {udp_port}, TCP port: {tcp_port}")
     print(f"  Süre: {duration}s, blendshape rate: {rate} Hz\n")
 
@@ -155,7 +155,7 @@ async def main(duration: float, rate: int, udp_port: int, tcp_port: int) -> int:
     await asyncio.sleep(0.3)
 
     # Sonuç
-    print(f"\n=== Sonuç ===")
+    print("\n=== Sonuç ===")
     print(f"  TCP komut: gönderildi=2, mock alındı={stats['tcp_received']}")
     print(
         f"  UDP frame: gönderildi={total_frames}, alındı={stats['udp_received']}, "

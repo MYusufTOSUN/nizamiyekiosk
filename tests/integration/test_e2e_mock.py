@@ -9,9 +9,9 @@ from fastapi.testclient import TestClient
 
 from src.core.interfaces import SessionState
 from src.intent.detector import KeywordIntentDetector
+from src.lipsync.mock import MockLipSync
 from src.llm.mock import MockLLM
 from src.llm.rag_mock import MockRAGStore
-from src.lipsync.mock import MockLipSync
 from src.orchestrator.app import app
 from src.orchestrator.pipeline import ConversationPipeline
 from src.orchestrator.session import Session
@@ -104,13 +104,12 @@ def test_metrics_endpoint() -> None:
 
 @pytest.mark.e2e
 def test_ws_audio_full_pipeline() -> None:
-    with TestClient(app) as client:
-        with client.websocket_connect("/ws/audio") as ws:
-            # Birkaç fake PCM chunk gönder
-            for _ in range(5):
-                ws.send_bytes(b"\x00" * 640)
-            ws.send_text("__end__")
-            payload = ws.receive_json()
+    with TestClient(app) as client, client.websocket_connect("/ws/audio") as ws:
+        # Birkaç fake PCM chunk gönder
+        for _ in range(5):
+            ws.send_bytes(b"\x00" * 640)
+        ws.send_text("__end__")
+        payload = ws.receive_json()
 
     assert payload["type"] == "turn_completed"
     assert payload["transcription"]

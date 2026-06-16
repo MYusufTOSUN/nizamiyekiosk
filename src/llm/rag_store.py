@@ -30,7 +30,8 @@ class RAGStoreConfig(BaseModel):
     embedding_model: str = DEFAULT_EMBEDDING_MODEL
     store_path: str = "data/responses/vector_store"
     embedding_device: str = "cuda"  # "cuda" varsa, yoksa "cpu"
-    e5_query_prefix: str = "query: "      # intfloat/multilingual-e5 modellerinin gerektirdiği prefix
+    # intfloat/multilingual-e5 modellerinin gerektirdiği prefix'ler:
+    e5_query_prefix: str = "query: "
     e5_passage_prefix: str = "passage: "
 
     model_config = {"extra": "forbid"}
@@ -156,6 +157,8 @@ class ChromaRAGStore(RAGStore):
                 self._get_collection, collection_name, create=True
             )
             self._collections[collection_name] = collection
+        if collection is None:  # create=True asla None dönmez ama tip-güvenli
+            raise LLMError("LLM_001", f"RAG koleksiyonu oluşturulamadı: {collection_name}")
 
         ids: list[str] = []
         documents: list[str] = []
@@ -258,7 +261,6 @@ class ChromaRAGStore(RAGStore):
         dist_batch = raw.get("distances") or [[]]
         if not docs_batch:
             return []
-        docs = docs_batch[0]
         metas = meta_batch[0]
         dists = dist_batch[0]
         results: list[RAGResult] = []

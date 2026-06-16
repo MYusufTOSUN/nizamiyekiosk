@@ -8,13 +8,11 @@ from typing import Any
 import pytest
 
 from src.core.errors import LLMError
-from src.llm.llama_local import LlamaLocalLLM
 
 
 @pytest.mark.asyncio
 async def test_error_tuple_format_raised_as_llm_error() -> None:
     """Producer'ın put ettiği ("__ERR__", type, msg) tuple consumer'da LLMError olur."""
-    llm = LlamaLocalLLM()
     # Mock generator: error tuple yielde ardından None
     queue: asyncio.Queue[Any] = asyncio.Queue()
     await queue.put(("__ERR__", "RuntimeError", "boom"))

@@ -13,7 +13,6 @@ import argparse
 import asyncio
 import sys
 import time
-from pathlib import Path
 
 from src.core.config import get_config
 from src.tts.xtts_local import XTTS_NATIVE_SR, XTTSConfig, XTTSLocalTTS

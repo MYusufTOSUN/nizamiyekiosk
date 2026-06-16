@@ -17,7 +17,9 @@ from src.intent.keywords import (
 )
 
 # Türkçe küçük harf: "İ"→"i", "I"→"ı" (Python str.lower() bunu yanlış yapar).
-_TR_LOWER_MAP = str.maketrans({"İ": "i", "I": "ı", "Ş": "ş", "Ğ": "ğ", "Ü": "ü", "Ö": "ö", "Ç": "ç"})
+_TR_LOWER_MAP = str.maketrans(
+    {"İ": "i", "I": "ı", "Ş": "ş", "Ğ": "ğ", "Ü": "ü", "Ö": "ö", "Ç": "ç"}
+)
 
 
 def turkish_lower(text: str) -> str:

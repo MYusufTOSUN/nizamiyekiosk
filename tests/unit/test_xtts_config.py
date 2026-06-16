@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from src.tts.xtts_local import (
     MAX_CHARS_PER_LANGUAGE,
     XTTSConfig,

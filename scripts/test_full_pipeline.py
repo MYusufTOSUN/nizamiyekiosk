@@ -177,7 +177,6 @@ async def run_turn(
     # TTS streaming + chunk gelir gelmez hoparlöre yaz
     tts_start = time.perf_counter()
     first_chunk_ms = None
-    first_audible_ms = None
     total_bytes = 0
     out_stream = sd.RawOutputStream(
         samplerate=XTTS_NATIVE_SR,
@@ -190,7 +189,6 @@ async def run_turn(
         async for chunk in state.tts.synthesize_stream(response, persona.voice_id):
             if first_chunk_ms is None:
                 first_chunk_ms = int((time.perf_counter() - tts_start) * 1000)
-                first_audible_ms = first_chunk_ms
                 print(
                     f"  [TTS first_chunk={first_chunk_ms}ms — Cezeri konusmaya basliyor...]"
                 )

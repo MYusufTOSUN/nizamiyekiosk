@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 
 from src.core.config import (
-    LLMSection,
     LipSyncSection,
+    LLMSection,
     STTSection,
     TTSSection,
     UnrealBridgeSection,
@@ -15,8 +15,8 @@ from src.core.errors import ConfigError
 from src.core.factory import ProviderFactory
 from src.core.interfaces import (
     IntentDetector,
-    LLMProvider,
     LipSyncProvider,
+    LLMProvider,
     RAGStore,
     SceneController,
     STTProvider,

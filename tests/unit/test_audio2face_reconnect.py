@@ -14,13 +14,31 @@ from src.lipsync.audio2face import Audio2FaceConfig, Audio2FaceLipSync
 @pytest.mark.asyncio
 async def test_connection_failure_does_not_set_ws() -> None:
     """Connect timeout — self._ws None kalmalı, sonraki çağrı yeniden dener."""
-    a2f = Audio2FaceLipSync(Audio2FaceConfig(connect_timeout_seconds=0.01))
+    a2f = Audio2FaceLipSync(
+        Audio2FaceConfig(
+            connect_timeout_seconds=0.01,
+            max_reconnect_attempts=2,
+            reconnect_backoff_base=0.001,
+        )
+    )
     # websockets.connect'i TimeoutError raise edecek şekilde mock'la
     with patch("websockets.connect", side_effect=TimeoutError("boom")):
         with pytest.raises(LipSyncError) as exc:
             await a2f._ensure_connection("cezeri")
     assert exc.value.error_code == "LS_001"
     assert a2f._ws is None  # leak yok
+
+
+@pytest.mark.asyncio
+async def test_reset_connection_clears_ws() -> None:
+    """M6: _reset_connection kopuk soketi kapatıp None yapar."""
+    a2f = Audio2FaceLipSync()
+    fake_ws = AsyncMock()
+    fake_ws.close = AsyncMock()
+    a2f._ws = fake_ws
+    await a2f._reset_connection()
+    assert a2f._ws is None
+    fake_ws.close.assert_awaited_once()
 
 
 @pytest.mark.asyncio

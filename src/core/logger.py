@@ -55,7 +55,10 @@ def get_logger(**initial_values: Any) -> structlog.stdlib.BoundLogger:
     """``component=...`` gibi sabit alanlarla logger döndür."""
     if not _configured:
         configure_logging()
-    return structlog.get_logger().bind(service="bilimfest", **initial_values)
+    logger: structlog.stdlib.BoundLogger = structlog.get_logger().bind(
+        service="bilimfest", **initial_values
+    )
+    return logger
 
 
 def bind_context(**values: Any) -> None:

@@ -87,7 +87,9 @@ class LiveLinkSceneController(SceneController):
                 host=self.config.tcp_host,
                 port=self.config.tcp_port,
             )
-            return self._tcp_reader, self._tcp_writer
+            reader, writer = self._tcp_reader, self._tcp_writer
+            assert reader is not None and writer is not None
+            return reader, writer
 
     async def _response_reader(self) -> None:
         """TCP cevap dinleyici — request_id ile pending future'ı çözer."""
@@ -116,6 +118,26 @@ class LiveLinkSceneController(SceneController):
             pass
         except Exception as exc:  # noqa: BLE001
             _log.warning("tcp_response_reader_error", error=str(exc))
+        finally:
+            # M6: reader bitti = bağlantı koptu; bekleyen future'ları çöz + temizle
+            for fut in self._pending_responses.values():
+                if not fut.done():
+                    fut.cancel()
+            self._pending_responses.clear()
+
+    async def _reset_tcp(self) -> None:
+        """Kopuk TCP bağlantısını temizle → sonraki komut yeniden bağlanır."""
+        if self._response_task is not None:
+            self._response_task.cancel()
+            self._response_task = None
+        writer = self._tcp_writer
+        self._tcp_writer = None
+        self._tcp_reader = None
+        if writer is not None:
+            try:
+                writer.close()
+            except Exception:  # noqa: BLE001
+                pass
 
     # ------------------------------------------------------------------
     # SceneController API
@@ -135,6 +157,8 @@ class LiveLinkSceneController(SceneController):
             await writer.drain()
         except (ConnectionError, OSError) as exc:
             self._pending_responses.pop(command.request_id, None)
+            # M6: kopuk writer'ı temizle ki sonraki komut yeniden bağlansın
+            await self._reset_tcp()
             raise UnrealBridgeError(
                 "UB_002",
                 f"Komut gönderimi başarısız: {exc}",

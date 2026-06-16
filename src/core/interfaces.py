@@ -11,10 +11,9 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from datetime import datetime
 from enum import Enum
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-
 
 # ---------------------------------------------------------------------------
 # Ortak veri tipleri
@@ -74,7 +73,7 @@ IntentType = Literal["selection", "question", "farewell", "unclear"]
 
 class Intent(BaseModel):
     type: IntentType
-    target: Optional[str] = None  # selection için karakter id: "cezeri", ...
+    target: str | None = None  # selection için karakter id: "cezeri", ...
     confidence: float
     raw_text: str
 
@@ -255,7 +254,7 @@ class SceneCommandResponse(BaseModel):
     request_id: str
     status: Literal["ok", "error"] = "ok"
     data: dict[str, Any] = Field(default_factory=dict)
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class SceneController(ABC):

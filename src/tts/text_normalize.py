@@ -27,7 +27,10 @@ ABBREV: dict[str, str] = {
 # 0-99 arası Türkçe sayı isimleri (XTTS için ses sentezi açısından)
 _BIRLER = ["", "bir", "iki", "üç", "dört", "beş", "altı", "yedi", "sekiz", "dokuz"]
 _ONLAR = ["", "on", "yirmi", "otuz", "kırk", "elli", "altmış", "yetmiş", "seksen", "doksan"]
-_YUZLER = ["", "yüz", "iki yüz", "üç yüz", "dört yüz", "beş yüz", "altı yüz", "yedi yüz", "sekiz yüz", "dokuz yüz"]
+_YUZLER = [
+    "", "yüz", "iki yüz", "üç yüz", "dört yüz",
+    "beş yüz", "altı yüz", "yedi yüz", "sekiz yüz", "dokuz yüz",
+]
 
 
 def _0_99_to_tr(n: int) -> str:
@@ -83,9 +86,9 @@ def normalize_for_tts(text: str) -> str:
     4. Cümle sonu noktalama düzelt (TTS doğru pause atsın)
     """
     out = " " + text + " "
-    lower = out.lower()
-    # Kısaltmalar (lowercase'de ara, ama orijinal case'i koru riskli, basit yaklaşım: lowercase'e çevirip yeniden büyük harf yok — TTS için fark yok)
-    out_lower = lower
+    # Kısaltmaları lowercase'de ara. TTS için büyük/küçük harf farkı yok,
+    # bu yüzden tamamını lowercase'e çevirmek güvenli.
+    out_lower = out.lower()
     for k, v in ABBREV.items():
         out_lower = out_lower.replace(k, v)
     out = out_lower.strip()
