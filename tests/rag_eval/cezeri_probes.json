@@ -1,280 +1,736 @@
 {
-  "_comment": "RAG precision değerlendirme seti. 'hit' = bu soru ilgili entry'e gitmeli; expect_id beklenen cevap. 'miss' = alan dışı, LLM'e düşmeli (RAG hit OLMAMALI). Sorular bilerek question_examples'tan FARKLI ifadelerle yazıldı.",
+  "_comment": "RAG precision/recall eval seti (v2, adversarial). 13-ajanli workflow ile uretildi: kimlik, bilinen/bilinmeyen kisi, cocuk-dili bilim, modern-reddet, alan-disi, asr-noise. 'hit'=ilgili entry'e gitmeli (expect_id); 'miss'=alan disi, LLM'e dusmeli. unknown_persons ve offdomain_miss kategorileri gate (threshold/margin) precision'ini test eder.",
   "probes": [
     {
-      "q": "Robot dediğin şey nasıl iş görür?",
+      "q": "Sen kimsin yaa?",
       "expect": "hit",
-      "id": "cezeri_001"
-    },
-    {
-      "q": "Makineler kendi kendine nasıl hareket eder?",
-      "expect": "hit",
-      "id": "cezeri_001"
-    },
-    {
-      "q": "Şu meşhur fil saatini bana tarif eder misin?",
-      "expect": "hit",
-      "id": "cezeri_002"
-    },
-    {
-      "q": "Filin üstündeki saat ne işe yarıyordu?",
-      "expect": "hit",
-      "id": "cezeri_002"
-    },
-    {
-      "q": "Tavus kuşu biçimli aletin görevi neydi?",
-      "expect": "hit",
-      "id": "cezeri_003"
-    },
-    {
-      "q": "Tarlaya suyu nasıl ulaştırıyordunuz?",
-      "expect": "hit",
-      "id": "cezeri_004"
-    },
-    {
-      "q": "Hangi eseri kaleme aldın?",
-      "expect": "hit",
-      "id": "cezeri_005"
-    },
-    {
-      "q": "Dünyaya nerede geldin?",
-      "expect": "hit",
-      "id": "cezeri_006"
-    },
-    {
-      "q": "Hangi çağda yaşamış biriydin?",
-      "expect": "hit",
-      "id": "cezeri_007"
-    },
-    {
-      "q": "Ben de senin gibi icat yapmak istiyorum, nasıl başlarım?",
-      "expect": "hit",
-      "id": "cezeri_154"
-    },
-    {
-      "q": "Cep telefonu hakkında ne dersin?",
-      "expect": "hit",
-      "id": "cezeri_019"
-    },
-    {
-      "q": "Bilgisayarın ne olduğunu anlatır mısın?",
-      "expect": "hit",
-      "id": "cezeri_020"
-    },
-    {
-      "q": "Pamuk şekeri hangi yöntemle üretiliyor?",
-      "expect": "hit",
-      "id": "cezeri_025"
-    },
-    {
-      "q": "Cisimler yere doğru neden çekiliyor?",
-      "expect": "hit",
-      "id": "cezeri_045"
-    },
-    {
-      "q": "Suyun ne olduğunu söyler misin?",
-      "expect": "hit",
-      "id": "cezeri_048"
-    },
-    {
-      "q": "Newton diye birini tanıyor musun?",
-      "expect": "hit",
-      "id": "cezeri_080"
-    },
-    {
-      "q": "Einstein kim, bilir misin?",
-      "expect": "hit",
-      "id": "cezeri_083"
-    },
-    {
-      "q": "Bugün keyfin nasıl bakalım?",
-      "expect": "hit",
-      "id": "cezeri_111"
-    },
-    {
-      "q": "Senin adın neydi?",
-      "expect": "hit",
+      "category": "identity_self",
       "id": "cezeri_112"
     },
     {
-      "q": "Selam sana usta",
+      "q": "Kendini bi tanıtsana",
       "expect": "hit",
-      "id": "cezeri_018"
+      "category": "identity_self",
+      "id": "cezeri_112"
     },
     {
-      "q": "Bana bir bilmece sorsana",
+      "q": "Sen ne zamanlar yaşıyodun?",
       "expect": "hit",
-      "id": "cezeri_197"
+      "category": "identity_self",
+      "id": "cezeri_007"
     },
     {
-      "q": "Su değirmeni nasıl un öğütür?",
+      "q": "Hangi çağın adamısın?",
       "expect": "hit",
-      "id": "cezeri_027"
+      "category": "identity_self",
+      "id": "cezeri_007"
     },
     {
-      "q": "Geçmişte vakti nasıl ölçerdiniz?",
+      "q": "Sen nereden geliyon, memleketin neresi?",
       "expect": "hit",
-      "id": "cezeri_026"
+      "category": "identity_self",
+      "id": "cezeri_006"
     },
     {
-      "q": "İnternet diye bir şey duydun mu?",
+      "q": "Kaç yaşında öldün sen?",
       "expect": "hit",
-      "id": "cezeri_021"
+      "category": "identity_self",
+      "id": "cezeri_113"
     },
     {
-      "q": "Uçaklar gökyüzünde nasıl durur?",
+      "q": "Ne iş yapardın eskiden, mesleğin neydi?",
       "expect": "hit",
-      "id": "cezeri_023"
+      "category": "identity_self",
+      "id": "cezeri_012"
     },
     {
-      "q": "Kuantum dolanıklık ne demek?",
-      "expect": "miss"
-    },
-    {
-      "q": "Bitcoin'in bugünkü fiyatı kaç dolar?",
-      "expect": "miss"
-    },
-    {
-      "q": "Real Madrid dün maçı kaç kaç bitirdi?",
-      "expect": "miss"
-    },
-    {
-      "q": "DNA'nın çift sarmal yapısını açıkla",
-      "expect": "miss"
-    },
-    {
-      "q": "En sevdiğin Netflix dizisi hangisi?",
-      "expect": "miss"
-    },
-    {
-      "q": "Python'da liste nasıl ters çevrilir?",
-      "expect": "miss"
-    },
-    {
-      "q": "Borsada hangi hisseyi almalıyım?",
-      "expect": "miss"
-    },
-    {
-      "q": "Karadelikler ışığı neden yutar?",
-      "expect": "miss"
-    },
-    {
-      "q": "Pizza hamuru tarifi verir misin?",
-      "expect": "miss"
-    },
-    {
-      "q": "Bugün hava durumu nasıl olacak?",
-      "expect": "miss"
-    },
-    {
-      "q": "Su ile çalışan saat nasıl işliyordu?",
+      "q": "Harezmi diye biri varmış, onu tanıyon mu?",
       "expect": "hit",
-      "id": "cezeri_026"
-    },
-    {
-      "q": "Hastadan kan almak için bir aletin var mıydı?",
-      "expect": "hit",
-      "id": "cezeri_028"
-    },
-    {
-      "q": "Dişli çarklar ne işe yarar?",
-      "expect": "hit",
-      "id": "cezeri_039"
-    },
-    {
-      "q": "Ağır bir taşı az kuvvetle nasıl kaldırabilirim?",
-      "expect": "hit",
-      "id": "cezeri_040"
-    },
-    {
-      "q": "Demiri uzaktan çeken o taş neydi?",
-      "expect": "hit",
-      "id": "cezeri_043"
-    },
-    {
-      "q": "Yön bulmak için kullandığın alet neydi?",
-      "expect": "hit",
-      "id": "cezeri_044"
-    },
-    {
-      "q": "Odun yanınca aslında ne oluyor?",
-      "expect": "hit",
-      "id": "cezeri_047"
-    },
-    {
-      "q": "Güneş bize neler veriyor?",
-      "expect": "hit",
-      "id": "cezeri_049"
-    },
-    {
-      "q": "Cebiri bulan bilgin kimdi?",
-      "expect": "hit",
+      "category": "known_persons",
       "id": "cezeri_076"
     },
     {
-      "q": "Avicenna denen hekim kimdi?",
+      "q": "İbni Sina kimmiş anlatsana",
       "expect": "hit",
+      "category": "known_persons",
       "id": "cezeri_077"
     },
     {
-      "q": "Konya'daki o büyük mütefekkir kim?",
+      "q": "Biruni'yi biliyon mu sen",
       "expect": "hit",
+      "category": "known_persons",
+      "id": "cezeri_078"
+    },
+    {
+      "q": "Arşimet kim oluyor",
+      "expect": "hit",
+      "category": "known_persons",
+      "id": "cezeri_079"
+    },
+    {
+      "q": "Newton'u duydun mu hiç",
+      "expect": "hit",
+      "category": "known_persons",
+      "id": "cezeri_080"
+    },
+    {
+      "q": "Da Vinci'yi tanıyo musun sen",
+      "expect": "hit",
+      "category": "known_persons",
+      "id": "cezeri_081"
+    },
+    {
+      "q": "Edison'u bilir misin",
+      "expect": "hit",
+      "category": "known_persons",
+      "id": "cezeri_082"
+    },
+    {
+      "q": "Einstein'ı tanıyo musun",
+      "expect": "hit",
+      "category": "known_persons",
+      "id": "cezeri_083"
+    },
+    {
+      "q": "Galileo'yu duydun mu",
+      "expect": "hit",
+      "category": "known_persons",
+      "id": "cezeri_084"
+    },
+    {
+      "q": "Mevlana kimdi sence",
+      "expect": "hit",
+      "category": "known_persons",
       "id": "cezeri_085"
     },
     {
-      "q": "Radyumu bulan kadın bilim insanı kim?",
+      "q": "Yunus Emre'yi biliyo musun",
       "expect": "hit",
+      "category": "known_persons",
+      "id": "cezeri_086"
+    },
+    {
+      "q": "Mimar Sinan ne yapmış usta",
+      "expect": "hit",
+      "category": "known_persons",
+      "id": "cezeri_087"
+    },
+    {
+      "q": "Hezarfen kim oluyor",
+      "expect": "hit",
+      "category": "known_persons",
+      "id": "cezeri_088"
+    },
+    {
+      "q": "Piri Reis'i tanıyo musun",
+      "expect": "hit",
+      "category": "known_persons",
+      "id": "cezeri_089"
+    },
+    {
+      "q": "Mari Küri kimdi",
+      "expect": "hit",
+      "category": "known_persons",
       "id": "cezeri_090"
     },
     {
-      "q": "Robotların duyguları olabilir mi?",
+      "q": "Ali Kuşçu'yu duydun mu hiç",
       "expect": "hit",
-      "id": "cezeri_119"
+      "category": "known_persons",
+      "id": "cezeri_091"
     },
     {
-      "q": "Ben nasıl mucit olabilirim?",
+      "q": "Cahit Arf kim ya",
       "expect": "hit",
-      "id": "cezeri_154"
+      "category": "known_persons",
+      "id": "cezeri_092"
     },
     {
-      "q": "Yazın evi serinleten makineyi biliyor musun?",
+      "q": "Aristo'yu biliyon mu sen",
       "expect": "hit",
-      "id": "cezeri_062"
+      "category": "known_persons",
+      "id": "cezeri_093"
     },
     {
-      "q": "Çamaşırları yıkayan makineden haberin var mı?",
+      "q": "robot ne demek",
       "expect": "hit",
-      "id": "cezeri_063"
+      "category": "science_kid",
+      "id": "cezeri_001"
     },
     {
-      "q": "Şifreli kilidi sen mi buldun?",
+      "q": "dişliler nasıl çalışıyor",
       "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_008"
+    },
+    {
+      "q": "mıknatıs neden demiri çekiyor",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_043"
+    },
+    {
+      "q": "pusula hep nereyi gösterir",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_044"
+    },
+    {
+      "q": "su nedir anlatsana",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_048"
+    },
+    {
+      "q": "ateş nasıl yanıyor",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_047"
+    },
+    {
+      "q": "güneş niye böyle sıcak",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_049"
+    },
+    {
+      "q": "yağmur niye yağıyor",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_051"
+    },
+    {
+      "q": "gökkuşağı nasıl oluyor",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_132"
+    },
+    {
+      "q": "şimşek ne ki o",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_052"
+    },
+    {
+      "q": "ses nasıl kulağımıza geliyor",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_133"
+    },
+    {
+      "q": "kalbimiz ne işe yarar",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_125"
+    },
+    {
+      "q": "beyin ne yapıyor kafamızda",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_126"
+    },
+    {
+      "q": "neden hep aşağı düşüyoruz",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_045"
+    },
+    {
+      "q": "kaldıraç neye yarıyor",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_040"
+    },
+    {
+      "q": "makara ne işe yarar söyle",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_041"
+    },
+    {
+      "q": "deprem niye oluyor korkuyorum",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_054"
+    },
+    {
+      "q": "rüzgar nereden geliyor",
+      "expect": "hit",
+      "category": "science_kid",
+      "id": "cezeri_046"
+    },
+    {
+      "q": "fil saatini anlatsana",
+      "expect": "hit",
+      "category": "cezeri_works",
+      "id": "cezeri_002"
+    },
+    {
+      "q": "suyla saati nasıl yaptın",
+      "expect": "hit",
+      "category": "cezeri_works",
+      "id": "cezeri_026"
+    },
+    {
+      "q": "tavus kuşu şeklindeki makinen ne işe yarıyodu",
+      "expect": "hit",
+      "category": "cezeri_works",
+      "id": "cezeri_003"
+    },
+    {
+      "q": "tarlaya su çıkaran makinen var mıydı",
+      "expect": "hit",
+      "category": "cezeri_works",
+      "id": "cezeri_004"
+    },
+    {
+      "q": "pistonlu pompa neymiş, sen mi buldun",
+      "expect": "hit",
+      "category": "cezeri_works",
+      "id": "cezeri_035"
+    },
+    {
+      "q": "şifreli kilit yaptın mı sen",
+      "expect": "hit",
+      "category": "cezeri_works",
       "id": "cezeri_029"
     },
     {
-      "q": "Değirmen buğdayı nasıl una çevirir?",
+      "q": "müzik çalan makinelerini anlatır mısın",
       "expect": "hit",
+      "category": "cezeri_works",
+      "id": "cezeri_009"
+    },
+    {
+      "q": "suyun içinde yüzen mekanik balıklar yapmışsın değil mi",
+      "expect": "hit",
+      "category": "cezeri_works",
+      "id": "cezeri_037"
+    },
+    {
+      "q": "kule gibi kocaman olan saatin hangisiydi",
+      "expect": "hit",
+      "category": "cezeri_works",
+      "id": "cezeri_032"
+    },
+    {
+      "q": "hekimler için kan alma aleti yaptın mı",
+      "expect": "hit",
+      "category": "cezeri_works",
+      "id": "cezeri_028"
+    },
+    {
+      "q": "su değirmeni nasıl dönüyo",
+      "expect": "hit",
+      "category": "cezeri_works",
       "id": "cezeri_027"
     },
     {
-      "q": "iPhone mu Samsung mu almalıyım?",
-      "expect": "miss"
+      "q": "sen kitap da yazdın mı, adı neydi",
+      "expect": "hit",
+      "category": "cezeri_works",
+      "id": "cezeri_005"
     },
     {
-      "q": "Dolar kuru bugün kaç lira?",
-      "expect": "miss"
+      "q": "mumla çalışan saatin neydi onu söyle",
+      "expect": "hit",
+      "category": "cezeri_works",
+      "id": "cezeri_031"
     },
     {
-      "q": "Galatasaray dün kaç gol attı?",
-      "expect": "miss"
+      "q": "bahçeye fıskiye yapmış mıydın",
+      "expect": "hit",
+      "category": "cezeri_works",
+      "id": "cezeri_036"
     },
     {
-      "q": "JavaScript'te döngü nasıl yazılır?",
-      "expect": "miss"
+      "q": "öten mekanik kuşların var mıydı",
+      "expect": "hit",
+      "category": "cezeri_works",
+      "id": "cezeri_038"
     },
     {
-      "q": "En yakın eczane nerede acaba?",
-      "expect": "miss"
+      "q": "internet ne ya, sen biliyon mu onu",
+      "expect": "hit",
+      "category": "modern_reddet",
+      "id": "cezeri_021"
+    },
+    {
+      "q": "senin zamanında bilgisayar var mıydı",
+      "expect": "hit",
+      "category": "modern_reddet",
+      "id": "cezeri_020"
+    },
+    {
+      "q": "evde wifi olmayınca telefon çalışmıyo, sende wifi var mı",
+      "expect": "hit",
+      "category": "modern_reddet",
+      "id": "cezeri_066"
+    },
+    {
+      "q": "yolu kaybedince gps açıyoruz, gps nedir bilir misin",
+      "expect": "hit",
+      "category": "modern_reddet",
+      "id": "cezeri_067"
+    },
+    {
+      "q": "youtube izliyon mu hiç sen",
+      "expect": "hit",
+      "category": "modern_reddet",
+      "id": "cezeri_069"
+    },
+    {
+      "q": "instagram tiktok falan kullanıyon mu",
+      "expect": "hit",
+      "category": "modern_reddet",
+      "id": "cezeri_070"
+    },
+    {
+      "q": "lazer ışını nasıl bişey biliyon mu",
+      "expect": "hit",
+      "category": "modern_reddet",
+      "id": "cezeri_064"
+    },
+    {
+      "q": "okulda 3d yazıcıyla oyuncak bastık, sen 3d yazıcı gördün mü",
+      "expect": "hit",
+      "category": "modern_reddet",
+      "id": "cezeri_065"
+    },
+    {
+      "q": "annem çamaşırları makineye atıyo, çamaşır makinen var mıydı",
+      "expect": "hit",
+      "category": "modern_reddet",
+      "id": "cezeri_063"
+    },
+    {
+      "q": "soğuk şeyleri nerde saklardınız, buzdolabınız yok muydu",
+      "expect": "hit",
+      "category": "modern_reddet",
+      "id": "cezeri_061"
+    },
+    {
+      "q": "yazın çok sıcak oluyo, sizde klima yok muydu",
+      "expect": "hit",
+      "category": "modern_reddet",
+      "id": "cezeri_062"
+    },
+    {
+      "q": "roketle uzaya gidiliyo, roket nedir biliyon mu",
+      "expect": "hit",
+      "category": "modern_reddet",
+      "id": "cezeri_059"
+    },
+    {
+      "q": "pikaçu yu tanıyon mu, pokemon oynar mısın",
+      "expect": "hit",
+      "category": "modern_reddet",
+      "id": "cezeri_120"
+    },
+    {
+      "q": "Merhaba usta, naber",
+      "expect": "hit",
+      "category": "conversation",
+      "id": "cezeri_018"
+    },
+    {
+      "q": "Bugun keyfin nasil bakalim",
+      "expect": "hit",
+      "category": "conversation",
+      "id": "cezeri_111"
+    },
+    {
+      "q": "Cok sag ol her seyi anlattin",
+      "expect": "hit",
+      "category": "conversation",
+      "id": "cezeri_116"
+    },
+    {
+      "q": "Eee ben artik gidiyorum gule gule",
+      "expect": "hit",
+      "category": "conversation",
+      "id": "cezeri_118"
+    },
+    {
+      "q": "Sen cok akillisin be usta helal sana",
+      "expect": "hit",
+      "category": "conversation",
+      "id": "cezeri_117"
+    },
+    {
+      "q": "Bugun moralim cok bozuk aglayacam",
+      "expect": "hit",
+      "category": "conversation",
+      "id": "cezeri_123"
+    },
+    {
+      "q": "Bugun cok keyfim yerinde sevincliyim",
+      "expect": "hit",
+      "category": "conversation",
+      "id": "cezeri_124"
+    },
+    {
+      "q": "Bana zor bir bilmece sorsana",
+      "expect": "hit",
+      "category": "conversation",
+      "id": "cezeri_197"
+    },
+    {
+      "q": "Komik bir sey soyle de gulelim",
+      "expect": "hit",
+      "category": "conversation",
+      "id": "cezeri_196"
+    },
+    {
+      "q": "Gel sana koca bir sarilma vereyim",
+      "expect": "hit",
+      "category": "conversation",
+      "id": "cezeri_198"
+    },
+    {
+      "q": "Bi dakka beni bi dinler misin sana bisey diyecem",
+      "expect": "hit",
+      "category": "conversation",
+      "id": "cezeri_115"
+    },
+    {
+      "q": "Bana sarki soyle uyumam icin",
+      "expect": "hit",
+      "category": "conversation",
+      "id": "cezeri_177"
+    },
+    {
+      "q": "fıl saatini anlatsana",
+      "expect": "hit",
+      "category": "asr_noise",
+      "id": "cezeri_002"
+    },
+    {
+      "q": "mık natıs nedir",
+      "expect": "hit",
+      "category": "asr_noise",
+      "id": "cezeri_043"
+    },
+    {
+      "q": "su pumpası ne işe yarıyo",
+      "expect": "hit",
+      "category": "asr_noise",
+      "id": "cezeri_004"
+    },
+    {
+      "q": "busula nasıl çalışıyo",
+      "expect": "hit",
+      "category": "asr_noise",
+      "id": "cezeri_044"
+    },
+    {
+      "q": "çakr neymiş anlat",
+      "expect": "hit",
+      "category": "asr_noise",
+      "id": "cezeri_039"
+    },
+    {
+      "q": "su sahati yapmış mıydın",
+      "expect": "hit",
+      "category": "asr_noise",
+      "id": "cezeri_026"
+    },
+    {
+      "q": "yüzen mekanı balık var mıydı",
+      "expect": "hit",
+      "category": "asr_noise",
+      "id": "cezeri_037"
+    },
+    {
+      "q": "fıs kiye ne ki o",
+      "expect": "hit",
+      "category": "asr_noise",
+      "id": "cezeri_036"
+    },
+    {
+      "q": "Atatürk'ü biliyon mu sen",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Mustafa Kemal kim ya",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Fatih Sultan Mehmet'i tanıyo musun",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Kanuni Sultan Süleyman kimdi",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Osman Gazi'yi biliyor musun",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Messi kim biliyon mu",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Ronaldo'yu tanıyor musun sen",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Tarkan'ı biliyo musun",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Elon Musk kim ya",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Steve Jobs'u tanıyor musun",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Bill Gates'i biliyon mu",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Nikola Tesla kim",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Stephen Hawking'i tanıyor musun",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Pisagor kimdi biliyon mu",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Mozart'ı tanıyo musun sen",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Beethoven kim ya",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Picasso'yu biliyor musun",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Enes Batur'u tanıyo musun",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "Arda Güler kim biliyon mu",
+      "expect": "miss",
+      "category": "unknown_persons"
+    },
+    {
+      "q": "234 çarpı 56 kaç eder",
+      "expect": "miss",
+      "category": "offdomain_miss"
+    },
+    {
+      "q": "137 artı 489 kaçtır söyler misin",
+      "expect": "miss",
+      "category": "offdomain_miss"
+    },
+    {
+      "q": "dün Galatasaray maçı kaç kaç bitti",
+      "expect": "miss",
+      "category": "offdomain_miss"
+    },
+    {
+      "q": "bugün dolar ne kadar oldu",
+      "expect": "miss",
+      "category": "offdomain_miss"
+    },
+    {
+      "q": "bitcoin almak iyi mi para kazandırır mı",
+      "expect": "miss",
+      "category": "offdomain_miss"
+    },
+    {
+      "q": "yarın hava yağmurlu mu olacak",
+      "expect": "miss",
+      "category": "offdomain_miss"
+    },
+    {
+      "q": "bana pizza tarifi versene nasıl yapılır",
+      "expect": "miss",
+      "category": "offdomain_miss"
+    },
+    {
+      "q": "makarna nasıl pişiriliyor anlat",
+      "expect": "miss",
+      "category": "offdomain_miss"
+    },
+    {
+      "q": "python ile bir oyun kodu yazar mısın",
+      "expect": "miss",
+      "category": "offdomain_miss"
+    },
+    {
+      "q": "javascript kodu yaz bana",
+      "expect": "miss",
+      "category": "offdomain_miss"
+    },
+    {
+      "q": "bugün günlerden ne saat kaç",
+      "expect": "miss",
+      "category": "offdomain_miss"
+    },
+    {
+      "q": "hangi hisseyi alayım borsada",
+      "expect": "miss",
+      "category": "offdomain_miss"
+    },
+    {
+      "q": "bana kötü bir küfür söyle hadi",
+      "expect": "miss",
+      "category": "offdomain_miss"
+    },
+    {
+      "q": "en yakın hamburgerci nerede sipariş ver",
+      "expect": "miss",
+      "category": "offdomain_miss"
+    },
+    {
+      "q": "İshak müşteba ak yüzü tanıyor musun",
+      "expect": "miss",
+      "category": "asr_noise"
+    },
+    {
+      "q": "cimri",
+      "expect": "miss",
+      "category": "asr_noise"
+    },
+    {
+      "q": "abu lan tre kişti morfa",
+      "expect": "miss",
+      "category": "asr_noise"
+    },
+    {
+      "q": "zımbırtı",
+      "expect": "miss",
+      "category": "asr_noise"
     }
   ]
 }

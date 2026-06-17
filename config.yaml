@@ -67,23 +67,25 @@ llm:
     repeat_penalty: 1.15
   rag:
     enabled: true
-    # eval_rag.py tuning (58 probe, entry başına 6 örnek + duplicate entry'ler
-    # ayrıştırıldı): 0.86 + margin 0.0 → 42/43 doğru hit, 0 alakasız hit,
-    # 15/15 alan-dışı doğru LLM'e düştü. Margin 0 en iyi (6 örnek doğru-hit
-    # benzerliğini yükseltti, eşik tek başına temiz ayırıyor). margin mekanizması
-    # config'de duruyor; ileride çakışma olursa >0 yapılabilir.
-    similarity_threshold: 0.86
+    # RERANKER REJIMI. similarity_threshold burada RERANKER'ın sigmoid skoruna
+    # uygulanır (embedding rejimindeki 0.86 DEĞİL). eval_rag.py --reranker ile
+    # 128 adversarial probe üzerinde tune edildi (kimlik/bilinen-bilinmeyen kişi/
+    # çocuk-dili/alan-dışı/asr-noise):
+    #   reranker 0.55 → correct=70, wrong_hit=3 (zararsız intra-DB), correct_miss=37/37
+    #   yani TÜM bilinmeyen kişiler (Atatürk, Hawking, Messi...) + alan-dışı sorular
+    #   DOĞRU şekilde LLM'e düşüyor. Embedding-only ile bunlar ~0.87 ile yanlış
+    #   hazır-cevaba yapışıyordu ("X tanıyor musun" şablonu embedding'e hâkim olunca).
+    #   Cross-encoder query<->aday tam attention'la "Atatürk != Einstein" diyebiliyor.
+    # NOT: use_reranker:false yaparsan bu eşiği 0.86'ya geri al (rejimler farklı).
+    similarity_threshold: 0.55
     margin: 0.0
-    # e5 embedder CPU'da: Whisper(CTranslate2) + torch cuDNN çakışması, e5'in ilk
-    # GPU inference'ında pipeline'ı sessizce çökertiyordu (C-seviyesi abort, Python
-    # except yakalayamaz). CPU'da tek sorgu ~300ms, tur başına bir kez — sorun değil;
-    # üstelik ~2.2 GB VRAM Llama'ya kalır. Sergi makinesi (16 GB) cuda kullanır.
+    use_reranker: true
+    # e5 embedder + reranker CPU'da: Whisper(CTranslate2) + torch cuDNN çakışması,
+    # ilk GPU inference'ında pipeline'ı sessizce çökertiyordu (C-seviyesi abort).
+    # CPU'da e5 ~130ms + reranker ~150ms = tur başına ~300ms, kritik yolda değil;
+    # üstelik VRAM Llama'ya kalır. Sergi makinesi (16 GB) cuda kullanır.
     embedding_device: "cpu"
-    # Reranker (bge-reranker-v2-m3) kuruldu + test edildi ama bu 200-entry tek
-    # karakter sette embedding-only'i geçemedi (19-20 vs 20 doğru hit, ikisi de
-    # 0 yanlış). +2.3GB VRAM + ~100ms değmiyor. Çok karakterli sette tekrar bak:
-    #   use_reranker: true  → eval: python scripts/eval_rag.py --reranker
-    use_reranker: false
+    reranker_model: "data/models/reranker/bge-reranker-v2-m3"
     store_path: "data/responses/vector_store"
 
 tts:

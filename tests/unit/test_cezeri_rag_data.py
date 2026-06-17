@@ -18,9 +18,10 @@ def cezeri_data() -> dict:
 def test_top_level_shape(cezeri_data: dict) -> None:
     assert cezeri_data["persona_id"] == "cezeri"
     assert isinstance(cezeri_data["responses"], list)
-    # 200'den 199'a indi: cezeri_011 ve cezeri_154 duplicate "mucit olma" entry'leri
-    # birleştirildi (RAG çakışmasını önlemek için).
-    assert len(cezeri_data["responses"]) >= 195
+    # 200 -> 199 (cezeri_011/154 duplicate birleşti) -> 205 (RAG finetune: hologram
+    # kimlik/algı boşlukları için 6 yeni entry — sen gerçek misin, robot musun,
+    # beni görüyor musun, nasıl konuşuyorsun, kaç icat, sevgi).
+    assert len(cezeri_data["responses"]) >= 200
 
 
 def test_every_entry_has_required_fields(cezeri_data: dict) -> None:

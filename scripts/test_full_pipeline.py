@@ -88,6 +88,8 @@ async def boot(cfg: Any) -> PipelineState:
             "store_path": cfg.llm.rag.store_path,
             "candidate_pool": cfg.llm.rag.candidate_pool,
             "embedding_device": cfg.llm.rag.embedding_device,
+            "use_reranker": cfg.llm.rag.use_reranker,
+            "reranker_model": cfg.llm.rag.reranker_model,
         }
     )
     await state.rag._ensure_ready()
