@@ -197,32 +197,23 @@ async def run_turn(
 
     print(f"\n  [Cezeri]: {response}")
 
-    # TTS streaming + chunk gelir gelmez hoparlöre yaz
+    # TTS: XTTS batch üretiyor (gerçek streaming transformers uyumu için kapalı).
+    # Chunk-chunk RawOutputStream'e yazmak underrun/atlama/kesilme yaratıyordu;
+    # tüm PCM toplanıp sounddevice'in kendi buffer'ıyla TEK SEFERDE pürüzsüz çalınır.
     tts_start = time.perf_counter()
     first_chunk_ms = None
-    total_bytes = 0
-    out_stream = sd.RawOutputStream(
-        samplerate=XTTS_NATIVE_SR,
-        channels=1,
-        dtype="int16",
-        blocksize=480,
-    )
-    out_stream.start()
-    try:
-        async for chunk in state.tts.synthesize_stream(response, persona.voice_id):
-            if first_chunk_ms is None:
-                first_chunk_ms = int((time.perf_counter() - tts_start) * 1000)
-                print(
-                    f"  [TTS first_chunk={first_chunk_ms}ms — Cezeri konusmaya basliyor...]"
-                )
-            out_stream.write(chunk)
-            total_bytes += len(chunk)
-    finally:
-        out_stream.stop()
-        out_stream.close()
-    tts_total = int((time.perf_counter() - tts_start) * 1000)
-    dur_s = total_bytes / 2 / XTTS_NATIVE_SR
-    print(f"  [TTS total={tts_total}ms audio={dur_s:.2f}s]")
+    pcm = bytearray()
+    async for chunk in state.tts.synthesize_stream(response, persona.voice_id):
+        if first_chunk_ms is None:
+            first_chunk_ms = int((time.perf_counter() - tts_start) * 1000)
+        pcm.extend(chunk)
+    gen_ms = int((time.perf_counter() - tts_start) * 1000)
+    audio = np.frombuffer(bytes(pcm), dtype=np.int16)
+    dur_s = audio.size / XTTS_NATIVE_SR
+    print(f"  [TTS ilk-ses={first_chunk_ms}ms uretim={gen_ms}ms audio={dur_s:.2f}s] caliniyor...")
+    if audio.size:
+        sd.play(audio, samplerate=XTTS_NATIVE_SR)
+        sd.wait()
 
     total_ms = int((time.perf_counter() - turn_start) * 1000)
     print(f"\n  >>> TUR TOPLAM: {total_ms}ms (konusmadan sese)")

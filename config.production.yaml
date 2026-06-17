@@ -65,10 +65,11 @@ llm:
   rag:
     enabled: true
     # RERANKER REJIMI (bkz config.yaml notu). 128 adversarial probe ile tune:
-    # reranker 0.55 → tüm bilinmeyen kişiler + alan-dışı doğru LLM'e düşer,
+    # reranker 0.62 → tüm bilinmeyen kişiler + alan-dışı doğru LLM'e düşer,
     # 0 zararlı yanlış hazır-cevap. Embedding-only "X tanıyor musun" şablonunda
-    # Atatürk'ü Einstein'a yapıştırıyordu. Veri seti laptopla ortak.
-    similarity_threshold: 0.55
+    # Atatürk'ü Einstein'a yapıştırıyordu. Reranker top-12 + match_text-only
+    # (hız). Veri seti laptopla ortak.
+    similarity_threshold: 0.62
     margin: 0.0
     use_reranker: true
     reranker_model: "data/models/reranker/bge-reranker-v2-m3"

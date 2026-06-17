@@ -71,13 +71,15 @@ llm:
     # uygulanır (embedding rejimindeki 0.86 DEĞİL). eval_rag.py --reranker ile
     # 128 adversarial probe üzerinde tune edildi (kimlik/bilinen-bilinmeyen kişi/
     # çocuk-dili/alan-dışı/asr-noise):
-    #   reranker 0.55 → correct=70, wrong_hit=3 (zararsız intra-DB), correct_miss=37/37
+    #   reranker 0.62 → correct=67, wrong_hit=3 (zararsız intra-DB), correct_miss=37/37
     #   yani TÜM bilinmeyen kişiler (Atatürk, Hawking, Messi...) + alan-dışı sorular
     #   DOĞRU şekilde LLM'e düşüyor. Embedding-only ile bunlar ~0.87 ile yanlış
     #   hazır-cevaba yapışıyordu ("X tanıyor musun" şablonu embedding'e hâkim olunca).
     #   Cross-encoder query<->aday tam attention'la "Atatürk != Einstein" diyebiliyor.
+    # HIZ: reranker sadece top-12 adayı + KISA match_text ile çalışır (cevap metni
+    #   değil) → CPU'da ~9 sn yerine ~0.5 sn. match_text skor rejimi eşiği 0.62.
     # NOT: use_reranker:false yaparsan bu eşiği 0.86'ya geri al (rejimler farklı).
-    similarity_threshold: 0.55
+    similarity_threshold: 0.62
     margin: 0.0
     use_reranker: true
     # e5 embedder + reranker CPU'da: Whisper(CTranslate2) + torch cuDNN çakışması,

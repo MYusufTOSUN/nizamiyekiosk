@@ -48,6 +48,12 @@ class RAGStoreConfig(BaseModel):
     # Reranker (cross-encoder) — opsiyonel, model indirme gerektirir
     use_reranker: bool = False
     reranker_model: str = "data/models/reranker/bge-reranker-v2-m3"
+    # Reranker HIZ optimizasyonu (CPU'da kritik): sadece embedding'in en iyi
+    # rerank_top_k adayını yeniden sırala (geri kalanı zaten düşük sim) ve
+    # cross-encoder'a sadece KISA match_text ver (cevap metnini DEĞİL). Cevap
+    # metni ~512 token → CPU'da 3-9 sn; match_text ~20 token → ~10-20x hızlı,
+    # ayırt edici sinyal (isim) zaten match_text'te. Doğruluk korunur.
+    rerank_top_k: int = 12
 
     model_config = {"extra": "forbid"}
 
@@ -167,9 +173,12 @@ class ChromaRAGStore(RAGStore):
         )
         candidates = self._dedup_by_entry(raw)
 
-        # Opsiyonel reranker — adayları cross-encoder ile yeniden sırala
+        # Opsiyonel reranker — SADECE en iyi rerank_top_k adayı yeniden sırala
+        # (CPU hızı için). Geri kalan düşük-sim adaylar reranker'a hiç sokulmaz.
         if self._reranker is not None and candidates:
-            candidates = await asyncio.to_thread(self._rerank, question, candidates)
+            head = candidates[: self.config.rerank_top_k]
+            reranked = await asyncio.to_thread(self._rerank, question, head)
+            return reranked[:top_k]
 
         return candidates[:top_k]
 
@@ -295,9 +304,11 @@ class ChromaRAGStore(RAGStore):
         assert self._reranker is not None
         import math
 
-        # Cross-encoder'a daha çok sinyal: query ↔ (örnek + cevap) birleşimi
+        # HIZ: query ↔ KISA match_text (cevap metni değil). Ayırt edici sinyal
+        # (isim/konu) zaten match_text'te; cevap metni ~512 token ekleyip CPU'da
+        # 10-20x yavaşlatıyordu. match_text yoksa cevaba düş (fallback).
         pairs = [
-            [question, f"{c.metadata.get('match_text', '')} {c.response_text}".strip()]
+            [question, str(c.metadata.get("match_text", "") or c.response_text)]
             for c in candidates
         ]
         scores = self._reranker.predict(pairs)
