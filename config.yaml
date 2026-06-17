@@ -67,6 +67,11 @@ llm:
     # 20/25 doğru hit, 0 alakasız hit, 10/10 miss doğru. Eski 0.75 yanlış-hit veriyordu.
     similarity_threshold: 0.84
     margin: 0.02
+    # Reranker (bge-reranker-v2-m3) kuruldu + test edildi ama bu 200-entry tek
+    # karakter sette embedding-only'i geçemedi (19-20 vs 20 doğru hit, ikisi de
+    # 0 yanlış). +2.3GB VRAM + ~100ms değmiyor. Çok karakterli sette tekrar bak:
+    #   use_reranker: true  → eval: python scripts/eval_rag.py --reranker
+    use_reranker: false
     store_path: "data/responses/vector_store"
 
 tts:

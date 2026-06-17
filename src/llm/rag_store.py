@@ -293,15 +293,34 @@ class ChromaRAGStore(RAGStore):
 
     def _rerank(self, question: str, candidates: list[RAGResult]) -> list[RAGResult]:
         assert self._reranker is not None
-        pairs = [[question, str(c.metadata.get("match_text", c.response_text))] for c in candidates]
+        import math
+
+        # Cross-encoder'a daha çok sinyal: query ↔ (örnek + cevap) birleşimi
+        pairs = [
+            [question, f"{c.metadata.get('match_text', '')} {c.response_text}".strip()]
+            for c in candidates
+        ]
         scores = self._reranker.predict(pairs)
         reranked = []
         for c, s in zip(candidates, scores, strict=False):
-            # rerank skorunu similarity olarak kullan (0-1 normalize sigmoid-ish)
+            # bge-reranker ham logit döndürür → sigmoid ile 0-1'e çek.
+            # Böylece similarity_threshold gate'i tutarlı (ama reranker rejimi
+            # için eşik EMBEDDING'den farklıdır — eval_rag --reranker ile tune et).
+            logit = float(s)
+            if logit >= 30:
+                sim01 = 1.0
+            elif logit <= -30:
+                sim01 = 0.0
+            else:
+                sim01 = 1.0 / (1.0 + math.exp(-logit))
             new = RAGResult(
                 response_text=c.response_text,
-                similarity=float(s),
-                metadata={**c.metadata, "embed_similarity": c.similarity, "rerank_score": float(s)},
+                similarity=sim01,
+                metadata={
+                    **c.metadata,
+                    "embed_similarity": round(c.similarity, 4),
+                    "rerank_logit": round(logit, 4),
+                },
             )
             reranked.append(new)
         reranked.sort(key=lambda r: r.similarity, reverse=True)

@@ -110,8 +110,9 @@ async def main(persona: str, reranker: bool, fixed_t: float | None, fixed_m: flo
     print("\n=== Threshold × Margin sweep ===")
     best = None
     rows = []
-    for t in [round(0.60 + 0.02 * i, 2) for i in range(18)]:  # 0.60..0.94
-        for m in [0.0, 0.02, 0.04, 0.06, 0.08, 0.10]:
+    # 0.30..0.94 — embedding rejimi ~0.84, reranker (sigmoid) rejimi daha düşük olabilir
+    for t in [round(0.30 + 0.02 * i, 2) for i in range(33)]:
+        for m in [0.0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.15, 0.20]:
             tally = _score(collected, t, m)
             rows.append((t, m, tally))
             if best is None or tally["score"] > best[2]["score"]:
