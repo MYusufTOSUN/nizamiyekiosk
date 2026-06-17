@@ -73,6 +73,9 @@ benchmark-stt:
 build-rag:
 	python scripts/build_rag_store.py --reset
 
+eval-rag:
+	python scripts/eval_rag.py
+
 test-llm:
 	python scripts/test_llm.py
 

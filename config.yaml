@@ -63,7 +63,10 @@ llm:
     repeat_penalty: 1.15
   rag:
     enabled: true
-    similarity_threshold: 0.75   # 0.85 çok kısıtlıydı; 0.75 RAG hit oranını yükseltir, sınır false-positive riski kabul
+    # eval_rag.py tuning sonucu (per-example embedding): 0.84 + margin 0.02 →
+    # 20/25 doğru hit, 0 alakasız hit, 10/10 miss doğru. Eski 0.75 yanlış-hit veriyordu.
+    similarity_threshold: 0.84
+    margin: 0.02
     store_path: "data/responses/vector_store"
 
 tts:

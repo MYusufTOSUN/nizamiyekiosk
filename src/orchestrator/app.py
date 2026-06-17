@@ -75,6 +75,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         lipsync=providers["lipsync"],  # type: ignore[arg-type]
         scene=providers["scene"],  # type: ignore[arg-type]
         rag_similarity_threshold=config.llm.rag.similarity_threshold,
+        rag_margin=config.llm.rag.margin,
     )
 
     # Scene controller'a init komutu

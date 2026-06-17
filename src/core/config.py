@@ -47,7 +47,13 @@ class STTSection(BaseModel):
 class LLMRAGSection(BaseModel):
     enabled: bool = True
     similarity_threshold: float = 0.85
+    # Margin gate: top1 hit sayılması için top1 − top2 farkı bu kadar olmalı
+    # (kararsız/yakın eşleşmelerde LLM'e düş — alakasız hazır cevabı engeller).
+    margin: float = 0.04
     store_path: str = "data/responses/vector_store"
+    candidate_pool: int = 24
+    use_reranker: bool = False
+    reranker_model: str = "data/models/reranker/bge-reranker-v2-m3"
 
 
 class LLMSection(BaseModel):

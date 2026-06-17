@@ -77,6 +77,7 @@ class ConversationPipeline:
         lipsync: LipSyncProvider,
         scene: SceneController,
         rag_similarity_threshold: float = 0.85,
+        rag_margin: float = 0.04,
         safety: SafetyFilter | None = None,
     ) -> None:
         self.stt = stt
@@ -87,6 +88,7 @@ class ConversationPipeline:
         self.lipsync = lipsync
         self.scene = scene
         self.rag_threshold = rag_similarity_threshold
+        self.rag_margin = rag_margin
         self.safety = safety or SafetyFilter()
 
     async def run_turn(
@@ -290,9 +292,21 @@ class ConversationPipeline:
             _log.warning("rag_query_failed", error=str(exc))
             results = []
 
+        # Margin-gate: top1 eşiği geçmeli VE top2'den belirgin ayrışmalı.
+        # Yakın iki aday varsa (top1−top2 < margin) hangisi doğru belirsiz →
+        # alakasız hazır cevap riskini almak yerine LLM'e düş.
         if results and results[0].similarity >= self.rag_threshold:
-            # Hit → onaylı, güvenli, anlık (filtreye gerek yok)
-            return results[0].response_text, "rag"
+            confident = (
+                len(results) < 2
+                or (results[0].similarity - results[1].similarity) >= self.rag_margin
+            )
+            if confident:
+                return results[0].response_text, "rag"
+            _log.info(
+                "rag_ambiguous_margin",
+                top1=round(results[0].similarity, 3),
+                top2=round(results[1].similarity, 3),
+            )
 
         # 3) RAG miss → augmented generation: eşik altı en yakınları LLM'e grounding ver
         ctx = self._build_context(session, persona.id)

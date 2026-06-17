@@ -79,7 +79,14 @@ class ProviderFactory:
         # Phase 3+ gerçek RAG: ChromaDB + multilingual embedding.
         from src.llm.rag_store import ChromaRAGStore
 
-        return ChromaRAGStore({"store_path": cfg.rag.store_path})
+        return ChromaRAGStore(
+            {
+                "store_path": cfg.rag.store_path,
+                "candidate_pool": cfg.rag.candidate_pool,
+                "use_reranker": cfg.rag.use_reranker,
+                "reranker_model": cfg.rag.reranker_model,
+            }
+        )
 
     # --- TTS ---------------------------------------------------------------
 
