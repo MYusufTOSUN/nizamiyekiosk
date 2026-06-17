@@ -53,6 +53,10 @@ class LlamaConfig(BaseModel):
     """
 
     model_path: str = "data/models/llama/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+    # Sohbet şablonu. "llama-3" = Llama 3.x. Qwen/diğer modeller için FARKLI olmalı
+    # yoksa çıktı bozulur. Boş ("") bırak → llama-cpp GGUF'a gömülü şablonu otomatik
+    # kullanır (Qwen 2.5 GGUF ChatML şablonunu içerir → en güvenli seçim).
+    chat_format: str = "llama-3"
     n_gpu_layers: int = -1
     n_ctx: int = 4096
     n_batch: int = 512
@@ -168,7 +172,8 @@ class LlamaLocalLLM(LLMProvider):
                 use_mmap=self.config.use_mmap,
                 use_mlock=self.config.use_mlock,
                 verbose=self.config.verbose,
-                chat_format="llama-3",
+                # Boş chat_format → None: GGUF'a gömülü şablonu otomatik kullan
+                chat_format=self.config.chat_format or None,
             )
         except Exception as exc:  # noqa: BLE001
             raise LLMError("LLM_001", f"Llama yüklenemedi: {exc}", cause=exc) from exc

@@ -49,8 +49,12 @@ stt:
 llm:
   provider: "llama_local"
   config:
-    model_path: "data/models/llama/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
-    n_gpu_layers: -1        # SERGI: tüm 32 katman GPU'da → 30-50 tok/s
+    # SERGI: Qwen 2.5 14B Instruct (Türkçe kalitesi Llama 3.1 8B'den belirgin
+    # daha iyi). Q4_K_M ~9 GB → 16 GB VRAM'de tam GPU offload sığar.
+    model_path: "data/models/llama/qwen2.5-14b-instruct-q4_k_m.gguf"
+    # Boş → GGUF'a gömülü ChatML şablonu otomatik (Qwen için doğru). "llama-3" DEĞİL.
+    chat_format: ""
+    n_gpu_layers: -1        # SERGI: tüm katmanlar GPU'da
     n_ctx: 4096
     n_batch: 512
     n_threads: 4
