@@ -18,7 +18,9 @@ def cezeri_data() -> dict:
 def test_top_level_shape(cezeri_data: dict) -> None:
     assert cezeri_data["persona_id"] == "cezeri"
     assert isinstance(cezeri_data["responses"], list)
-    assert len(cezeri_data["responses"]) >= 200
+    # 200'den 199'a indi: cezeri_011 ve cezeri_154 duplicate "mucit olma" entry'leri
+    # birleştirildi (RAG çakışmasını önlemek için).
+    assert len(cezeri_data["responses"]) >= 195
 
 
 def test_every_entry_has_required_fields(cezeri_data: dict) -> None:
@@ -27,9 +29,17 @@ def test_every_entry_has_required_fields(cezeri_data: dict) -> None:
         missing = required - entry.keys()
         assert not missing, f"{entry.get('id')} eksik alanlar: {missing}"
         assert isinstance(entry["question_examples"], list)
-        assert len(entry["question_examples"]) >= 1
+        # Eval sonrası her entry 5-6 örneğe çıkarıldı (recall + ayrışma).
+        assert len(entry["question_examples"]) >= 3
         assert isinstance(entry["intent_keywords"], list)
         assert len(entry["response"]) > 20  # kısa anlamsız metinleri ele
+
+
+def test_examples_rich_for_recall(cezeri_data: dict) -> None:
+    """Recall için entry başına ortalama >= 4 soru örneği olmalı (eval bulgusu)."""
+    counts = [len(r["question_examples"]) for r in cezeri_data["responses"]]
+    avg = sum(counts) / len(counts)
+    assert avg >= 4.5, f"Ortalama örnek {avg:.1f} < 4.5 (recall düşer)"
 
 
 def test_ids_unique(cezeri_data: dict) -> None:

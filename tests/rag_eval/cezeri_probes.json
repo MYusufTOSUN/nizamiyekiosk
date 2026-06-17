@@ -1,41 +1,280 @@
 {
   "_comment": "RAG precision değerlendirme seti. 'hit' = bu soru ilgili entry'e gitmeli; expect_id beklenen cevap. 'miss' = alan dışı, LLM'e düşmeli (RAG hit OLMAMALI). Sorular bilerek question_examples'tan FARKLI ifadelerle yazıldı.",
   "probes": [
-    {"q": "Robot dediğin şey nasıl iş görür?", "expect": "hit", "id": "cezeri_001"},
-    {"q": "Makineler kendi kendine nasıl hareket eder?", "expect": "hit", "id": "cezeri_001"},
-    {"q": "Şu meşhur fil saatini bana tarif eder misin?", "expect": "hit", "id": "cezeri_002"},
-    {"q": "Filin üstündeki saat ne işe yarıyordu?", "expect": "hit", "id": "cezeri_002"},
-    {"q": "Tavus kuşu biçimli aletin görevi neydi?", "expect": "hit", "id": "cezeri_003"},
-    {"q": "Tarlaya suyu nasıl ulaştırıyordunuz?", "expect": "hit", "id": "cezeri_004"},
-    {"q": "Hangi eseri kaleme aldın?", "expect": "hit", "id": "cezeri_005"},
-    {"q": "Dünyaya nerede geldin?", "expect": "hit", "id": "cezeri_006"},
-    {"q": "Hangi çağda yaşamış biriydin?", "expect": "hit", "id": "cezeri_007"},
-    {"q": "Ben de senin gibi icat yapmak istiyorum, nasıl başlarım?", "expect": "hit", "id": "cezeri_011"},
-    {"q": "Cep telefonu hakkında ne dersin?", "expect": "hit", "id": "cezeri_019"},
-    {"q": "Bilgisayarın ne olduğunu anlatır mısın?", "expect": "hit", "id": "cezeri_020"},
-    {"q": "Pamuk şekeri hangi yöntemle üretiliyor?", "expect": "hit", "id": "cezeri_025"},
-    {"q": "Cisimler yere doğru neden çekiliyor?", "expect": "hit", "id": "cezeri_045"},
-    {"q": "Suyun ne olduğunu söyler misin?", "expect": "hit", "id": "cezeri_048"},
-    {"q": "Newton diye birini tanıyor musun?", "expect": "hit", "id": "cezeri_080"},
-    {"q": "Einstein kim, bilir misin?", "expect": "hit", "id": "cezeri_083"},
-    {"q": "Bugün keyfin nasıl bakalım?", "expect": "hit", "id": "cezeri_111"},
-    {"q": "Senin adın neydi?", "expect": "hit", "id": "cezeri_112"},
-    {"q": "Selam sana usta", "expect": "hit", "id": "cezeri_018"},
-    {"q": "Bana bir bilmece sorsana", "expect": "hit", "id": "cezeri_197"},
-    {"q": "Su değirmeni nasıl un öğütür?", "expect": "hit", "id": "cezeri_027"},
-    {"q": "Geçmişte vakti nasıl ölçerdiniz?", "expect": "hit", "id": "cezeri_026"},
-    {"q": "İnternet diye bir şey duydun mu?", "expect": "hit", "id": "cezeri_021"},
-    {"q": "Uçaklar gökyüzünde nasıl durur?", "expect": "hit", "id": "cezeri_023"},
-
-    {"q": "Kuantum dolanıklık ne demek?", "expect": "miss"},
-    {"q": "Bitcoin'in bugünkü fiyatı kaç dolar?", "expect": "miss"},
-    {"q": "Real Madrid dün maçı kaç kaç bitirdi?", "expect": "miss"},
-    {"q": "DNA'nın çift sarmal yapısını açıkla", "expect": "miss"},
-    {"q": "En sevdiğin Netflix dizisi hangisi?", "expect": "miss"},
-    {"q": "Python'da liste nasıl ters çevrilir?", "expect": "miss"},
-    {"q": "Borsada hangi hisseyi almalıyım?", "expect": "miss"},
-    {"q": "Karadelikler ışığı neden yutar?", "expect": "miss"},
-    {"q": "Pizza hamuru tarifi verir misin?", "expect": "miss"},
-    {"q": "Bugün hava durumu nasıl olacak?", "expect": "miss"}
+    {
+      "q": "Robot dediğin şey nasıl iş görür?",
+      "expect": "hit",
+      "id": "cezeri_001"
+    },
+    {
+      "q": "Makineler kendi kendine nasıl hareket eder?",
+      "expect": "hit",
+      "id": "cezeri_001"
+    },
+    {
+      "q": "Şu meşhur fil saatini bana tarif eder misin?",
+      "expect": "hit",
+      "id": "cezeri_002"
+    },
+    {
+      "q": "Filin üstündeki saat ne işe yarıyordu?",
+      "expect": "hit",
+      "id": "cezeri_002"
+    },
+    {
+      "q": "Tavus kuşu biçimli aletin görevi neydi?",
+      "expect": "hit",
+      "id": "cezeri_003"
+    },
+    {
+      "q": "Tarlaya suyu nasıl ulaştırıyordunuz?",
+      "expect": "hit",
+      "id": "cezeri_004"
+    },
+    {
+      "q": "Hangi eseri kaleme aldın?",
+      "expect": "hit",
+      "id": "cezeri_005"
+    },
+    {
+      "q": "Dünyaya nerede geldin?",
+      "expect": "hit",
+      "id": "cezeri_006"
+    },
+    {
+      "q": "Hangi çağda yaşamış biriydin?",
+      "expect": "hit",
+      "id": "cezeri_007"
+    },
+    {
+      "q": "Ben de senin gibi icat yapmak istiyorum, nasıl başlarım?",
+      "expect": "hit",
+      "id": "cezeri_154"
+    },
+    {
+      "q": "Cep telefonu hakkında ne dersin?",
+      "expect": "hit",
+      "id": "cezeri_019"
+    },
+    {
+      "q": "Bilgisayarın ne olduğunu anlatır mısın?",
+      "expect": "hit",
+      "id": "cezeri_020"
+    },
+    {
+      "q": "Pamuk şekeri hangi yöntemle üretiliyor?",
+      "expect": "hit",
+      "id": "cezeri_025"
+    },
+    {
+      "q": "Cisimler yere doğru neden çekiliyor?",
+      "expect": "hit",
+      "id": "cezeri_045"
+    },
+    {
+      "q": "Suyun ne olduğunu söyler misin?",
+      "expect": "hit",
+      "id": "cezeri_048"
+    },
+    {
+      "q": "Newton diye birini tanıyor musun?",
+      "expect": "hit",
+      "id": "cezeri_080"
+    },
+    {
+      "q": "Einstein kim, bilir misin?",
+      "expect": "hit",
+      "id": "cezeri_083"
+    },
+    {
+      "q": "Bugün keyfin nasıl bakalım?",
+      "expect": "hit",
+      "id": "cezeri_111"
+    },
+    {
+      "q": "Senin adın neydi?",
+      "expect": "hit",
+      "id": "cezeri_112"
+    },
+    {
+      "q": "Selam sana usta",
+      "expect": "hit",
+      "id": "cezeri_018"
+    },
+    {
+      "q": "Bana bir bilmece sorsana",
+      "expect": "hit",
+      "id": "cezeri_197"
+    },
+    {
+      "q": "Su değirmeni nasıl un öğütür?",
+      "expect": "hit",
+      "id": "cezeri_027"
+    },
+    {
+      "q": "Geçmişte vakti nasıl ölçerdiniz?",
+      "expect": "hit",
+      "id": "cezeri_026"
+    },
+    {
+      "q": "İnternet diye bir şey duydun mu?",
+      "expect": "hit",
+      "id": "cezeri_021"
+    },
+    {
+      "q": "Uçaklar gökyüzünde nasıl durur?",
+      "expect": "hit",
+      "id": "cezeri_023"
+    },
+    {
+      "q": "Kuantum dolanıklık ne demek?",
+      "expect": "miss"
+    },
+    {
+      "q": "Bitcoin'in bugünkü fiyatı kaç dolar?",
+      "expect": "miss"
+    },
+    {
+      "q": "Real Madrid dün maçı kaç kaç bitirdi?",
+      "expect": "miss"
+    },
+    {
+      "q": "DNA'nın çift sarmal yapısını açıkla",
+      "expect": "miss"
+    },
+    {
+      "q": "En sevdiğin Netflix dizisi hangisi?",
+      "expect": "miss"
+    },
+    {
+      "q": "Python'da liste nasıl ters çevrilir?",
+      "expect": "miss"
+    },
+    {
+      "q": "Borsada hangi hisseyi almalıyım?",
+      "expect": "miss"
+    },
+    {
+      "q": "Karadelikler ışığı neden yutar?",
+      "expect": "miss"
+    },
+    {
+      "q": "Pizza hamuru tarifi verir misin?",
+      "expect": "miss"
+    },
+    {
+      "q": "Bugün hava durumu nasıl olacak?",
+      "expect": "miss"
+    },
+    {
+      "q": "Su ile çalışan saat nasıl işliyordu?",
+      "expect": "hit",
+      "id": "cezeri_026"
+    },
+    {
+      "q": "Hastadan kan almak için bir aletin var mıydı?",
+      "expect": "hit",
+      "id": "cezeri_028"
+    },
+    {
+      "q": "Dişli çarklar ne işe yarar?",
+      "expect": "hit",
+      "id": "cezeri_039"
+    },
+    {
+      "q": "Ağır bir taşı az kuvvetle nasıl kaldırabilirim?",
+      "expect": "hit",
+      "id": "cezeri_040"
+    },
+    {
+      "q": "Demiri uzaktan çeken o taş neydi?",
+      "expect": "hit",
+      "id": "cezeri_043"
+    },
+    {
+      "q": "Yön bulmak için kullandığın alet neydi?",
+      "expect": "hit",
+      "id": "cezeri_044"
+    },
+    {
+      "q": "Odun yanınca aslında ne oluyor?",
+      "expect": "hit",
+      "id": "cezeri_047"
+    },
+    {
+      "q": "Güneş bize neler veriyor?",
+      "expect": "hit",
+      "id": "cezeri_049"
+    },
+    {
+      "q": "Cebiri bulan bilgin kimdi?",
+      "expect": "hit",
+      "id": "cezeri_076"
+    },
+    {
+      "q": "Avicenna denen hekim kimdi?",
+      "expect": "hit",
+      "id": "cezeri_077"
+    },
+    {
+      "q": "Konya'daki o büyük mütefekkir kim?",
+      "expect": "hit",
+      "id": "cezeri_085"
+    },
+    {
+      "q": "Radyumu bulan kadın bilim insanı kim?",
+      "expect": "hit",
+      "id": "cezeri_090"
+    },
+    {
+      "q": "Robotların duyguları olabilir mi?",
+      "expect": "hit",
+      "id": "cezeri_119"
+    },
+    {
+      "q": "Ben nasıl mucit olabilirim?",
+      "expect": "hit",
+      "id": "cezeri_154"
+    },
+    {
+      "q": "Yazın evi serinleten makineyi biliyor musun?",
+      "expect": "hit",
+      "id": "cezeri_062"
+    },
+    {
+      "q": "Çamaşırları yıkayan makineden haberin var mı?",
+      "expect": "hit",
+      "id": "cezeri_063"
+    },
+    {
+      "q": "Şifreli kilidi sen mi buldun?",
+      "expect": "hit",
+      "id": "cezeri_029"
+    },
+    {
+      "q": "Değirmen buğdayı nasıl una çevirir?",
+      "expect": "hit",
+      "id": "cezeri_027"
+    },
+    {
+      "q": "iPhone mu Samsung mu almalıyım?",
+      "expect": "miss"
+    },
+    {
+      "q": "Dolar kuru bugün kaç lira?",
+      "expect": "miss"
+    },
+    {
+      "q": "Galatasaray dün kaç gol attı?",
+      "expect": "miss"
+    },
+    {
+      "q": "JavaScript'te döngü nasıl yazılır?",
+      "expect": "miss"
+    },
+    {
+      "q": "En yakın eczane nerede acaba?",
+      "expect": "miss"
+    }
   ]
 }
