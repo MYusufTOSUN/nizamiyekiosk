@@ -31,6 +31,10 @@ stt:
     beam_size: 1                  # 5→1: STT ~300ms hızlanır, kalite düşüşü minimal
     best_of: 1
     temperature: 0.0
+    # Decoder'ı Türkçe + domain sözlüğüne yönlendir → "Cezeri", "fil saati",
+    # "otomat", "dişli", "mıknatıs" gibi terimleri çocuk telaffuzunda daha iyi
+    # yakalar. Ölçülü tut (uzun/isim-dolu prompt sessizlikte halüsinasyon riski).
+    initial_prompt: "El-Cezerî ile robot, otomat, fil saati, su saati, dişli çark, mıknatıs ve bilim hakkında Türkçe sohbet."
     vad_threshold: 0.5
     min_speech_duration_ms: 250
     min_silence_duration_ms: 250   # 400→250ms — natural pause toleransı korunur, 150ms kazanç

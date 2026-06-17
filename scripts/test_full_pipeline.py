@@ -145,10 +145,16 @@ async def run_turn(
     ):
         stop_t = asyncio.create_task(_stop_after(seconds, audio_q))
         stt_start = time.perf_counter()
-        async for r in state.stt.transcribe_stream(audio_iter()):
-            text = r.text
-            print(f"  [STT {int((time.perf_counter()-stt_start)*1000)}ms] '{text}'")
-            break
+        agen = state.stt.transcribe_stream(audio_iter())
+        try:
+            async for r in agen:
+                text = r.text
+                print(f"  [STT {int((time.perf_counter()-stt_start)*1000)}ms] '{text}'")
+                break
+        finally:
+            # Generator'ı açıkça kapat — kalan buffer'ın tekrar işlenip aynı sesi
+            # ikinci kez transkript etmesini önler (STT flush artık finally'de değil).
+            await agen.aclose()
         stop_t.cancel()
         try:
             await stop_t

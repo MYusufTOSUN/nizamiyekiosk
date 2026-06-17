@@ -85,6 +85,11 @@ class WhisperConfig(BaseModel):
     beam_size: int = 5
     best_of: int = 5
     temperature: float = 0.0
+    # Decoder'ı domain sözlüğüne yönlendir (isim/terim algısını artırır). Çocuklar
+    # "Cezeri", "fil saati", "El-Harezmî" gibi kelimeleri net telaffuz edemez;
+    # initial_prompt Whisper'a beklenen bağlamı verir. Boş => kullanılmaz.
+    # Aşırı uzun/isim-dolu prompt sessizlikte halüsinasyon riskini artırır — ölçülü tut.
+    initial_prompt: str = ""
 
     # VAD ayarları
     vad_threshold: float = 0.5
@@ -181,37 +186,40 @@ class WhisperLocalSTT(STTProvider):
         )
         await self._ensure_model()
 
-        try:
-            async for chunk in audio_stream:
-                if not chunk:
-                    continue
-                audio_np = pcm_bytes_to_numpy(chunk)
-                buffer.append_numpy(audio_np)
-                events = vad.process_chunk(audio_np)
-                for event in events:
-                    if (
-                        event.is_speech_end
-                        and buffer.duration_ms() >= cfg.min_segment_duration_ms
-                    ):
-                        result = await self._transcribe_buffer(buffer, language)
-                        if result is not None:
-                            yield result
-                        buffer.clear()
-                        vad.reset()
-
-                # Maksimum süre koruması — VAD takılırsa
-                if buffer.duration_ms() >= cfg.max_segment_duration_seconds * 1000:
+        async for chunk in audio_stream:
+            if not chunk:
+                continue
+            audio_np = pcm_bytes_to_numpy(chunk)
+            buffer.append_numpy(audio_np)
+            events = vad.process_chunk(audio_np)
+            for event in events:
+                if (
+                    event.is_speech_end
+                    and buffer.duration_ms() >= cfg.min_segment_duration_ms
+                ):
                     result = await self._transcribe_buffer(buffer, language)
                     if result is not None:
                         yield result
                     buffer.clear()
                     vad.reset()
 
-        finally:
-            if cfg.flush_on_stream_end and buffer.duration_ms() >= cfg.min_segment_duration_ms:
+            # Maksimum süre koruması — VAD takılırsa
+            if buffer.duration_ms() >= cfg.max_segment_duration_seconds * 1000:
                 result = await self._transcribe_buffer(buffer, language)
                 if result is not None:
                     yield result
+                buffer.clear()
+                vad.reset()
+
+        # Akış DOĞAL bittiğinde (audio_iter None döndürdü) kalan buffer'ı flush et.
+        # NOT: bilerek `finally` DEĞİL. Tüketici ilk sonuçta `break` edip generator'ı
+        # kapatırsa, `finally` içindeki `yield` GeneratorExit sırasında tetiklenir ve
+        # "async generator ignored GeneratorExit" + aynı sesin İKİ kez işlenmesine yol
+        # açar (canlı testte görüldü). Flush'ı normal akışa alınca close temiz geçer.
+        if cfg.flush_on_stream_end and buffer.duration_ms() >= cfg.min_segment_duration_ms:
+            result = await self._transcribe_buffer(buffer, language)
+            if result is not None:
+                yield result
 
     async def _transcribe_buffer(
         self,
@@ -293,6 +301,7 @@ class WhisperLocalSTT(STTProvider):
             temperature=self.config.temperature,
             vad_filter=False,  # bizim VAD zaten segmentledi
             condition_on_previous_text=False,
+            initial_prompt=self.config.initial_prompt or None,
             no_speech_threshold=self.config.no_speech_threshold,
             log_prob_threshold=self.config.min_avg_logprob,
         )

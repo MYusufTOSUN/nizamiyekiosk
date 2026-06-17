@@ -33,6 +33,8 @@ stt:
     beam_size: 5            # sergi makinesi: kalite > hız, beam 5 geri açıldı
     best_of: 5
     temperature: 0.0
+    # Çocuk telaffuzunda domain terim/isim algısını artırır (bkz config.yaml notu).
+    initial_prompt: "El-Cezerî ile robot, otomat, fil saati, su saati, dişli çark, mıknatıs ve bilim hakkında Türkçe sohbet."
     vad_threshold: 0.5
     min_speech_duration_ms: 250
     min_silence_duration_ms: 250
