@@ -29,6 +29,21 @@ from src.core.metrics import llm_latency_ms
 
 _log = get_logger(component="llm.llama")
 
+_SENTENCE_END = (".", "!", "?", "…")
+
+
+def trim_to_last_sentence(text: str) -> str:
+    """Yanıtı son TAM cümleye kırp — max_tokens kelime ortasında keserse
+    ("...ve işley") yarım cümleyi at, en son noktalamada bitir. Hiç noktalama
+    yoksa olduğu gibi bırak (kısa fragmanı kaybetme)."""
+    t = text.strip()
+    if not t or t[-1] in _SENTENCE_END:
+        return t
+    cut = max(t.rfind(c) for c in _SENTENCE_END)
+    if cut > 0:
+        return t[: cut + 1].strip()
+    return t
+
 
 class LlamaConfig(BaseModel):
     """llama-cpp-python parametre seti.
@@ -311,4 +326,4 @@ class LlamaLocalLLM(LLMProvider):
             pass
 
 
-__all__ = ["LlamaLocalLLM", "LlamaConfig"]
+__all__ = ["LlamaLocalLLM", "LlamaConfig", "trim_to_last_sentence"]

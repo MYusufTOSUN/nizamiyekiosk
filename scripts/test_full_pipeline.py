@@ -191,7 +191,9 @@ async def run_turn(
             if first_ms is None:
                 first_ms = int((time.perf_counter() - llm_start) * 1000)
             chunks.append(token)
-        response = "".join(chunks).strip()
+        from src.llm.llama_local import trim_to_last_sentence
+
+        response = trim_to_last_sentence("".join(chunks).strip())
         llm_ms = int((time.perf_counter() - llm_start) * 1000)
         print(f"  [LLM ttfb={first_ms}ms total={llm_ms}ms]")
 

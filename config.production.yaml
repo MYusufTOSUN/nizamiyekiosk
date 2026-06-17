@@ -58,7 +58,7 @@ llm:
     use_mlock: false
     verbose: false
     max_tokens: 150         # 100 → 150: sergi makinesinde uzunluk lüksü
-    temperature: 0.6
+    temperature: 0.4        # daha az saçmalama/rambling
     top_p: 0.9
     top_k: 40
     repeat_penalty: 1.15
@@ -87,6 +87,7 @@ tts:
     device: "cuda"                # sergi: hızlı GPU TTS
     language: "tr"
     builtin_speaker: "Damien Black"
+    speed: 1.1                    # klon sakin okunduğu için ~%10 canlandır
     stream_chunk_size: 20
     output_chunk_samples: 480
     cache_enabled: true

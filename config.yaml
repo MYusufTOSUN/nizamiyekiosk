@@ -28,8 +28,8 @@ stt:
     cpu_threads: 4
     num_workers: 1
     sample_rate: 16000
-    beam_size: 1                  # 5→1: STT ~300ms hızlanır, kalite düşüşü minimal
-    best_of: 1
+    beam_size: 5                  # çocuk/kısa cümle doğruluğu kritik → 1'den 5'e
+    best_of: 5                    # ("sen nerelisin"i yanlış duyma riskini azaltır)
     temperature: 0.0
     # Decoder'ı Türkçe + domain sözlüğüne yönlendir → "Cezeri", "fil saati",
     # "otomat", "dişli", "mıknatıs" gibi terimleri çocuk telaffuzunda daha iyi
@@ -61,7 +61,7 @@ llm:
     use_mlock: false
     verbose: false
     max_tokens: 100              # 220 → 100: 2 cümlelik kısa cevap için
-    temperature: 0.6
+    temperature: 0.4             # 0.6 → 0.4: daha az saçmalama/rambling (çocuk sergisi)
     top_p: 0.9
     top_k: 40
     repeat_penalty: 1.15
@@ -104,6 +104,7 @@ tts:
     device: "cuda"
     language: "tr"
     builtin_speaker: "Damien Black"   # ses klonu yokken default erkek ses
+    speed: 1.1                        # klon sakin okunduğu için ~%10 canlandır
     stream_chunk_size: 20
     output_chunk_samples: 480
 

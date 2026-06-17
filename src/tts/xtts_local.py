@@ -106,6 +106,9 @@ class XTTSConfig(BaseModel):
     language: str = "tr"
     # Klonlama referans dosyası yoksa kullanılacak dahili speaker adı.
     builtin_speaker: str = DEFAULT_BUILTIN_SPEAKER
+    # Konuşma hızı çarpanı. 1.0 = referansın doğal hızı. Klon referansı sakin/yavaş
+    # okunduysa konuşma yavaş çıkar; 1.1-1.15 hafifçe canlandırır (kalite bozulmaz).
+    speed: float = 1.0
     stream_chunk_size: int = 20      # XTTS streaming token sayısı (~200 ms chunk)
     # Çıkış audio chunk boyutu (PCM 16-bit byte cinsinden hedef chunk)
     output_chunk_samples: int = OUTPUT_CHUNK_SAMPLES
@@ -287,10 +290,13 @@ class XTTSLocalTTS(TTSProvider):
         self,
         text: str,
         voice_id: str,
-        speed: float = 1.0,
+        speed: float | None = None,
     ) -> AsyncIterator[bytes]:
         if not text.strip():
             return
+        # speed verilmezse config'ten al (klon yavaşsa config.speed=1.1 canlandırır)
+        if speed is None:
+            speed = self.config.speed
 
         # Türkçe için sayı/kısaltma normalize: "12. yüzyıl" → "on iki yüzyıl"
         if self.config.language == "tr":

@@ -327,7 +327,10 @@ class ConversationPipeline:
             int((time.perf_counter() - llm_start) * 1000)
         )
 
-        text = "".join(chunks).strip()
+        # max_tokens kelime ortasında kesmesin — son tam cümleye kırp
+        from src.llm.llama_local import trim_to_last_sentence
+
+        text = trim_to_last_sentence("".join(chunks).strip())
 
         # 4) M1 — Çıkış güvenlik filtresi (hoparlöre gitmeden)
         verdict = self.safety.check_output(text, persona)
