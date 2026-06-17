@@ -62,8 +62,14 @@ llm:
     repeat_penalty: 1.15
   rag:
     enabled: true
-    similarity_threshold: 0.78   # laptop 0.75 → sergi 0.78 (false positive azalt)
+    # eval_rag.py ile tune edildi (58 probe, entry başına 6 örnek): 0.86 + margin 0.0
+    # → 42/43 doğru hit, 0 alakasız hit. Laptop ile aynı; veri seti ortak.
+    similarity_threshold: 0.86
+    margin: 0.0
     store_path: "data/responses/vector_store"
+    # Sergi makinesi 16+ GB, tek cuDNN yığını → e5 GPU'da güvenli ve hızlı.
+    # (Laptop config.yaml'da cuDNN çakışması nedeniyle cpu.)
+    embedding_device: "cuda"
 
 tts:
   provider: "xtts_local"

@@ -78,12 +78,27 @@ async def boot(cfg: Any) -> PipelineState:
     await state.stt._ensure_model()
     print(f"  STT yuklendi ({int(time.perf_counter()-t0)}s)")
 
-    # 3) RAG (e5 embedding)
+    # 3) RAG (e5 embedding). Cihaz config'ten: 8 GB laptop'ta "cpu" (Whisper'ın
+    # CTranslate2 cuDNN'i ile çakışıp e5'in ilk GPU inference'ında pipeline'ı
+    # çökertiyordu). Sergi makinesi "cuda".
     print("[3/3] RAG embedder + Chroma yukleniyor...")
     t0 = time.perf_counter()
-    state.rag = ChromaRAGStore({"store_path": cfg.llm.rag.store_path})
+    state.rag = ChromaRAGStore(
+        {
+            "store_path": cfg.llm.rag.store_path,
+            "candidate_pool": cfg.llm.rag.candidate_pool,
+            "embedding_device": cfg.llm.rag.embedding_device,
+        }
+    )
     await state.rag._ensure_ready()
     print(f"  RAG hazir ({int(time.perf_counter()-t0)}s)")
+
+    # RAG warmup: ilk encode kernel-yükleme cezasını boot'a kaydır (turda değil).
+    # Sorun varsa burada patlar, ilk turu kurtarır.
+    print("[3.5/3] RAG warmup (ilk encode cezasini at)...")
+    t0 = time.perf_counter()
+    await state.rag.query("merhaba", "cezeri", top_k=1)
+    print(f"  RAG warmup tamam ({int((time.perf_counter()-t0)*1000)}ms)")
 
     return state
 

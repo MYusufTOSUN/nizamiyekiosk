@@ -54,6 +54,12 @@ class LLMRAGSection(BaseModel):
     candidate_pool: int = 24
     use_reranker: bool = False
     reranker_model: str = "data/models/reranker/bge-reranker-v2-m3"
+    # e5 embedder cihazı. 8 GB laptop'ta "cpu" ZORUNLU: Whisper (CTranslate2) ile
+    # torch cuDNN sürüm çakışması, e5'in ilk GPU inference'ında süreci C seviyesinde
+    # çökertir (Python except yakalayamaz). CPU'da tek kısa sorgu ~300ms — tur başına
+    # bir kez, kritik yolda değil; ayrıca ~2.2 GB VRAM'i Llama'ya bırakır.
+    # Sergi makinesi (16+ GB, tek cuDNN) "cuda" kullanabilir.
+    embedding_device: str = "cuda"
 
 
 class LLMSection(BaseModel):

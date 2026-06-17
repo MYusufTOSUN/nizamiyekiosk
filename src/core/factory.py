@@ -85,6 +85,7 @@ class ProviderFactory:
                 "candidate_pool": cfg.rag.candidate_pool,
                 "use_reranker": cfg.rag.use_reranker,
                 "reranker_model": cfg.rag.reranker_model,
+                "embedding_device": cfg.rag.embedding_device,
             }
         )
 

@@ -24,7 +24,12 @@ RESPONSES_DIR = Path("src/llm/responses")
 
 async def build(personas: list[str], reset: bool) -> int:
     cfg = get_config()
-    store = ChromaRAGStore({"store_path": cfg.llm.rag.store_path})
+    # Build standalone'dur (Whisper yok → cuDNN çakışması yok). Bulk encode için
+    # GPU çok daha hızlı; üretilen vektör cihazdan bağımsız aynı olduğu için
+    # store sonradan CPU'da sorgulanabilir.
+    store = ChromaRAGStore(
+        {"store_path": cfg.llm.rag.store_path, "embedding_device": "cuda"}
+    )
 
     files: list[Path]
     if personas:

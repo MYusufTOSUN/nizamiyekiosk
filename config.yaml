@@ -70,6 +70,11 @@ llm:
     # config'de duruyor; ileride çakışma olursa >0 yapılabilir.
     similarity_threshold: 0.86
     margin: 0.0
+    # e5 embedder CPU'da: Whisper(CTranslate2) + torch cuDNN çakışması, e5'in ilk
+    # GPU inference'ında pipeline'ı sessizce çökertiyordu (C-seviyesi abort, Python
+    # except yakalayamaz). CPU'da tek sorgu ~300ms, tur başına bir kez — sorun değil;
+    # üstelik ~2.2 GB VRAM Llama'ya kalır. Sergi makinesi (16 GB) cuda kullanır.
+    embedding_device: "cpu"
     # Reranker (bge-reranker-v2-m3) kuruldu + test edildi ama bu 200-entry tek
     # karakter sette embedding-only'i geçemedi (19-20 vs 20 doğru hit, ikisi de
     # 0 yanlış). +2.3GB VRAM + ~100ms değmiyor. Çok karakterli sette tekrar bak:
