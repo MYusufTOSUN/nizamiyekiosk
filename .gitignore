@@ -61,9 +61,15 @@ Thumbs.db
 # Project-specific large/binary assets
 data/models/*
 !data/models/.gitkeep
-data/voices/*.wav
-data/voices/*.mp3
+# Ses referansları: persona klon klipleri (ref_*.wav) TRACK edilir (taşınabilirlik
+# için yeni PC'de hazır gelsin), gerisi (test/karşılaştırma _*.wav, mp3) ignore.
+data/voices/**/*.wav
+data/voices/**/*.mp3
+!data/voices/*/ref_*.wav
 !data/voices/.gitkeep
+# TTS cache: sese-özgü + yeniden üretilebilir → track ETME (yeni PC ilk çalışmada üretir).
+data/tts_cache/*
+!data/tts_cache/.gitkeep
 data/responses/vector_store/
 src/tts/voices/*.wav
 src/tts/voices/*.mp3
@@ -84,3 +90,6 @@ config.local.yaml
 # Smoke test artifacts
 uvicorn.out
 uvicorn.err
+
+# Ham ses kayıtları (klon kaynağı; dönüştürülmüş ref_*.wav repoda yeterli)
+afc/

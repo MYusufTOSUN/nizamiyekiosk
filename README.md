@@ -4,6 +4,9 @@ Pepper's Ghost hologram interaktif bilim insanı sergisi. Ziyaretçi mikrofona k
 AI cevap üretir, 3D karakter (Cezerî, Ali Kuşçu, Cahit Arf, Marie Curie, Einstein)
 sahnede belirir ve cevap verir.
 
+> 🆕 **Yeni bir PC'ye kurulum / festival makinesi hazırlığı için → [SETUP.md](SETUP.md)**
+> (clone → bağımlılıklar → model indirme → config seçimi → çalıştırma, baştan sona.)
+
 ## Pipeline
 
 ```

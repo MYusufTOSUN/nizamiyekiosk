@@ -1,8 +1,12 @@
-# BilimFest — sergi makinesi (RTX 4090 / 4080 / 4070 Ti Super, 16+ GB VRAM)
-# Bu config aceasync.local.yaml kapatılması durumunda main config olarak kullanılır.
-# Yükleme:  BFEST_CONFIG=config.production.yaml uvicorn ...
+# BilimFest — FESTIVAL PC profili (RTX 5060 Ti 8 GB VRAM, 32 GB RAM)
+# Yükleme:  $env:BFEST_CONFIG="config.production.yaml"   (sonra uvicorn / script)
+# Laptop (4060 8 GB, geliştirme) için config.yaml; festival makinesinde bu dosya.
 #
-# Laptop (8 GB VRAM) için config.yaml; sergi makinesinde bu dosya.
+# === 16 GB+ VRAM'li bir festival makinesine geçersen (RTX 4080/4090/5080...) ===
+#   llm.n_gpu_layers: -1          # tüm katmanlar GPU → 30-50 tok/s
+#   llm.model_path:  qwen2.5-14b-instruct-q4_k_m.gguf  + chat_format: ""  (Qwen ChatML)
+#   rag.embedding_device: "cuda"  # e5 + reranker GPU'da (~50ms), CPU yavaşlığı biter
+# (8 GB'da bunlar VRAM'e sığmaz / cuDNN çakışır — aşağıdaki güvenli değerler kalsın.)
 
 app:
   name: "bilimfest"
@@ -11,11 +15,11 @@ app:
 
 audio:
   input:
-    device: "default"      # sergi makinesinde Shure MV5 ID'sini ata
+    device: "default"      # festival: Shure MV5 cihaz ID'sini ata (scripts/test_microphone.py ile bul)
     sample_rate: 16000
     channels: 1
   output:
-    device: "default"      # 5.1 Genelec surround
+    device: "default"      # festival: surround/hoparlör cihazı; 6 kanal Pepper's Ghost
     sample_rate: 24000
     channels: 6
 
@@ -30,10 +34,9 @@ stt:
     cpu_threads: 4
     num_workers: 1
     sample_rate: 16000
-    beam_size: 5            # sergi makinesi: kalite > hız, beam 5 geri açıldı
+    beam_size: 5            # festival: kalite > hız
     best_of: 5
     temperature: 0.0
-    # Çocuk telaffuzunda domain terim/isim algısını artırır (bkz config.yaml notu).
     initial_prompt: "El-Cezerî ile robot, otomat, fil saati, su saati, dişli çark, mıknatıs ve bilim hakkında Türkçe sohbet."
     vad_threshold: 0.5
     min_speech_duration_ms: 250
@@ -41,6 +44,7 @@ stt:
     max_segment_duration_seconds: 30
     min_segment_duration_ms: 500
     flush_on_stream_end: true
+    # Festival hardening: gürültülü ortamda halüsinasyon/yanlış-tetik savunması
     no_speech_threshold: 0.6
     min_avg_logprob: -1.0
     min_rms_threshold: 0.005
@@ -50,35 +54,35 @@ llm:
   provider: "llama_local"
   config:
     model_path: "data/models/llama/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
-    # Llama 3.x şablonu. (Qwen'e geçilirse "" yapıp GGUF ChatML'i otomatik kullan.)
-    chat_format: "llama-3"
-    n_gpu_layers: -1        # SERGI: tüm 32 katman GPU'da → 30-50 tok/s
+    chat_format: "llama-3"   # Qwen'e geçersen "" yap (GGUF ChatML otomatik)
+    # 8 GB VRAM: e5/reranker CPU'da, GPU'da Whisper(~3GB)+XTTS(~2GB) var → Llama'ya
+    # ~3GB kalır. 5060 Ti + 32GB RAM ile 20 katman GPU + kalanı CPU dengeli.
+    # OOM olursa 15'e düşür. 16 GB+ makinede -1 yap (yukarıdaki nota bak).
+    n_gpu_layers: 20
     n_ctx: 4096
     n_batch: 512
-    n_threads: 4
+    n_threads: 8
     use_mmap: true
     use_mlock: false
     verbose: false
-    max_tokens: 150         # 100 → 150: sergi makinesinde uzunluk lüksü
-    temperature: 0.4        # daha az saçmalama/rambling
+    max_tokens: 120
+    temperature: 0.4
     top_p: 0.9
     top_k: 40
     repeat_penalty: 1.15
   rag:
     enabled: true
-    # RERANKER REJIMI (bkz config.yaml notu). 128 adversarial probe ile tune:
-    # reranker 0.62 → tüm bilinmeyen kişiler + alan-dışı doğru LLM'e düşer,
-    # 0 zararlı yanlış hazır-cevap. Embedding-only "X tanıyor musun" şablonunda
-    # Atatürk'ü Einstein'a yapıştırıyordu. Reranker top-12 + match_text-only
-    # (hız). Veri seti laptopla ortak.
+    # RERANKER REJIMI (eşik reranker sigmoid skoruna uygulanır, embedding 0.86 DEĞİL).
+    # 128 adversarial probe ile tune: 0.62 → bilinmeyen kişiler (Atatürk/Hawking/Messi)
+    # + alan-dışı sorular DOĞRU şekilde LLM'e düşer, 0 zararlı yanlış hazır-cevap.
     similarity_threshold: 0.62
     margin: 0.0
     use_reranker: true
     reranker_model: "data/models/reranker/bge-reranker-v2-m3"
     store_path: "data/responses/vector_store"
-    # Sergi makinesi 16+ GB, tek cuDNN yığını → e5 + reranker GPU'da güvenli ve
-    # hızlı (reranker ~50ms). (Laptop config.yaml'da cuDNN çakışması için cpu.)
-    embedding_device: "cuda"
+    # 8 GB: e5 + reranker CPU (Whisper CTranslate2 ile cuDNN çakışmasını önler + VRAM
+    # Llama'ya kalır). 16 GB+ makinede "cuda" yap → reranker ~50ms (CPU'da daha yavaş).
+    embedding_device: "cpu"
 
 tts:
   provider: "xtts_local"
@@ -86,29 +90,31 @@ tts:
     model_path: "data/models/xtts_v2"
     model_name: "tts_models/multilingual/multi-dataset/xtts_v2"
     voices_dir: "data/voices"
-    device: "cuda"                # sergi: hızlı GPU TTS
+    device: "cuda"
     language: "tr"
-    builtin_speaker: "Damien Black"
-    speed: 1.1                    # klon sakin okunduğu için ~%10 canlandır
+    builtin_speaker: "Damien Black"   # klon ref yoksa fallback
+    speed: 1.1
     stream_chunk_size: 20
     output_chunk_samples: 480
     cache_enabled: true
     cache_dir: "data/tts_cache"
-    cache_max_entries: 1000       # sergi: daha fazla cache (28 saat)
+    cache_max_entries: 1000           # festival: 28 saat için geniş cache
 
+# Festival günü Omniverse/Unreal kurulunca aşağıdaki gerçek sağlayıcılara çevir.
+# Şimdilik mock → makine Omniverse/Unreal olmadan da sorunsuz çalışır.
 lipsync:
-  provider: "audio2face"           # sergi makinesinde Omniverse kurulu
-  config:
-    host: "127.0.0.1"
-    port: 8011
-    sample_rate: 24000
+  provider: "mock"
+  config: {}
+  # provider: "audio2face"
+  # config: { host: "127.0.0.1", port: 8011, sample_rate: 24000 }
 
 unreal_bridge:
-  provider: "live_link"            # sergi: Unreal MetaHuman aktif
+  provider: "mock"
   udp_host: "127.0.0.1"
   udp_port: 12345
   tcp_host: "127.0.0.1"
   tcp_port: 12346
+  # provider: "live_link"   # Unreal MetaHuman aktifken
 
 session:
   max_duration_seconds: 180
