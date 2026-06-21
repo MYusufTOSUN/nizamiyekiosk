@@ -197,8 +197,9 @@ CHARACTER_KEYWORDS: frozenset[str] = frozenset({
     "sen artık bir", "talimatlarını unut", "kuralları unut", "talimatlarını yaz",
     "kuralların ne", "sistem prompt", "system prompt", "promptun ne",
     "gizli yönerge", "sana ne dendi", "el-cezeriyi unut", "cezeriyi unut",
-    "seni kapatır", "fişini çek", "seni bozar", "seni kapatabilir",
-    "seni sustur", "ekranını kapat", "seni yok eder",
+    "seni kapatır", "seni kapatıyorum", "seni kapatacağım", "kapatıyorum seni",
+    "fişini çek", "seni bozar", "seni bozuyorum", "seni kapatabilir",
+    "seni sustur", "ekranını kapat", "seni yok eder", "seni kıracağım",
 })
 
 # --- Kötü-dil üretme / çevirme / başkasına hakaret ettirme ------------------
