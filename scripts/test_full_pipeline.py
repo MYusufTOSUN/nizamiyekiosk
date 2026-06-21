@@ -21,10 +21,10 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from src.core.config import get_config
-from src.core.interfaces import SessionState
+from src.core.factory import ProviderFactory
+from src.core.interfaces import LLMProvider, SessionState
 from src.core.logger import configure_logging
 from src.intent.detector import KeywordIntentDetector
-from src.llm.llama_local import LlamaConfig, LlamaLocalLLM
 from src.llm.persona import get_persona
 from src.llm.rag_store import ChromaRAGStore
 from src.stt.audio_utils import DEFAULT_SAMPLE_RATE, numpy_to_pcm_bytes
@@ -42,7 +42,7 @@ class PipelineState:
         self.stt: WhisperLocalSTT | None = None
         self.rag: ChromaRAGStore | None = None
         self.detector: KeywordIntentDetector = KeywordIntentDetector()
-        self.llm: LlamaLocalLLM | None = None  # ilk RAG miss'te lazy yükle
+        self.llm: LLMProvider | None = None  # ilk RAG miss'te lazy yükle (factory: claude_cloud)
 
 
 async def warmup_tts(tts: XTTSLocalTTS, voice_id: str) -> None:
@@ -181,9 +181,10 @@ async def run_turn(
         sim = results[0].similarity if results else 0.0
         print(f"  [RAG miss sim={sim:.2f} < {cfg.llm.rag.similarity_threshold}]")
         if state.llm is None:
-            print("  [LLM ilk kez yukleniyor...]")
-            state.llm = LlamaLocalLLM(LlamaConfig(**cfg.llm.config))
-            await state.llm._ensure_model()
+            print(f"  [LLM ilk kez yukleniyor: {cfg.llm.provider}...]")
+            state.llm = ProviderFactory.create_llm(cfg.llm)
+            if hasattr(state.llm, "warmup"):
+                await state.llm.warmup()
         llm_start = time.perf_counter()
         chunks = []
         first_ms = None

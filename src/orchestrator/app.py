@@ -110,6 +110,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         except Exception as exc:  # noqa: BLE001
             _log.warning("llm_warmup_failed", error=str(exc))
 
+    # STT warmup — Whisper'i VRAM'e yukle (XTTS'ten SONRA: cuDNN context hazir).
+    # Ilk ziyaretci cold model-load (~3 sn) + kernel JIT yasamaz; pik VRAM
+    # startup'ta belli olur (festivalde sonradan OOM surprizi olmaz).
+    stt = providers["stt"]
+    if hasattr(stt, "warmup"):
+        try:
+            ms = await stt.warmup()  # type: ignore[attr-defined]
+            _log.info("stt_warmup_done", ms=ms)
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("stt_warmup_failed", error=str(exc))
+
+    # RAG warmup — e5 + reranker CPU'da once yuklensin (ilk sorgu hizli olsun)
+    rag = providers["rag"]
+    if hasattr(rag, "warmup"):
+        try:
+            ms = await rag.warmup("cezeri")  # type: ignore[attr-defined]
+            _log.info("rag_warmup_done", ms=ms)
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("rag_warmup_failed", error=str(exc))
+
     # Arka plan görevleri: watchdog + VRAM monitor (M3)
     watchdog_task = asyncio.create_task(
         session_watchdog(

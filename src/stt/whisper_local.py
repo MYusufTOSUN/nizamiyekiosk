@@ -165,6 +165,30 @@ class WhisperLocalSTT(STTProvider):
         except Exception as exc:  # noqa: BLE001
             raise STTError("STT_001", f"Whisper yüklenemedi: {exc}", cause=exc) from exc
 
+    async def warmup(self) -> int:
+        """Modeli ONCEDEN yukle + ilk transcribe JIT/cuDNN cezasini yut.
+
+        Startup'ta (XTTS warmup'tan SONRA) cagrilirsa ilk ziyaretci cold
+        model-load + kernel JIT yasamaz. Donus: warmup suresi (ms).
+        """
+        import time as _t
+
+        start = _t.perf_counter()
+        await self._ensure_model()
+        try:
+            silent = np.zeros(int(self.config.sample_rate * 0.5), dtype=np.float32)
+            segs, _info = await asyncio.to_thread(
+                self._model.transcribe,
+                silent,
+                language=self.config.language,
+                beam_size=1,
+            )
+            for _ in segs:  # generator'i tuket -> gercek inference
+                pass
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("stt_warmup_inference_failed", error=str(exc))
+        return int((_t.perf_counter() - start) * 1000)
+
     async def transcribe_stream(
         self,
         audio_stream: AsyncIterator[bytes],

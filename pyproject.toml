@@ -48,6 +48,8 @@ llm = [
     "huggingface-hub>=0.24.0",
     "sentencepiece>=0.2.0",
     "protobuf>=4.0.0",
+    # Opsiyonel cloud LLM fallback (claude_cloud provider) — internet gerektirir.
+    "anthropic>=0.40.0",
 ]
 tts = [
     # Coqui TTS — XTTS v2 multi-lingual TTS + ses klonlama.

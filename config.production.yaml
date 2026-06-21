@@ -51,25 +51,35 @@ stt:
     apply_hallucination_blocklist: true
 
 llm:
-  provider: "llama_local"
+  # === LLM = Claude (cloud) — RAG-miss fallback'i icin ===
+  # claude_cloud yalniz RAG-miss'te ateslenir; RAG-hit cevaplar OFFLINE (lokal e5+
+  # reranker+Chroma) doner. Internet kesilirse pipeline LLM hatasinda persona'nin
+  # guvenli statik fallback'ine zarif duser (cokme yok). Yerel Llama YUKLENMEZ ->
+  # VRAM rahatlar (Whisper+XTTS'e bol yer kalir). Anahtar ANTHROPIC_API_KEY
+  # ortam degiskeninden okunur (koda gomulmez): setx ANTHROPIC_API_KEY "sk-ant-..."
+  provider: "claude_cloud"
   config:
-    model_path: "data/models/llama/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
-    chat_format: "llama-3"   # Qwen'e geçersen "" yap (GGUF ChatML otomatik)
-    # 8 GB VRAM: e5/reranker CPU'da, GPU'da Whisper(~3GB)+XTTS(~2GB) var → Llama'ya
-    # ~3GB kalır. 5060 Ti + 32GB RAM ile 20 katman GPU + kalanı CPU dengeli.
-    # OOM olursa 15'e düşür. 16 GB+ makinede -1 yap (yukarıdaki nota bak).
-    n_gpu_layers: 20
-    n_ctx: 4096
-    n_batch: 512
-    n_threads: 8
-    use_mmap: true
-    use_mlock: false
-    verbose: false
-    max_tokens: 120
-    temperature: 0.4
-    top_p: 0.9
-    top_k: 40
-    repeat_penalty: 1.15
+    model: "claude-haiku-4-5"   # ucuz/hizli; uc-durum testleri gecti. Daha kaliteli istersen "claude-sonnet-4-6"
+    max_tokens: 150             # persona "max 2 cumle"; kisa tut
+    timeout_seconds: 30.0
+  # --- OFFLINE alternatif (internet yoksa) — provider'i 'llama_local' yapip
+  #     config'i asagidakiyle degistir (yerel GGUF, ~2.8 GB VRAM, ~10 tok/s):
+  #   provider: "llama_local"
+  #   config:
+  #     model_path: "data/models/llama/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+  #     chat_format: "llama-3"
+  #     n_gpu_layers: 14   # 8 GB'da olculmus guvenli denge (16=riskli, 12=en guvenli)
+  #     n_ctx: 4096
+  #     n_batch: 512
+  #     n_threads: 8
+  #     use_mmap: true
+  #     use_mlock: false
+  #     verbose: false
+  #     max_tokens: 120
+  #     temperature: 0.4
+  #     top_p: 0.9
+  #     top_k: 40
+  #     repeat_penalty: 1.15
   rag:
     enabled: true
     # RERANKER REJIMI (eşik reranker sigmoid skoruna uygulanır, embedding 0.86 DEĞİL).

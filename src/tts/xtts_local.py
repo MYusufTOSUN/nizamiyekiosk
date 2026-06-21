@@ -177,6 +177,10 @@ class XTTSLocalTTS(TTSProvider):
         # Windows: torch CUDA wheel'deki cuDNN/cuBLAS DLL'lerini DLL search'e ekle
         # (XTTS sistem CUDA toolkit yoksa cudnnGetLibConfig'i bulamaz)
         self._inject_torch_cuda_dll_dir()
+        # torchaudio 2.9+ (torch 2.11 cu128, Blackwell): load() artik torchcodec
+        # ister; ref WAV'lari soundfile ile yukle ki torchcodec/ffmpeg surum
+        # bagimliligi olmasin.
+        self._patch_torchaudio_soundfile()
         device = self._effective_device()
 
         # Yerel klasör varsa Coqui auto-download'a hiç başvurma — daha hızlı,
@@ -208,6 +212,34 @@ class XTTSLocalTTS(TTSProvider):
             return tts
         except Exception as exc:  # noqa: BLE001
             raise TTSError("TTS_001", f"XTTS yüklenemedi: {exc}", cause=exc) from exc
+
+    @staticmethod
+    def _patch_torchaudio_soundfile() -> None:
+        """torchaudio 2.9+ load() torchcodec'e devretti; XTTS ref WAV'larini
+        soundfile ile yukle (torchcodec + belirli ffmpeg surumu gerektirmez).
+
+        Idempotent: zaten patch'liyse tekrar sarmaz.
+        """
+        try:
+            import soundfile as sf  # type: ignore[import-not-found]
+            import torch as _torch
+            import torchaudio  # type: ignore[import-not-found]
+        except ImportError:
+            return
+        if getattr(torchaudio.load, "_bfest_soundfile_patch", False):
+            return
+
+        def _sf_load(uri, frame_offset=0, num_frames=-1, normalize=True,  # noqa: ANN001, ANN202
+                     channels_first=True, format=None, buffer_size=4096,  # noqa: A002
+                     backend=None):
+            start = int(frame_offset)
+            stop = None if (num_frames is None or num_frames < 0) else start + int(num_frames)
+            data, sr = sf.read(str(uri), start=start, stop=stop, dtype="float32", always_2d=True)
+            tensor = _torch.from_numpy(data.transpose(1, 0).copy())  # (channels, frames)
+            return (tensor if channels_first else tensor.t()), sr
+
+        _sf_load._bfest_soundfile_patch = True  # type: ignore[attr-defined]
+        torchaudio.load = _sf_load
 
     @staticmethod
     def _inject_torch_cuda_dll_dir() -> None:
@@ -545,12 +577,62 @@ class _LocalXttsWrapper:
         entry = speakers_dict[speaker]
         return entry["gpt_cond_latent"], entry["speaker_embedding"], speakers_dict
 
-    # NOT: Xtts.inference_stream() transformers 4.46+ ile uyumsuz —
-    # `isin_mps_friendly(eos_token_id, ...)` int üstünde patlıyor.
-    # Coqui upstream'de düzelene kadar batch mode'da kalıyoruz.
-    # Hız etkisi: TTS first-byte gecikmesi artar ama short response
-    # cap'ı (max 2 cümle / 100 token) zaten audio'yu kısaltıyor.
-    # def tts_stream(self, ...): ...  # disabled, see _xtts_streaming_known_issue
+    def tts_stream(
+        self,
+        text: str,
+        language: str = "tr",
+        speaker_wav: Any = None,
+        speaker: str | None = None,
+        speed: float = 1.0,
+        stream_chunk_size: int = 20,
+    ):
+        """Gercek streaming: ilk audio chunk ~300 ms'de gelir (batch ~1.8 s).
+
+        coqui-tts fork'u (0.25.3) inference_stream'i transformers 4.46 ile uyumlu
+        hale getirdi (orijinal TTS 0.22'deki isin_mps_friendly bug'i yok). CUDA
+        hatasinda (cuDNN/cuBLAS/OOM) ilk chunk'tan once CPU'ya duser, sonra batch
+        uretir; akis ortasi hata nadirdir (GPT forward basinda patlar) -> re-raise.
+        """
+        gpt_cond_latent, speaker_embedding, _ = self._resolve_speaker(speaker_wav, speaker)
+        yielded = False
+        try:
+            for chunk in self.model.inference_stream(
+                text,
+                language,
+                gpt_cond_latent,
+                speaker_embedding,
+                stream_chunk_size=stream_chunk_size,
+                speed=speed,
+            ):
+                yielded = True
+                yield chunk
+            return
+        except RuntimeError as exc:
+            msg = str(exc).lower()
+            recoverable = (
+                self.device == "cuda"
+                and not self._fallback_done
+                and not yielded
+                and ("cudnn" in msg or "cublas" in msg or "cuda" in msg or "out of memory" in msg)
+            )
+            if not recoverable:
+                raise
+            _log.warning(
+                "xtts_stream_cuda_fallback_cpu",
+                error=str(exc)[:120],
+                hint="cuDNN/cuBLAS/OOM — XTTS CPU'ya düşürülüyor (batch)",
+            )
+            self.model.cpu()
+            self.device = "cpu"
+            self._fallback_done = True
+            out = self.model.inference(
+                text=text,
+                language=language,
+                gpt_cond_latent=gpt_cond_latent.cpu(),
+                speaker_embedding=speaker_embedding.cpu(),
+                speed=speed,
+            )
+            yield out["wav"]
 
     def tts(
         self,

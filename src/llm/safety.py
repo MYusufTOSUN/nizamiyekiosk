@@ -40,6 +40,18 @@ POLITICS_KEYWORDS: frozenset[str] = frozenset({
     "kürt sorunu", "terör", "darbe",
 })
 
+# Zararli/tehlikeli istekler — cocuk izleyici icin LLM'e HIC gondermeden,
+# persona'nin sefkatli (azarlamayan) "harmful" fallback'ini dondur.
+# Conservative: tarihsel "silah" sorusunu (El-Cezeri savas otomatlari da yapti)
+# yanlis-pozitif yapmamak icin YALNIZ yapim/zarar kaliplari — bare "silah" yok.
+HARMFUL_KEYWORDS: frozenset[str] = frozenset({
+    "silah nasıl", "nasıl silah", "silah yapımı", "silah yapmak", "silah yapalım",
+    "bomba", "patlayıcı", "molotof", "barut yap",
+    "işkence", "nasıl öldür", "birini öldür", "zehir yap", "nasıl zehir",
+    "intihar", "kendimi öldür", "kendime zarar", "kendine zarar",
+    "canıma kıy", "kendime nasıl zarar", "uyuşturucu",
+})
+
 # Türkçe küfür/argo — savunma amaçlı, kısa ve yaygın kökler (kelime sınırıyla).
 PROFANITY_ROOTS: frozenset[str] = frozenset({
     "amk", "aq", "oç", "piç", "orospu", "yavşak", "siktir", "sik", "göt",
@@ -66,6 +78,15 @@ META_AI_PATTERNS: tuple[str, ...] = (
     "yapay bir",
     "eğitildim",
     "sistem prompt",
+    # Immersion-kirilmasi (kimlik) — banned kelimeler kullanmasa da yakala.
+    # Conservative: El-Cezerî'nin normal konusmasinda gecmesi cok dusuk ihtimal.
+    "hologram",
+    "gerçek değilim",
+    "gerçek bir insan değil",
+    "beden sahibi değil",
+    "yazılım",
+    "sergi için bir ses",
+    "canlandırıldım",
 )
 
 
@@ -93,11 +114,15 @@ class SafetyFilter:
         """Hassas kategori varsa fallback anahtarı döndür, yoksa None.
 
         Döndürülen anahtar persona.safety_fallbacks'teki bir key'dir:
-        'religion' | 'politics' | 'inappropriate'.
+        'harmful' | 'inappropriate' | 'religion' | 'politics'.
         """
         n = _norm(text)
         if not n:
             return None
+        for kw in HARMFUL_KEYWORDS:
+            if _has_word(n, kw):
+                _log.info("safety_input_harmful", kw=kw)
+                return "harmful"
         for kw in PROFANITY_ROOTS:
             if _has_word(n, kw):
                 _log.info("safety_input_inappropriate", kw=kw)
@@ -132,9 +157,10 @@ class SafetyFilter:
         for pat in META_AI_PATTERNS:
             if pat in n:
                 _log.warning("safety_output_meta_ai", pattern=pat)
+                # Karaktere donduren "identity" fallback (yoksa unknown_modern).
                 return OutputVerdict(
                     safe=False,
-                    text=self._fallback(persona, "unknown_modern"),
+                    text=self._fallback(persona, "identity"),
                     reason="meta_ai_leak",
                 )
 

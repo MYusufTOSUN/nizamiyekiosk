@@ -182,10 +182,18 @@ def validate_startup(config: AppConfig) -> list[str]:
         _check(str(config.stt.config.get("model", "")), "STT model")
     if config.llm.provider == "llama_local":
         _check(str(config.llm.config.get("model_path", "")), "LLM model")
-        if config.llm.rag.enabled:
-            _check(
-                "data/models/embeddings/multilingual-e5-large", "RAG embedder"
+    if config.llm.provider == "claude_cloud":
+        import os
+
+        if not os.environ.get("ANTHROPIC_API_KEY") and not config.llm.config.get("api_key"):
+            problems.append(
+                "LLM claude_cloud: ANTHROPIC_API_KEY tanımlı değil "
+                "(setx ANTHROPIC_API_KEY \"sk-ant-...\")"
             )
+    # RAG embedder, LLM provider'dan bağımsız olarak (rag açıksa) gerekli —
+    # e5 lokal çalışır; claude_cloud'da bile RAG-hit'ler offline döner.
+    if config.llm.rag.enabled:
+        _check("data/models/embeddings/multilingual-e5-large", "RAG embedder")
     if config.tts.provider == "xtts_local":
         mp = str(config.tts.config.get("model_path", ""))
         if mp:

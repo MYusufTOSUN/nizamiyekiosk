@@ -92,6 +92,22 @@ class ChromaRAGStore(RAGStore):
             if self.config.use_reranker and self._reranker is None:
                 self._reranker = await asyncio.to_thread(self._load_reranker)
 
+    async def warmup(self, persona_id: str = "cezeri") -> int:
+        """Embedder + reranker'i ONCEDEN yukle + ilk inference'i isit.
+
+        Startup'ta cagrilirsa ilk ziyaretci e5/reranker cold-load (CPU'da
+        birkac sn) yasamaz. Donus: warmup suresi (ms).
+        """
+        import time as _t
+
+        start = _t.perf_counter()
+        await self._ensure_ready()
+        try:
+            await self.query("merhaba", persona_id, top_k=1)
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("rag_warmup_query_failed", error=str(exc))
+        return int((_t.perf_counter() - start) * 1000)
+
     def _make_client(self) -> ClientAPI:
         try:
             import chromadb  # type: ignore[import-not-found]
