@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BilimFest · El-Cezerî</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",system-ui,sans-serif; min-height:100vh; color:#f5ecd6;
+       background:radial-gradient(900px 600px at 50% 20%,#21183a,#10152a 50%,#070a14);
+       display:flex; flex-direction:column; align-items:center; justify-content:center; gap:34px; padding:24px}
+  .brand{letter-spacing:.4em; color:#e6b94e; font-weight:600}
+  .brand small{display:block; text-align:center; letter-spacing:.22em; color:#8d97b6; font-size:.62rem; margin-top:.5em}
+  h1{font-family:Georgia,serif; font-size:clamp(2.4rem,7vw,4rem); color:#f3d488; text-shadow:0 0 40px #e6b94e44}
+  .cards{display:flex; gap:22px; flex-wrap:wrap; justify-content:center}
+  a.card{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+     width:260px; height:200px; border-radius:18px; text-decoration:none; color:#f5ecd6;
+     border:1px solid #2a3354; background:#161c33; transition:transform .12s, border-color .15s}
+  a.card:hover{transform:translateY(-4px); border-color:#e6b94e}
+  a.card .ico{font-size:2.6rem}
+  a.card .t{font-size:1.25rem; font-weight:700; letter-spacing:.03em}
+  a.card .d{font-size:.8rem; color:#8d97b6; text-align:center; padding:0 18px}
+  a.ekran{background:linear-gradient(160deg,#1c1430,#10152a)}
+  a.panel{background:linear-gradient(160deg,#161c33,#0e1426)}
+  .foot{color:#8d97b6; font-size:.72rem; letter-spacing:.2em}
+</style>
+</head>
+<body>
+  <div class="brand">BİLİMFEST<small>KONYA BİLİM ŞENLİĞİ</small></div>
+  <h1>El-Cezerî</h1>
+  <div class="cards">
+    <a class="card ekran" href="/ekran">
+      <div class="ico">🪞</div><div class="t">Ziyaretçi Ekranı</div>
+      <div class="d">Hologramın gösterileceği ekran — durum &amp; altyazı</div>
+    </a>
+    <a class="card panel" href="/panel">
+      <div class="ico">🎛️</div><div class="t">Rehber Paneli</div>
+      <div class="d">Oturum yönetimi · yeni ziyaretçi · acil durdur (PIN korumalı)</div>
+    </a>
+  </div>
+  <div class="foot">ROBOTİĞİN ATASI · 1136–1206</div>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>El-Cezerî · BilimFest</title>
+<style>
+  :root{
+    --bg0:#070a14; --bg1:#10152a; --bg2:#1c1430;
+    --gold:#e6b94e; --gold-soft:#f3d488; --cream:#f5ecd6;
+    --muted:#9aa3bd; --ring:#e6b94e;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    background:radial-gradient(1200px 800px at 50% 18%, #21183a 0%, var(--bg1) 45%, var(--bg0) 100%);
+    color:var(--cream); overflow:hidden; height:100vh; position:relative;
+    -webkit-user-select:none; user-select:none; cursor:none;
+  }
+  /* ince geometrik doku */
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; opacity:.06;
+    background-image:
+      repeating-conic-gradient(from 30deg, transparent 0 28deg, #d4a84322 28deg 30deg);
+    background-size:220px 220px;
+  }
+  .wrap{position:relative; height:100%; display:flex; flex-direction:column; align-items:center;
+        justify-content:center; text-align:center; padding:5vh 6vw; z-index:2}
+
+  .brand{position:fixed; top:3.2vh; left:0; right:0; text-align:center; letter-spacing:.42em;
+         font-size:1.05rem; color:var(--gold); opacity:.85; font-weight:600}
+  .brand small{display:block; letter-spacing:.25em; font-size:.62rem; color:var(--muted); margin-top:.5em}
+
+  .name{font-family:"Georgia","Times New Roman",serif; font-size:clamp(2.6rem,6.5vw,5.4rem);
+        color:var(--gold-soft); text-shadow:0 0 40px #e6b94e55; line-height:1; margin-bottom:.25em}
+  .tagline{color:var(--muted); letter-spacing:.18em; font-size:clamp(.7rem,1.6vw,1rem); margin-bottom:6vh}
+
+  /* durum küresi */
+  .orb-wrap{position:relative; width:min(38vh,320px); height:min(38vh,320px); margin-bottom:5vh}
+  .orb{position:absolute; inset:0; border-radius:50%;
+       background:radial-gradient(circle at 38% 34%, #fff3d0 0%, var(--gold) 38%, #9a6b18 78%, #4a3208 100%);
+       box-shadow:0 0 70px #e6b94e66, inset 0 0 50px #00000055;
+       animation:breathe 4.5s ease-in-out infinite}
+  .ring{position:absolute; inset:0; border-radius:50%; border:2px solid var(--ring);
+        opacity:0; transform:scale(1)}
+  @keyframes breathe{0%,100%{transform:scale(.97); filter:brightness(.92)}
+                     50%{transform:scale(1.03); filter:brightness(1.1)}}
+  @keyframes ripple{0%{opacity:.55; transform:scale(1)} 100%{opacity:0; transform:scale(1.9)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* state: listening → halkalar yayılır */
+  body[data-state="listening"] .orb,
+  body[data-state="selection"] .orb{animation:breathe 1.6s ease-in-out infinite}
+  body[data-state="listening"] .ring,
+  body[data-state="selection"] .ring{animation:ripple 2.2s ease-out infinite}
+  body[data-state="listening"] .ring:nth-child(2){animation-delay:.7s}
+  body[data-state="listening"] .ring:nth-child(3){animation-delay:1.4s}
+
+  /* state: thinking → dönen şerit */
+  body[data-state="thinking"] .orb{animation:breathe 2.4s ease-in-out infinite; filter:saturate(.8)}
+  .thinker{position:absolute; inset:-14px; border-radius:50%;
+           border:3px solid transparent; border-top-color:var(--gold-soft);
+           border-right-color:#e6b94e55; opacity:0}
+  body[data-state="thinking"] .thinker{opacity:1; animation:spin 1.4s linear infinite}
+
+  /* state: speaking → canlı nabız */
+  body[data-state="speaking"] .orb{animation:breathe 1s ease-in-out infinite; box-shadow:0 0 100px #e6b94e99, inset 0 0 50px #00000055}
+  body[data-state="speaking"] .ring{animation:ripple 1.1s ease-out infinite}
+
+  .status{font-size:clamp(1rem,2.4vw,1.5rem); letter-spacing:.14em; color:var(--gold-soft);
+          min-height:1.4em; margin-bottom:3vh; transition:opacity .3s}
+
+  /* altyazı */
+  .subs{max-width:1100px; width:100%; min-height:18vh}
+  .q{color:var(--muted); font-size:clamp(.85rem,2vw,1.2rem); letter-spacing:.03em;
+     margin-bottom:.7em; opacity:0; transition:opacity .4s}
+  .q.show{opacity:.9}
+  .q::before{content:"\201C"} .q::after{content:"\201D"}
+  .a{font-size:clamp(1.2rem,3vw,2rem); line-height:1.4; color:var(--cream);
+     opacity:0; transform:translateY(8px); transition:opacity .5s, transform .5s}
+  .a.show{opacity:1; transform:none}
+
+  .footer{position:fixed; bottom:3vh; left:0; right:0; text-align:center;
+          color:var(--muted); font-size:.7rem; letter-spacing:.25em; opacity:.6}
+  .dot{position:fixed; top:3.4vh; right:3vw; width:9px; height:9px; border-radius:50%;
+       background:#d9534f; box-shadow:0 0 10px #d9534f; transition:background .3s}
+  .dot.on{background:#5cb85c; box-shadow:0 0 10px #5cb85c}
+</style>
+</head>
+<body data-state="idle">
+  <div class="brand">BİLİMFEST<small>KONYA BİLİM ŞENLİĞİ</small></div>
+  <span class="dot" id="dot" title="bağlantı"></span>
+
+  <div class="wrap">
+    <div class="name">El-Cezerî</div>
+    <div class="tagline">MÜHENDİS &amp; MUCİT · 1136–1206 · CİZRE</div>
+
+    <div class="orb-wrap">
+      <div class="thinker"></div>
+      <div class="ring"></div><div class="ring"></div><div class="ring"></div>
+      <div class="orb"></div>
+    </div>
+
+    <div class="status" id="status">Hoş geldin evladım</div>
+
+    <div class="subs">
+      <div class="q" id="q"></div>
+      <div class="a" id="a"></div>
+    </div>
+  </div>
+
+  <div class="footer">EL-CEZERÎ · ROBOTİĞİN ATASI · OTOMATA &amp; SU MAKİNELERİ</div>
+
+<script>
+(function(){
+  const body=document.body, dot=document.getElementById('dot');
+  const statusEl=document.getElementById('status'), qEl=document.getElementById('q'), aEl=document.getElementById('a');
+  const LABEL={
+    idle:"Hazırım", welcome:"Hoş geldin evladım", listening:"Seni dinliyorum…",
+    selection:"Seni dinliyorum…", thinking:"Düşünüyorum…", speaking:"Anlatıyorum…",
+    farewell:"Hoşça kal evladım", error:"Bir aksaklık oldu"
+  };
+  let idleTimer=null;
+  function setState(s){
+    body.dataset.state=s;
+    statusEl.textContent=LABEL[s]||"";
+    // konuşma bitince bir süre sonra altyazıyı yumuşat
+    if(s==='listening'||s==='welcome'||s==='idle'){
+      clearTimeout(idleTimer);
+      idleTimer=setTimeout(()=>{ if(body.dataset.state!=='speaking'){ qEl.classList.remove('show'); aEl.classList.remove('show'); } }, 12000);
+    }
+  }
+  function showTurn(d){
+    if(d.transcription){ qEl.textContent=d.transcription; qEl.classList.add('show'); }
+    if(d.response){ aEl.textContent=d.response; aEl.classList.add('show'); }
+  }
+  function wsURL(){ return (location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/events'; }
+  let ws;
+  function connect(){
+    ws=new WebSocket(wsURL());
+    ws.onopen=()=>dot.classList.add('on');
+    ws.onclose=()=>{ dot.classList.remove('on'); setTimeout(connect,1500); };
+    ws.onerror=()=>{ try{ws.close()}catch(e){} };
+    ws.onmessage=(ev)=>{
+      let m; try{ m=JSON.parse(ev.data); }catch(e){ return; }
+      const d=m.data||{};
+      if(m.type==='state_changed' && d.new){ setState(d.new); }
+      else if(m.type==='transcription_received'){ if(d.text){ qEl.textContent=d.text; qEl.classList.add('show'); aEl.classList.remove('show'); } }
+      else if(m.type==='llm_response_completed'){ if(d.text){ aEl.textContent=d.text; aEl.classList.add('show'); } }
+      else if(m.type==='session_started'){ setState('welcome'); qEl.classList.remove('show'); aEl.classList.remove('show'); }
+    };
+  }
+  connect();
+  // fullscreen kolaylığı: ekrana dokununca tam ekran
+  document.addEventListener('dblclick',()=>{ if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen(); });
+})();
+</script>
+</body>
+</html>

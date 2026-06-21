@@ -168,7 +168,12 @@ class ConversationPipeline:
                 SessionEvent(
                     session_id=session.session_id,
                     type="llm_response_completed",
-                    data={"persona": persona_id, "source": source, "length": len(response_text)},
+                    data={
+                        "persona": persona_id,
+                        "source": source,
+                        "text": response_text,
+                        "length": len(response_text),
+                    },
                 )
             )
             if cancel.is_set():

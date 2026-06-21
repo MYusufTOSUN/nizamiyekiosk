@@ -12,9 +12,12 @@ import asyncio
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, cast
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from src.core.config import AppConfig, get_config
 from src.core.errors import ConfigError
@@ -164,6 +167,25 @@ app = FastAPI(
 )
 
 app.include_router(router)
+
+# --- Web arayüzü: ziyaretçi ekranı (/ekran) + rehber paneli (/panel) ---------
+_STATIC_DIR = Path(__file__).resolve().parents[2] / "static"
+if _STATIC_DIR.is_dir():
+    app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+    @app.get("/")
+    async def _index() -> FileResponse:
+        return FileResponse(str(_STATIC_DIR / "index.html"))
+
+    @app.get("/ekran")
+    async def _ekran() -> FileResponse:
+        """Ziyaretçinin gördüğü hologram ekranı (salt-okunur)."""
+        return FileResponse(str(_STATIC_DIR / "ekran.html"))
+
+    @app.get("/panel")
+    async def _panel() -> FileResponse:
+        """Rehber/operatör paneli (PIN korumalı yönetim)."""
+        return FileResponse(str(_STATIC_DIR / "panel.html"))
 
 
 @app.websocket("/ws/audio")

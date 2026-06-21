@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rehber Paneli · BilimFest</title>
+<style>
+  :root{
+    --bg:#0c1020; --panel:#161c33; --panel2:#1d2541; --line:#2a3354;
+    --gold:#e6b94e; --cream:#eef2fb; --muted:#8d97b6;
+    --green:#43c479; --amber:#e6b94e; --red:#e0584f; --blue:#5b8def;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{font-family:"Segoe UI",system-ui,sans-serif; background:var(--bg); color:var(--cream);
+       min-height:100vh; padding:18px; max-width:920px; margin:0 auto}
+  header{display:flex; align-items:center; justify-content:space-between; margin-bottom:18px}
+  .title{font-weight:700; letter-spacing:.04em; font-size:1.15rem}
+  .title b{color:var(--gold)}
+  .title small{display:block; color:var(--muted); font-weight:400; font-size:.7rem; letter-spacing:.2em}
+  .conn{display:flex; align-items:center; gap:8px; font-size:.8rem; color:var(--muted)}
+  .dot{width:10px; height:10px; border-radius:50%; background:var(--red); box-shadow:0 0 8px var(--red)}
+  .dot.on{background:var(--green); box-shadow:0 0 8px var(--green)}
+
+  .grid{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px}
+  .stat{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px}
+  .stat .k{font-size:.62rem; letter-spacing:.16em; color:var(--muted); text-transform:uppercase}
+  .stat .v{font-size:1.05rem; font-weight:600; margin-top:5px; word-break:break-all}
+  .badge{display:inline-block; padding:.18em .7em; border-radius:999px; font-size:.85rem; font-weight:700}
+  .s-idle{background:#2a3354; color:#aeb8d6}
+  .s-welcome,.s-listening,.s-selection{background:#173a2a; color:var(--green)}
+  .s-thinking{background:#3a3317; color:var(--amber)}
+  .s-speaking{background:#173049; color:var(--blue)}
+  .s-farewell{background:#2a3354; color:#aeb8d6}
+  .s-error{background:#3a1717; color:var(--red)}
+
+  .controls{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:18px}
+  button.act{border:0; border-radius:14px; padding:18px; font-size:1.05rem; font-weight:700;
+       color:#0c1020; cursor:pointer; transition:transform .06s, filter .15s; letter-spacing:.02em}
+  button.act:active{transform:translateY(1px)}
+  button.act:disabled{opacity:.45; cursor:not-allowed}
+  .b-primary{background:linear-gradient(135deg,#f3d488,#e6b94e); grid-column:1 / -1; font-size:1.2rem; padding:22px}
+  .b-start{background:#43c479} .b-end{background:#8d97b6}
+  .b-mute{background:#5b8def; color:#fff} .b-stop{background:#e0584f; color:#fff}
+  .hint{font-size:.74rem; color:var(--muted); margin:-8px 2px 14px}
+
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:14px}
+  .card h3{font-size:.72rem; letter-spacing:.18em; color:var(--muted); text-transform:uppercase; margin-bottom:10px}
+  .turn{border-left:3px solid var(--gold); padding:8px 12px; margin-bottom:10px; background:var(--panel2); border-radius:0 10px 10px 0}
+  .turn .q{color:var(--muted); font-size:.85rem; margin-bottom:4px}
+  .turn .a{font-size:.98rem; line-height:1.4}
+  .turn .src{float:right; font-size:.6rem; letter-spacing:.1em; padding:.15em .55em; border-radius:6px; font-weight:700}
+  .src-rag{background:#173a2a; color:var(--green)} .src-generated{background:#173049; color:var(--blue)}
+  .src-fallback{background:#3a3317; color:var(--amber)} .src-greeting{background:#2a3354; color:#aeb8d6}
+  #log{font-family:ui-monospace,Consolas,monospace; font-size:.72rem; color:var(--muted);
+       max-height:160px; overflow:auto; line-height:1.6}
+  #log .t{color:var(--gold)}
+  .empty{color:var(--muted); font-style:italic; font-size:.85rem}
+
+  /* PIN kapısı */
+  .gate{position:fixed; inset:0; background:#070a14ee; backdrop-filter:blur(4px); z-index:50;
+        display:flex; align-items:center; justify-content:center; flex-direction:column; gap:18px}
+  .gate h2{color:var(--gold); letter-spacing:.1em; font-weight:700}
+  .gate p{color:var(--muted); font-size:.85rem}
+  .gate input{font-size:1.6rem; letter-spacing:.5em; text-align:center; width:200px; padding:12px;
+        border-radius:12px; border:1px solid var(--line); background:var(--panel); color:var(--cream)}
+  .gate button{margin-top:4px; padding:12px 30px; border:0; border-radius:12px; font-weight:700;
+        background:var(--gold); color:#0c1020; cursor:pointer; font-size:1rem}
+  .gate .err{color:var(--red); min-height:1.2em; font-size:.8rem}
+  @media(max-width:640px){ .grid{grid-template-columns:repeat(2,1fr)} .controls{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+  <div class="gate" id="gate">
+    <h2>REHBER PANELİ</h2>
+    <p>Yönetim erişimi için PIN girin</p>
+    <input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" />
+    <div class="err" id="pinErr"></div>
+    <button id="pinBtn">Giriş</button>
+  </div>
+
+  <header>
+    <div class="title">BİLİMFEST · <b>Rehber Paneli</b><small>EL-CEZERÎ HOLOGRAM YÖNETİMİ</small></div>
+    <div class="conn"><span class="dot" id="dot"></span><span id="connTxt">bağlanıyor…</span></div>
+  </header>
+
+  <div class="grid">
+    <div class="stat"><div class="k">Durum</div><div class="v"><span class="badge s-idle" id="state">—</span></div></div>
+    <div class="stat"><div class="k">Aktif Oturum</div><div class="v" id="sid">yok</div></div>
+    <div class="stat"><div class="k">Karakter</div><div class="v" id="persona">El-Cezerî</div></div>
+    <div class="stat"><div class="k">Son Gecikme</div><div class="v" id="lat">—</div></div>
+  </div>
+
+  <div class="controls">
+    <button class="act b-primary" id="bNew">🔄 Yeni Ziyaretçi — Sıfırla</button>
+    <button class="act b-start" id="bStart">▶ Oturum Başlat</button>
+    <button class="act b-end" id="bEnd">⏹ Oturum Bitir</button>
+    <button class="act b-mute" id="bInt">🔇 Sustur / Atla</button>
+    <button class="act b-stop" id="bStop">🛑 Acil Durdur</button>
+  </div>
+  <div class="hint">“Yeni Ziyaretçi”, oturumu kapatıp yenisini açar — önceki sohbet hafızası (bağlam) sıfırlanır.</div>
+
+  <div class="card">
+    <h3>Konuşma</h3>
+    <div id="turns"><div class="empty">Henüz konuşma yok.</div></div>
+  </div>
+
+  <div class="card">
+    <h3>Olay Kaydı</h3>
+    <div id="log"></div>
+  </div>
+
+<script>
+(function(){
+  const PIN="1206"; // El-Cezerî (1206) — gerektiğinde değiştir
+  const $=id=>document.getElementById(id);
+  const gate=$('gate'), pinIn=$('pin'), pinErr=$('pinErr');
+  function unlock(){ gate.style.display='none'; start(); }
+  function tryPin(){ if(pinIn.value===PIN){ sessionStorage.setItem('bf_ok','1'); unlock(); } else { pinErr.textContent='Hatalı PIN'; pinIn.value=''; } }
+  $('pinBtn').onclick=tryPin; pinIn.addEventListener('keydown',e=>{ if(e.key==='Enter') tryPin(); });
+  if(sessionStorage.getItem('bf_ok')==='1'){ unlock(); } else { pinIn.focus(); }
+
+  function start(){
+    const dot=$('dot'), connTxt=$('connTxt');
+    const STATE_LABEL={idle:'BEKLEMEDE',welcome:'KARŞILAMA',listening:'DİNLİYOR',selection:'DİNLİYOR',thinking:'DÜŞÜNÜYOR',speaking:'KONUŞUYOR',farewell:'VEDA',error:'HATA'};
+    const SRC_LABEL={rag:'HAZIR CEVAP',generated:'CLAUDE',fallback:'GÜVENLİK',greeting:'SELAM'};
+    function setState(s){ const el=$('state'); el.textContent=STATE_LABEL[s]||s||'—'; el.className='badge s-'+(s||'idle'); }
+    function log(t,cls){ const d=$('log'); const now=new Date().toLocaleTimeString('tr-TR'); d.innerHTML=`<div><span class="t">${now}</span> ${t}</div>`+d.innerHTML; }
+    const turnsEl=$('turns'); let hasTurn=false;
+    function addTurn(d){
+      if(!hasTurn){ turnsEl.innerHTML=''; hasTurn=true; }
+      const src=d.source||'';
+      const div=document.createElement('div'); div.className='turn';
+      div.innerHTML=`<span class="src src-${src.split(':')[0]}">${SRC_LABEL[src.split(':')[0]]||src||'—'}</span>`+
+        `<div class="q">${esc(d.transcription||'—')}</div><div class="a">${esc(d.response||'')}</div>`;
+      turnsEl.insertBefore(div, turnsEl.firstChild);
+      if(d.latency_ms!=null) $('lat').textContent=d.latency_ms+' ms';
+    }
+    function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+    // REST
+    async function api(path){ try{ const r=await fetch(path,{method:'POST'}); const j=await r.json().catch(()=>({})); return {ok:r.ok,j}; }catch(e){ return {ok:false,j:{detail:String(e)}}; } }
+    async function refreshStatus(){ try{ const r=await fetch('/api/v1/status'); const j=await r.json(); setState(j.state); $('sid').textContent=j.active_session?j.active_session.slice(0,8):'yok'; if(j.current_persona) $('persona').textContent=j.current_persona; }catch(e){} }
+
+    $('bStart').onclick=async()=>{ const {ok,j}=await api('/api/v1/session/start'); log(ok?'▶ oturum başlatıldı':'⚠ başlatılamadı: '+(j.detail||'')); refreshStatus(); };
+    $('bEnd').onclick=async()=>{ const {ok,j}=await api('/api/v1/session/end'); log(ok?'⏹ oturum bitti':'⚠ '+(j.detail||'aktif oturum yok')); refreshStatus(); };
+    $('bInt').onclick=async()=>{ await api('/api/v1/interrupt'); log('🔇 sustur/atla'); };
+    $('bStop').onclick=async()=>{ if(!confirm('ACİL DURDUR: çalışan tur kesilecek ve oturum kapanacak. Onaylıyor musun?')) return; await api('/api/v1/emergency_stop'); log('🛑 ACİL DURDUR'); refreshStatus(); };
+    $('bNew').onclick=async()=>{
+      if(!confirm('Yeni ziyaretçi: mevcut oturum kapatılıp sohbet hafızası sıfırlanacak. Devam?')) return;
+      await api('/api/v1/session/end'); const {ok,j}=await api('/api/v1/session/start');
+      turnsEl.innerHTML='<div class="empty">Yeni ziyaretçi — temiz başlangıç.</div>'; hasTurn=false; $('lat').textContent='—';
+      log(ok?'🔄 YENİ ZİYARETÇİ (bağlam sıfırlandı)':'⚠ '+(j.detail||'')); refreshStatus();
+    };
+
+    // WS events
+    function wsURL(){ return (location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/events'; }
+    let ws;
+    function connect(){
+      ws=new WebSocket(wsURL());
+      ws.onopen=()=>{ dot.classList.add('on'); connTxt.textContent='bağlı'; };
+      ws.onclose=()=>{ dot.classList.remove('on'); connTxt.textContent='koptu — yeniden…'; setTimeout(connect,1500); };
+      ws.onerror=()=>{ try{ws.close()}catch(e){} };
+      let pendingQ='';
+      ws.onmessage=(ev)=>{ let m; try{m=JSON.parse(ev.data)}catch(e){return}
+        const d=m.data||{};
+        if(m.type==='state_changed'){ setState(d.new); }
+        else if(m.type==='transcription_received'){ pendingQ=d.text||''; }
+        else if(m.type==='llm_response_completed'){ addTurn({transcription:pendingQ, response:d.text, source:d.source}); pendingQ=''; }
+        else if(m.type==='session_started'){ log('● oturum aktif'); refreshStatus(); }
+      };
+    }
+    connect(); refreshStatus(); setInterval(refreshStatus,5000);
+  }
+})();
+</script>
+</body>
+</html>
