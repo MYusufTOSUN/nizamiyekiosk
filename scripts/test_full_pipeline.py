@@ -27,6 +27,7 @@ from src.core.logger import configure_logging
 from src.intent.detector import KeywordIntentDetector
 from src.llm.persona import get_persona
 from src.llm.rag_store import ChromaRAGStore
+from src.llm.safety import SafetyFilter
 from src.stt.audio_utils import DEFAULT_SAMPLE_RATE, numpy_to_pcm_bytes
 from src.stt.whisper_local import WhisperConfig, WhisperLocalSTT
 from src.tts.xtts_local import XTTS_NATIVE_SR, XTTSConfig, XTTSLocalTTS
@@ -167,36 +168,54 @@ async def run_turn(
         print("  (Bos transcript)")
         return
 
-    intent = await state.detector.detect(text, current_state=SessionState.LISTENING)
-    print(f"  [INTENT] {intent.type}")
-
-    rag_start = time.perf_counter()
-    results = await state.rag.query(text, persona.id, top_k=3)
-    rag_ms = int((time.perf_counter() - rag_start) * 1000)
-    response = ""
-    if results and results[0].similarity >= cfg.llm.rag.similarity_threshold:
-        response = results[0].response_text
-        print(f"  [RAG hit sim={results[0].similarity:.2f} {rag_ms}ms]")
+    # Güvenlik girişi: hassas/tehlikeli kategori → RAG/LLM'e gitmeden statik fallback
+    # (gerçek pipeline ile aynı: classify_input → static, RAG-miss → LLM → check_output)
+    safety = SafetyFilter()
+    category = safety.classify_input(text)
+    if category is not None:
+        response = (
+            persona.safety_fallbacks.get(category)
+            or persona.safety_fallbacks.get("inappropriate", "")
+        )
+        print(f"  [SAFETY giriş -> {category} | RAG/LLM atlandı]")
     else:
-        sim = results[0].similarity if results else 0.0
-        print(f"  [RAG miss sim={sim:.2f} < {cfg.llm.rag.similarity_threshold}]")
-        if state.llm is None:
-            print(f"  [LLM ilk kez yukleniyor: {cfg.llm.provider}...]")
-            state.llm = ProviderFactory.create_llm(cfg.llm)
-            if hasattr(state.llm, "warmup"):
-                await state.llm.warmup()
-        llm_start = time.perf_counter()
-        chunks = []
-        first_ms = None
-        async for token in state.llm.generate_response(text, persona):
-            if first_ms is None:
-                first_ms = int((time.perf_counter() - llm_start) * 1000)
-            chunks.append(token)
-        from src.llm.llama_local import trim_to_last_sentence
+        intent = await state.detector.detect(text, current_state=SessionState.LISTENING)
+        print(f"  [INTENT] {intent.type}")
 
-        response = trim_to_last_sentence("".join(chunks).strip())
-        llm_ms = int((time.perf_counter() - llm_start) * 1000)
-        print(f"  [LLM ttfb={first_ms}ms total={llm_ms}ms]")
+        rag_start = time.perf_counter()
+        results = await state.rag.query(text, persona.id, top_k=3)
+        rag_ms = int((time.perf_counter() - rag_start) * 1000)
+        response = ""
+        if results and results[0].similarity >= cfg.llm.rag.similarity_threshold:
+            response = results[0].response_text
+            print(f"  [RAG hit sim={results[0].similarity:.2f} {rag_ms}ms]")
+        else:
+            sim = results[0].similarity if results else 0.0
+            print(f"  [RAG miss sim={sim:.2f} < {cfg.llm.rag.similarity_threshold}]")
+            if state.llm is None:
+                print(f"  [LLM ilk kez yukleniyor: {cfg.llm.provider}...]")
+                state.llm = ProviderFactory.create_llm(cfg.llm)
+                if hasattr(state.llm, "warmup"):
+                    # warmup imzası sağlayıcıya göre değişir (Llama persona
+                    # zorunlu, Claude opsiyonel) — ikisinde de çalışsın.
+                    await state.llm.warmup(persona)
+            llm_start = time.perf_counter()
+            chunks = []
+            first_ms = None
+            async for token in state.llm.generate_response(text, persona):
+                if first_ms is None:
+                    first_ms = int((time.perf_counter() - llm_start) * 1000)
+                chunks.append(token)
+            from src.llm.llama_local import trim_to_last_sentence
+
+            response = trim_to_last_sentence("".join(chunks).strip())
+            llm_ms = int((time.perf_counter() - llm_start) * 1000)
+            print(f"  [LLM ttfb={first_ms}ms total={llm_ms}ms]")
+            # Çıkış filtresi: meta-AI/kimlik/küfür sızıntısı → güvenli fallback
+            verdict = safety.check_output(response, persona)
+            if not verdict.safe:
+                print(f"  [SAFETY çıkış -> {verdict.reason}]")
+            response = verdict.text
 
     print(f"\n  [Cezeri]: {response}")
 

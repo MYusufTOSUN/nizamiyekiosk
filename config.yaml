@@ -43,28 +43,31 @@ stt:
     flush_on_stream_end: true
 
 llm:
-  provider: "llama_local"
+  # Varsayılan LLM = Claude cloud (Haiku) — RAG-miss fallback'i için.
+  # Yerel Llama'ya / güçlü GPU'ya gerek yok. Anahtar ANTHROPIC_API_KEY ortam
+  # değişkeninden okunur (koda gömülmez). Tam OFFLINE çalışmak istersen
+  # provider'ı 'llama_local' yapıp aşağıdaki yorumlu bloğu aç.
+  provider: "claude_cloud"
   config:
-    model_path: "data/models/llama/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
-    # n_gpu_layers:
-    #   0  → CPU only (1 tok/s, çok yavaş)
-    #  -1  → tüm katmanlar GPU (sergi makinesi 16+ GB VRAM)
-    #   N  → ilk N katman GPU, kalanı CPU (hibrit)
-    # Llama 8B Q4 = 32 transformer + embed. Her katman ~150 MB.
-    # 20 katman ≈ 3 GB GPU (STT+TTS+e5 = 5.5 GB üstüne, toplam 8.5 GB - sıkışır).
-    # 15 katman ≈ 2.3 GB GPU — daha güvenli.
-    n_gpu_layers: 15
-    n_ctx: 4096
-    n_batch: 512
-    n_threads: 8                # 7840HS 8C/16T — tam fizik çekirdek
-    use_mmap: true
-    use_mlock: false
-    verbose: false
-    max_tokens: 100              # 220 → 100: 2 cümlelik kısa cevap için
-    temperature: 0.4             # 0.6 → 0.4: daha az saçmalama/rambling (çocuk sergisi)
-    top_p: 0.9
-    top_k: 40
-    repeat_penalty: 1.15
+    model: "claude-haiku-4-5"   # daha kaliteli Türkçe için "claude-sonnet-4-6"
+    max_tokens: 150
+    timeout_seconds: 30.0
+  # --- OFFLINE alternatif (internet yoksa) ---
+  # provider: "llama_local"
+  # config:
+  #   model_path: "data/models/llama/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf"
+  #   n_gpu_layers: 15          # 8 GB'da güvenli; -1 = tüm katmanlar GPU (16+ GB)
+  #   n_ctx: 4096
+  #   n_batch: 512
+  #   n_threads: 8
+  #   use_mmap: true
+  #   use_mlock: false
+  #   verbose: false
+  #   max_tokens: 100
+  #   temperature: 0.4
+  #   top_p: 0.9
+  #   top_k: 40
+  #   repeat_penalty: 1.15
   rag:
     enabled: true
     # RERANKER REJIMI. similarity_threshold burada RERANKER'ın sigmoid skoruna
