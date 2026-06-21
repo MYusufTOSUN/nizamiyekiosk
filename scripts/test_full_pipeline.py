@@ -22,7 +22,12 @@ from typing import Any
 
 from src.core.config import get_config
 from src.core.factory import ProviderFactory
-from src.core.interfaces import LLMProvider, SessionState
+from src.core.interfaces import (
+    ConversationContext,
+    DialogueTurn,
+    LLMProvider,
+    SessionState,
+)
 from src.core.logger import configure_logging
 from src.intent.detector import KeywordIntentDetector
 from src.llm.persona import get_persona
@@ -111,6 +116,7 @@ async def run_turn(
     cfg: Any,
     seconds: float,
     device: str | int | None,
+    history: list[DialogueTurn],
 ) -> None:
     import numpy as np
     import sounddevice as sd  # type: ignore[import-not-found]
@@ -199,10 +205,14 @@ async def run_turn(
                     # warmup imzası sağlayıcıya göre değişir (Llama persona
                     # zorunlu, Claude opsiyonel) — ikisinde de çalışsın.
                     await state.llm.warmup(persona)
+            # Konuşma bağlamı: son turlar + eşik-altı RAG grounding (üretim pipeline'ı gibi)
+            ctx = ConversationContext(session_id="repl", persona_id=persona.id)
+            ctx.turns = list(history[-6:])
+            ctx.retrieved = [r.response_text for r in results[:2]] if results else []
             llm_start = time.perf_counter()
             chunks = []
             first_ms = None
-            async for token in state.llm.generate_response(text, persona):
+            async for token in state.llm.generate_response(text, persona, ctx):
                 if first_ms is None:
                     first_ms = int((time.perf_counter() - llm_start) * 1000)
                 chunks.append(token)
@@ -216,6 +226,12 @@ async def run_turn(
             if not verdict.safe:
                 print(f"  [SAFETY çıkış -> {verdict.reason}]")
             response = verdict.text
+
+    # Konuşma hafızası: bu turu geçmişe ekle (RAG/safety statik turları da eklenir
+    # ki sonraki LLM turu tüm sohbeti bağlam olarak görsün). Son ~20 ile sınırlı.
+    history.append(DialogueTurn(role="visitor", text=text))
+    history.append(DialogueTurn(role="persona", text=response))
+    del history[:-20]
 
     print(f"\n  [Cezeri]: {response}")
 
@@ -295,6 +311,7 @@ async def main(seconds: float, device: str | int | None) -> int:
     state = await boot(cfg)
     print(f"\nHazir ({int(time.perf_counter()-boot_start)}s). Enter ile yeni tur, Ctrl+C cikis.\n")
 
+    history: list[DialogueTurn] = []  # konuşma hafızası (turlar arası bağlam)
     while True:
         try:
             inp = input("Enter > ").strip()
@@ -304,7 +321,7 @@ async def main(seconds: float, device: str | int | None) -> int:
             print()
             break
         try:
-            await run_turn(state, cfg, seconds, device)
+            await run_turn(state, cfg, seconds, device, history)
         except Exception as exc:  # noqa: BLE001
             print(f"  [HATA] {type(exc).__name__}: {exc}")
             import traceback

@@ -106,8 +106,9 @@ tts:
     # device'ı CPU'ya zorlar. Sergi makinesinde tek model olduğu için "cuda" kal.
     device: "cuda"
     language: "tr"
-    builtin_speaker: "Damien Black"   # ses klonu yokken default erkek ses
-    speed: 1.1                        # klon sakin okunduğu için ~%10 canlandır
+    builtin_speaker: "Damien Black"   # dahili erkek ses
+    use_voice_clone: false            # false → klonu yok say, Damien Black kullan
+    speed: 1.1                        # ~%10 canlandır (gerekirse 1.0 yap)
     stream_chunk_size: 20
     output_chunk_samples: 480
 

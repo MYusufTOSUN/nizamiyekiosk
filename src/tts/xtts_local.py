@@ -106,6 +106,9 @@ class XTTSConfig(BaseModel):
     language: str = "tr"
     # Klonlama referans dosyası yoksa kullanılacak dahili speaker adı.
     builtin_speaker: str = DEFAULT_BUILTIN_SPEAKER
+    # False → klon referansını (ref_*.wav) YOK SAY, builtin_speaker (Damien Black)
+    # ile sentezle. Cache ayrı tutulur (klon-cache ile çakışmaz).
+    use_voice_clone: bool = True
     # Konuşma hızı çarpanı. 1.0 = referansın doğal hızı. Klon referansı sakin/yavaş
     # okunduysa konuşma yavaş çıkar; 1.1-1.15 hafifçe canlandırır (kalite bozulmaz).
     speed: float = 1.0
@@ -133,7 +136,9 @@ class XTTSLocalTTS(TTSProvider):
         self.config = self._normalize(config)
         self._model: Any | None = None
         self._lock = asyncio.Lock()
-        self._voice_refs: dict[str, list[str]] = {}
+        # Ses referansları (ref_*.wav) saf dosya taraması — cache key'i (klon vs
+        # builtin) model yüklenmeden de doğru ayırabilmek için erken tara.
+        self._voice_refs: dict[str, list[str]] = self._scan_voice_refs()
         # In-process speaker latent cache: voice_id → (gpt_cond_latent, speaker_embed)
         # B5 optimizasyonu: aynı voice_id için her tts() çağrısında re-compute yok.
         self._speaker_cache: dict[str, tuple[Any, Any]] = {}
@@ -336,9 +341,16 @@ class XTTSLocalTTS(TTSProvider):
 
             text = normalize_for_tts(text)
 
+        # Ses seçimi: klon (ref_*.wav + use_voice_clone) ya da builtin (Damien Black).
+        # Cache'ten ÖNCE belirle ki voice_sig cache key'ine girsin — klon-cache ile
+        # builtin-cache çakışmasın (prewarm'lanmış klon cache korunur).
+        speaker_wav = self._voice_refs.get(voice_id) if self.config.use_voice_clone else None
+        builtin_speaker = self.config.builtin_speaker if not speaker_wav else None
+        voice_sig = voice_id if speaker_wav else f"{voice_id}#blt:{builtin_speaker}"
+
         # B4: Disk audio cache — RAG hit'ler aynı cevabı üretir, ikinci kullanıcıya
         # XTTS'i hiç çağırma, disk'ten chunk'la stream et.
-        cache_path = self._cache_path(text, voice_id, speed)
+        cache_path = self._cache_path(text, voice_sig, speed)
         if cache_path is not None and cache_path.exists():
             _log.info("tts_cache_hit", key=cache_path.stem, voice_id=voice_id)
             async for chunk in self._stream_cached(cache_path):
@@ -355,9 +367,6 @@ class XTTSLocalTTS(TTSProvider):
         start = time.perf_counter()
         first_chunk_logged = False
         cache_buffer: bytearray | None = bytearray() if cache_path is not None else None
-
-        speaker_wav = self._voice_refs.get(voice_id)
-        builtin_speaker = self.config.builtin_speaker if not speaker_wav else None
 
         loop = asyncio.get_running_loop()
         queue: asyncio.Queue[bytes | None | Exception] = asyncio.Queue()
