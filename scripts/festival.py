@@ -2,22 +2,30 @@
 
 Mikrofonu sürekli dinler, El-Cezerî sesli yanıt verir VE web arayüzünü
 (``/ekran`` ziyaretçi hologram ekranı, ``/panel`` rehber paneli) canlı besler.
-Tek model yükü (VRAM dostu) — sunucu + REPL ayrı çalıştırmaya gerek yok.
+Tek model yükü (VRAM dostu).
 
-Akış: dinle → STT → Safety[giriş] → RAG → [hit=statik / miss=Claude] → Safety[çıkış]
-      → TTS → hoparlör; her adımda /ws/events'e olay yayınlanır (ekran+panel).
+Doğal sıra-alma:
+- Sessizlik-tabanlı dinleme: ziyaretçi düşünüp DURAKLAYABİLİR; sistem ancak
+  ``--silence`` kadar sürekli sessizlikten sonra cevaba geçer (hemen kesmez).
+- Barge-in: El-Cezerî konuşurken ziyaretçi konuşmaya başlarsa cevap KESİLİR ve
+  sistem dinlemeye döner (``--no-barge`` ile kapatılır).
+
+Akış: dinle → STT → Safety[giriş] → RAG → [hit=statik / miss=Claude]
+      → Safety[çıkış] → TTS → hoparlör; her adımda /ws/events yayınlanır.
 
 Kullanım:
-    python scripts/festival.py [--device 24] [--seconds 6] [--port 8000]
+    python scripts/festival.py [--device 24] [--silence 1.5] [--threshold 0.02]
+                               [--max-listen 12] [--no-barge] [--port 8000]
 Ekran:  http://<pc-ip>:<port>/ekran     Panel: http://<pc-ip>:<port>/panel (PIN 1206)
-Durdur: Ctrl+C
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
 import contextlib
+import queue
 import sys
+import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -44,6 +52,7 @@ from src.tts.xtts_local import XTTS_NATIVE_SR, XTTSConfig, XTTSLocalTTS
 
 _STATIC = Path(__file__).resolve().parents[1] / "static"
 SR = 16000
+FRAME = 480  # 30 ms @ 16 kHz
 
 
 def _ensure_api_key() -> None:
@@ -61,6 +70,141 @@ def _ensure_api_key() -> None:
             os.environ["ANTHROPIC_API_KEY"] = val
     except Exception:  # noqa: BLE001
         pass
+
+
+def _rms(frame: np.ndarray) -> float:
+    return float(np.sqrt(np.mean(frame**2))) if frame.size else 0.0
+
+
+# --- ayar paketi -------------------------------------------------------------
+@dataclass
+class Opts:
+    threshold: float = 0.02       # konuşma VAD eşiği (sessizlik üstü)
+    silence_ms: int = 1500        # bu kadar sürekli sessizlik = konuşma bitti (duraklama payı)
+    onset_ms: int = 150           # konuşma başladı saymak için min süre
+    max_listen_ms: int = 12000    # tek söyleyiş üst sınırı
+    barge: bool = True            # konuşurken araya girilince cevabı kes
+    barge_threshold: float = 0.06  # barge eşiği (eko'ya direnmek için daha yüksek)
+    barge_ms: int = 500           # barge için gereken sürekli konuşma süresi
+
+
+# --- kalıcı mikrofon akışı ---------------------------------------------------
+class Mic:
+    def __init__(self, device: Any) -> None:
+        self.device = device
+        self.q: queue.Queue[np.ndarray] = queue.Queue()
+        self._stream: Any = None
+
+    def start(self) -> None:
+        def cb(indata: Any, _f: int, _t: Any, _s: Any) -> None:
+            mono = indata[:, 0] if indata.ndim > 1 else indata
+            self.q.put(np.asarray(mono, dtype=np.float32).copy())
+
+        self._stream = sd.InputStream(
+            samplerate=SR, channels=1, dtype="float32", blocksize=FRAME,
+            device=self.device, callback=cb,
+        )
+        self._stream.start()
+
+    def drain(self) -> None:
+        with contextlib.suppress(queue.Empty):
+            while True:
+                self.q.get_nowait()
+
+    def stop(self) -> None:
+        if self._stream is not None:
+            with contextlib.suppress(Exception):
+                self._stream.stop()
+                self._stream.close()
+
+
+def _listen_blocking(mic: Mic, opts: Opts, is_active) -> np.ndarray | None:
+    """Konuşma başlangıcını bekle, DURAKLAMALARA tolerans göstererek söyleyişi
+    sürekli sessizliğe kadar topla. is_active() False olursa iptal eder."""
+    mic.drain()
+    fr_ms = FRAME / SR * 1000.0
+    onset_need = max(1, int(opts.onset_ms / fr_ms))
+    sil_need = max(1, int(opts.silence_ms / fr_ms))
+    max_frames = int(opts.max_listen_ms / fr_ms)
+    frames: list[np.ndarray] = []
+    started = False
+    speech_run = 0
+    silence_run = 0
+    count = 0
+    while count < max_frames:
+        if not is_active():
+            return None
+        try:
+            f = mic.q.get(timeout=0.2)
+        except queue.Empty:
+            continue
+        count += 1
+        loud = _rms(f) > opts.threshold
+        if not started:
+            if loud:
+                speech_run += 1
+                if speech_run >= onset_need:
+                    started = True
+                    frames.append(f)
+            else:
+                speech_run = 0
+            continue
+        frames.append(f)
+        if loud:
+            silence_run = 0
+        else:
+            silence_run += 1
+            if silence_run >= sil_need:
+                break
+    if not started or not frames:
+        return None
+    return np.concatenate(frames)
+
+
+def _speak_blocking(mic: Mic, audio: np.ndarray, opts: Opts) -> bool:
+    """TTS sesini çal; barge açıksa, sürekli konuşma algılanınca KES (True döner)."""
+    mic.drain()
+    sd.play(audio, samplerate=XTTS_NATIVE_SR)
+    if not opts.barge:
+        sd.wait()
+        return False
+    fr_ms = FRAME / SR * 1000.0
+    need = max(1, int(opts.barge_ms / fr_ms))
+    dur = audio.size / XTTS_NATIVE_SR
+    end = time.monotonic() + dur + 0.15
+    speech = 0
+    while time.monotonic() < end:
+        try:
+            f = mic.q.get(timeout=0.1)
+        except queue.Empty:
+            continue
+        if _rms(f) > opts.barge_threshold:
+            speech += 1
+            if speech >= need:
+                sd.stop()
+                return True
+        else:
+            speech = 0
+    sd.wait()
+    return False
+
+
+async def _transcribe(stt: WhisperLocalSTT, audio: np.ndarray) -> str:
+    chunks = [
+        numpy_to_pcm_bytes(audio[i : i + 320].astype(np.float32))
+        for i in range(0, len(audio), 320)
+    ]
+
+    async def gen() -> Any:
+        for c in chunks:
+            yield c
+
+    text = ""
+    async for r in stt.transcribe_stream(gen()):
+        text = r.text
+        if r.is_final:
+            break
+    return text.strip()
 
 
 # --- canlı olay yayını (ekran + panel) --------------------------------------
@@ -86,36 +230,6 @@ class Kiosk:
     paused: bool = False
     persona_id: str = "cezeri"
     history: list[DialogueTurn] = field(default_factory=list)
-
-
-# --- mikrofon + ses yardımcıları --------------------------------------------
-def _record(device: Any, seconds: float) -> np.ndarray:
-    a = sd.rec(int(seconds * SR), samplerate=SR, channels=1, device=device, dtype="float32")
-    sd.wait()
-    return a.flatten()
-
-
-def _play(audio: np.ndarray) -> None:
-    sd.play(audio, samplerate=XTTS_NATIVE_SR)
-    sd.wait()
-
-
-async def _transcribe(stt: WhisperLocalSTT, audio: np.ndarray) -> str:
-    chunks = [
-        numpy_to_pcm_bytes(audio[i : i + 320].astype(np.float32))
-        for i in range(0, len(audio), 320)
-    ]
-
-    async def gen() -> Any:
-        for c in chunks:
-            yield c
-
-    text = ""
-    async for r in stt.transcribe_stream(gen()):
-        text = r.text
-        if r.is_final:
-            break
-    return text.strip()
 
 
 # --- web uygulaması (ekran + panel + REST kontrol) --------------------------
@@ -173,7 +287,7 @@ def build_app(hub: Hub, kiosk: Kiosk) -> FastAPI:
 
     @app.post("/api/v1/interrupt")
     async def interrupt() -> JSONResponse:
-        sd.stop()  # mevcut konuşmayı kes/atla
+        sd.stop()
         return JSONResponse({"status": "interrupted"})
 
     @app.post("/api/v1/emergency_stop")
@@ -189,12 +303,11 @@ def build_app(hub: Hub, kiosk: Kiosk) -> FastAPI:
     async def ws_events(ws: WebSocket) -> None:
         await ws.accept()
         hub.clients.add(ws)
-        # mevcut durumu hemen gönder (geç bağlanan ekran senkron olsun)
         with contextlib.suppress(Exception):
             await ws.send_json({"type": "state_changed", "data": {"new": kiosk.state}})
         try:
             while True:
-                await ws.receive_text()  # sadece disconnect'i bekle
+                await ws.receive_text()
         except WebSocketDisconnect:
             pass
         finally:
@@ -204,7 +317,7 @@ def build_app(hub: Hub, kiosk: Kiosk) -> FastAPI:
 
 
 # --- konuşma döngüsü ---------------------------------------------------------
-async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, device, seconds):
+async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, mic, opts):
     threshold = cfg.llm.rag.similarity_threshold
     margin = cfg.llm.rag.margin
 
@@ -212,16 +325,19 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, de
         kiosk.state = s
         await hub.send("state_changed", {"new": s})
 
-    print(f"\n[festival] Dinlemeye hazır. Ekran: /ekran  Panel: /panel  (cihaz={device})\n")
+    def active() -> bool:
+        return not kiosk.paused and kiosk.session_id is not None
+
+    print("\n[festival] Dinlemeye hazır. Ekran: /ekran  Panel: /panel\n")
     while True:
         try:
-            if kiosk.paused or kiosk.session_id is None:
-                await asyncio.sleep(0.25)
+            if not active():
+                await asyncio.sleep(0.2)
                 continue
 
             await set_state("listening")
-            audio = await asyncio.to_thread(_record, device, seconds)
-            if kiosk.paused or kiosk.session_id is None:
+            audio = await asyncio.to_thread(_listen_blocking, mic, opts, active)
+            if audio is None or not active():
                 continue
             text = await _transcribe(stt, audio)
             if not text:
@@ -255,8 +371,7 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, de
                         async for tok in llm.generate_response(text, persona, ctx):
                             chunks.append(tok)
                         response = trim_to_last_sentence("".join(chunks).strip())
-                        verdict = safety.check_output(response, persona)
-                        response = verdict.text
+                        response = safety.check_output(response, persona).text
                     except Exception as exc:  # noqa: BLE001
                         print(f"[llm hata] {exc}")
                         response = persona.safety_fallbacks.get(
@@ -275,8 +390,10 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, de
             async for chunk in tts.synthesize_stream(response, persona.voice_id):
                 pcm.extend(chunk)
             audio_out = np.frombuffer(bytes(pcm), dtype=np.int16)
-            if audio_out.size and not kiosk.paused:
-                await asyncio.to_thread(_play, audio_out)
+            if audio_out.size and active():
+                barged = await asyncio.to_thread(_speak_blocking, mic, audio_out, opts)
+                if barged:
+                    print("[barge-in] ziyaretçi araya girdi — dinlemeye dönülüyor")
             await set_state("listening")
         except Exception as exc:  # noqa: BLE001
             print(f"[döngü hata] {type(exc).__name__}: {exc}")
@@ -313,39 +430,54 @@ async def _boot(cfg):
     return stt, tts, rag, llm, SafetyFilter(), persona
 
 
-async def main(device: Any, seconds: float, port: int) -> int:
+async def main(device: Any, opts: Opts, port: int) -> int:
     configure_logging(level="WARNING")
     _ensure_api_key()
     cfg = get_config()
     print("\n=== BilimFest Festival Kiosk ===")
     stt, tts, rag, llm, safety, persona = await _boot(cfg)
 
+    mic = Mic(device)
+    mic.start()
     hub = Hub()
-    kiosk = Kiosk(persona_id="cezeri", session_id=uuid.uuid4().hex)  # açılışta dinlemede
+    kiosk = Kiosk(persona_id="cezeri", session_id=uuid.uuid4().hex)
     app = build_app(hub, kiosk)
     # 0.0.0.0: ekran/panel festival LAN'ında başka cihazlardan açılır (kasıtlı)
     server = uvicorn.Server(
         uvicorn.Config(app, host="0.0.0.0", port=port, log_level="warning")  # noqa: S104
     )
-
     loop = audio_loop(
         kiosk, hub, stt=stt, tts=tts, rag=rag, llm=llm, safety=safety,
-        persona=persona, cfg=cfg, device=device, seconds=seconds,
+        persona=persona, cfg=cfg, mic=mic, opts=opts,
     )
-    await asyncio.gather(server.serve(), loop)
+    try:
+        await asyncio.gather(server.serve(), loop)
+    finally:
+        mic.stop()
     return 0
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="BilimFest festival kiosk (mic + ses + web)")
     ap.add_argument("--device", default=None, help="mikrofon cihaz index'i (mic_level_check ile bul)")
-    ap.add_argument("--seconds", type=float, default=6.0, help="dinleme penceresi (sn)")
+    ap.add_argument("--threshold", type=float, default=0.02, help="konuşma VAD eşiği")
+    ap.add_argument("--silence", type=float, default=1.5, help="duraklama payı: bu kadar sn sessizlik = bitti")
+    ap.add_argument("--max-listen", type=float, default=12.0, help="tek söyleyiş üst sınırı (sn)")
+    ap.add_argument("--no-barge", action="store_true", help="konuşurken araya girince kesmeyi KAPAT")
+    ap.add_argument("--barge-threshold", type=float, default=0.06, help="barge-in eşiği (eko için yüksek)")
     ap.add_argument("--port", type=int, default=8000)
     args = ap.parse_args()
     dev: Any = args.device
     if dev is not None and str(dev).isdigit():
         dev = int(dev)
+    opts = Opts(
+        threshold=args.threshold,
+        silence_ms=int(args.silence * 1000),
+        max_listen_ms=int(args.max_listen * 1000),
+        barge=not args.no_barge,
+        barge_threshold=args.barge_threshold,
+    )
     try:
-        raise SystemExit(asyncio.run(main(dev, args.seconds, args.port)))
+        raise SystemExit(asyncio.run(main(dev, opts, args.port)))
     except KeyboardInterrupt:
         print("\n[festival] kapatıldı.")

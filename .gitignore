@@ -71,6 +71,8 @@ data/voices/**/*.mp3
 data/tts_cache/*
 !data/tts_cache/.gitkeep
 data/responses/vector_store/
+# Ses seçim örnekleri (voice_try.py üretir; yerel dinleme için, repoya gerek yok)
+data/voice_samples/
 src/tts/voices/*.wav
 src/tts/voices/*.mp3
 !src/tts/voices/.gitkeep
