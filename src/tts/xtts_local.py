@@ -594,6 +594,25 @@ class _LocalXttsWrapper:
         uretir; akis ortasi hata nadirdir (GPT forward basinda patlar) -> re-raise.
         """
         gpt_cond_latent, speaker_embedding, _ = self._resolve_speaker(speaker_wav, speaker)
+
+        def _batch_on_device() -> Any:
+            """Streaming yoksa/kırıksa tek-parça batch sentez (mevcut cihazda)."""
+            gcl = gpt_cond_latent.cpu() if self.device == "cpu" else gpt_cond_latent
+            spk = speaker_embedding.cpu() if self.device == "cpu" else speaker_embedding
+            out = self.model.inference(
+                text=text, language=language,
+                gpt_cond_latent=gcl, speaker_embedding=spk, speed=speed,
+            )
+            return out["wav"]
+
+        # inference_stream bu kurulumda uyumsuzsa (orijinal Coqui TTS 0.22'de int
+        # eos_token_id -> isin_mps_friendly AttributeError; festival'deki coqui-tts
+        # 0.25.3 fork'unda sorun yok) bir kez tespit edip sonra hep batch'e git
+        # (her cevapta ~1 sn boşa GPT-forward harcanmasın).
+        if getattr(self, "_stream_broken", False):
+            yield _batch_on_device()
+            return
+
         yielded = False
         try:
             for chunk in self.model.inference_stream(
@@ -625,14 +644,19 @@ class _LocalXttsWrapper:
             self.model.cpu()
             self.device = "cpu"
             self._fallback_done = True
-            out = self.model.inference(
-                text=text,
-                language=language,
-                gpt_cond_latent=gpt_cond_latent.cpu(),
-                speaker_embedding=speaker_embedding.cpu(),
-                speed=speed,
+            yield _batch_on_device()
+        except Exception as exc:  # noqa: BLE001
+            # inference_stream API uyumsuzluğu (örn. TTS 0.22 isin_mps_friendly
+            # 'int has no attribute device'). Akış başlamadan patlar → batch sağlam.
+            if yielded:
+                raise  # akış ortası → kurtarılamaz, yukarı ver
+            _log.warning(
+                "xtts_stream_unsupported_batch_fallback",
+                error=str(exc)[:120],
+                hint="inference_stream bu sürümde uyumsuz → batch senteze geçiliyor",
             )
-            yield out["wav"]
+            self._stream_broken = True
+            yield _batch_on_device()
 
     def tts(
         self,
