@@ -264,8 +264,29 @@ def _empty_gpu_cache() -> None:
         pass
 
 
+def _ensure_api_key() -> None:
+    """Windows: terminal eski ortamı cache'lemişse ANTHROPIC_API_KEY'i kalıcı
+    User ortamından (registry) okuyup sürece enjekte et — REPL, launching
+    shell'in env durumundan bağımsız çalışsın (setx sonrası pencere yenilemeden)."""
+    import os
+
+    if os.environ.get("ANTHROPIC_API_KEY") or sys.platform != "win32":
+        return
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+            val, _ = winreg.QueryValueEx(key, "ANTHROPIC_API_KEY")
+        if val:
+            os.environ["ANTHROPIC_API_KEY"] = val
+            print("  [env] ANTHROPIC_API_KEY kalıcı User ortamından yüklendi.")
+    except Exception:  # noqa: BLE001
+        pass
+
+
 async def main(seconds: float, device: str | int | None) -> int:
     configure_logging(level="WARNING")
+    _ensure_api_key()
     cfg = get_config()
 
     print("\n=== BilimFest tum pipeline REPL ===")
