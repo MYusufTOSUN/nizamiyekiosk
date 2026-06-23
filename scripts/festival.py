@@ -48,7 +48,7 @@ from src.llm.rag_store import ChromaRAGStore
 from src.llm.safety import SafetyFilter
 from src.stt.audio_utils import numpy_to_pcm_bytes
 from src.stt.whisper_local import WhisperConfig, WhisperLocalSTT
-from src.tts.xtts_local import XTTS_NATIVE_SR, XTTSConfig, XTTSLocalTTS
+from src.tts.xtts_local import XTTS_NATIVE_SR
 
 _STATIC = Path(__file__).resolve().parents[1] / "static"
 SR = 16000
@@ -402,10 +402,9 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, mi
 
 async def _boot(cfg):
     persona = get_persona("cezeri")
-    print("[1/4] TTS (XTTS) yükleniyor…")
-    tts = XTTSLocalTTS(XTTSConfig(**cfg.tts.config))
-    await tts._ensure_model()
-    async for _ in tts.synthesize_stream("Bir, iki, üç.", "cezeri"):
+    print(f"[1/4] TTS ({cfg.tts.provider}) yükleniyor…")
+    tts = ProviderFactory.create_tts(cfg.tts)
+    async for _ in tts.synthesize_stream("Bir, iki, üç.", "cezeri"):  # ısıt (XTTS: modeli yükler)
         pass
     print("[2/4] Whisper STT yükleniyor…")
     stt_kwargs = {**cfg.stt.config}

@@ -95,21 +95,33 @@ llm:
     embedding_device: "cpu"
 
 tts:
-  provider: "xtts_local"
+  # === Ses = Microsoft Edge Neural — Türkçe AhmetNeural (doğal Türkçe erkek ses) ===
+  # pitch_hz: ton (negatif = daha tok/heybetli). -8 ≈ normal/derin arası "ara" form.
+  # ÇEVRİMİÇİ (internet gerekir; aynı cevabın tekrarı cache'ten OFFLINE gelir).
+  # Tam offline istenirse aşağıdaki yorumlu xtts_local bloğunu aç.
+  provider: "edge_tts"
   config:
-    model_path: "data/models/xtts_v2"
-    model_name: "tts_models/multilingual/multi-dataset/xtts_v2"
-    voices_dir: "data/voices"
-    device: "cuda"
-    language: "tr"
-    builtin_speaker: "Damien Black"   # dahili erkek ses
-    use_voice_clone: false            # false → klonu yok say, Damien Black kullan
-    speed: 1.1
-    stream_chunk_size: 20
-    output_chunk_samples: 480
+    voice: "tr-TR-AhmetNeural"
+    pitch_hz: -8        # -5 hafif · -8 ara · -11 belirgin · -15 derin · -30 çok derin · -45 heybetli
+    rate_pct: -2        # konuşma hızı (%, negatif = ağır/vakur)
     cache_enabled: true
     cache_dir: "data/tts_cache"
-    cache_max_entries: 1000           # festival: 28 saat için geniş cache
+  # --- OFFLINE alternatif (internet yoksa) — yerel XTTS (Damien Black builtin) ---
+  # provider: "xtts_local"
+  # config:
+  #   model_path: "data/models/xtts_v2"
+  #   model_name: "tts_models/multilingual/multi-dataset/xtts_v2"
+  #   voices_dir: "data/voices"
+  #   device: "cuda"
+  #   language: "tr"
+  #   builtin_speaker: "Damien Black"
+  #   use_voice_clone: false
+  #   speed: 1.1
+  #   stream_chunk_size: 20
+  #   output_chunk_samples: 480
+  #   cache_enabled: true
+  #   cache_dir: "data/tts_cache"
+  #   cache_max_entries: 1000
 
 # Festival günü Omniverse/Unreal kurulunca aşağıdaki gerçek sağlayıcılara çevir.
 # Şimdilik mock → makine Omniverse/Unreal olmadan da sorunsuz çalışır.

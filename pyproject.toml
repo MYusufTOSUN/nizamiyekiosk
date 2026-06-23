@@ -52,10 +52,12 @@ llm = [
     "anthropic>=0.40.0",
 ]
 tts = [
-    # Coqui TTS — XTTS v2 multi-lingual TTS + ses klonlama.
+    # Coqui TTS — XTTS v2 multi-lingual TTS + ses klonlama (offline alternatif).
     # Windows: torch>=2.0 + CUDA wheel zaten Phase 2'den kurulu.
     "TTS>=0.22.0",
     "pydub>=0.25.0",
+    # Microsoft Edge Neural TTS — doğal Türkçe ses (tr-TR-AhmetNeural), online, ücretsiz.
+    "edge-tts>=6.1.0",
 ]
 dev = [
     "pytest>=8.3.0",

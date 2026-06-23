@@ -101,6 +101,10 @@ class ProviderFactory:
             from src.tts.xtts_local import XTTSLocalTTS
 
             return XTTSLocalTTS(cfg.config)
+        if cfg.provider == "edge_tts":
+            from src.tts.edge_cloud import EdgeTTS
+
+            return EdgeTTS(cfg.config)
         if cfg.provider == "elevenlabs_cloud":
             from src.tts.elevenlabs_cloud import (
                 ElevenLabsCloudTTS,  # type: ignore[import-not-found]
