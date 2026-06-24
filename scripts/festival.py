@@ -76,10 +76,23 @@ def _rms(frame: np.ndarray) -> float:
     return float(np.sqrt(np.mean(frame**2))) if frame.size else 0.0
 
 
+def _prep_audio(audio: np.ndarray | None, floor: float) -> np.ndarray | None:
+    """Whisper'a vermeden önce: gerçek konuşma yoksa (peak<floor) AT — sessizlik/
+    gürültü Whisper'a gitmesin (halüsinasyon önler). Varsa seviyeyi normalize et:
+    kısık mikrofonda bile Whisper net/yüksek ses duyar, doğru transkript çıkar."""
+    if audio is None or audio.size == 0:
+        return None
+    peak = float(np.max(np.abs(audio)))
+    if peak < floor:
+        return None
+    return (audio / peak * 0.6).astype(np.float32)
+
+
 # --- ayar paketi -------------------------------------------------------------
 @dataclass
 class Opts:
-    threshold: float = 0.02       # konuşma VAD eşiği (sessizlik üstü)
+    threshold: float = 0.012      # konuşma VAD eşiği — düşük: kısık mikrofonu da yakalar
+    min_voice: float = 0.02       # yakalanan klip bu peak'in altındaysa GÜRÜLTÜ → at (halüsinasyon önler)
     silence_ms: int = 1500        # bu kadar sürekli sessizlik = konuşma bitti (duraklama payı)
     onset_ms: int = 150           # konuşma başladı saymak için min süre
     max_listen_ms: int = 12000    # tek söyleyiş üst sınırı
@@ -337,6 +350,7 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, mi
 
             await set_state("listening")
             audio = await asyncio.to_thread(_listen_blocking, mic, opts, active)
+            audio = _prep_audio(audio, opts.min_voice)  # gürültü-eşiği + normalize
             if audio is None or not active():
                 continue
             text = await _transcribe(stt, audio)
@@ -459,7 +473,8 @@ async def main(device: Any, opts: Opts, port: int) -> int:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="BilimFest festival kiosk (mic + ses + web)")
     ap.add_argument("--device", default=None, help="mikrofon cihaz index'i (mic_level_check ile bul)")
-    ap.add_argument("--threshold", type=float, default=0.02, help="konuşma VAD eşiği")
+    ap.add_argument("--threshold", type=float, default=0.012, help="konuşma VAD eşiği (kısık mik için düşür)")
+    ap.add_argument("--min-voice", type=float, default=0.02, help="bu peak altındaki klip gürültü sayılır, atılır")
     ap.add_argument("--silence", type=float, default=1.5, help="duraklama payı: bu kadar sn sessizlik = bitti")
     ap.add_argument("--max-listen", type=float, default=12.0, help="tek söyleyiş üst sınırı (sn)")
     ap.add_argument("--no-barge", action="store_true", help="konuşurken araya girince kesmeyi KAPAT")
@@ -471,6 +486,7 @@ if __name__ == "__main__":
         dev = int(dev)
     opts = Opts(
         threshold=args.threshold,
+        min_voice=args.min_voice,
         silence_ms=int(args.silence * 1000),
         max_listen_ms=int(args.max_listen * 1000),
         barge=not args.no_barge,
