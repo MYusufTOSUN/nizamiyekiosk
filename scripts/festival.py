@@ -97,8 +97,9 @@ class Opts:
     onset_ms: int = 150           # konuşma başladı saymak için min süre
     max_listen_ms: int = 12000    # tek söyleyiş üst sınırı
     barge: bool = True            # konuşurken araya girilince cevabı kes
-    barge_threshold: float = 0.06  # barge eşiği (eko'ya direnmek için daha yüksek)
-    barge_ms: int = 500           # barge için gereken sürekli konuşma süresi
+    barge_threshold: float = 0.03  # barge TABAN eşiği (mutlak)
+    barge_ratio: float = 2.0      # ziyaretçi, El-Cezerî eko tabanının bu katı üstüne çıkarsa barge
+    barge_ms: int = 350           # barge için gereken sürekli konuşma süresi (ms)
 
 
 # --- kalıcı mikrofon akışı ---------------------------------------------------
@@ -175,23 +176,36 @@ def _listen_blocking(mic: Mic, opts: Opts, is_active) -> np.ndarray | None:
 
 
 def _speak_blocking(mic: Mic, audio: np.ndarray, opts: Opts) -> bool:
-    """TTS sesini çal; barge açıksa, sürekli konuşma algılanınca KES (True döner)."""
+    """TTS sesini çal; barge açıksa, ziyaretçi El-Cezerî'nin ÜSTÜNE konuşunca KES.
+    Hoparlörden mikrofona sızan El-Cezerî sesini (eko) playback başında ölçer,
+    eşiği ona göre ADAPTİF ayarlar; ziyaretçi eko tabanının belirgin üstüne çıkıp
+    SÜRERSE durur (True). En sağlamı: yönlü/yakın mik + ayrı hoparlör."""
     mic.drain()
+    fr_ms = FRAME / SR * 1000.0
+    start = time.monotonic()
+    dur = audio.size / XTTS_NATIVE_SR
     sd.play(audio, samplerate=XTTS_NATIVE_SR)
     if not opts.barge:
         sd.wait()
         return False
-    fr_ms = FRAME / SR * 1000.0
+    # 1) Eko tabanı: ilk ~0.35 sn yalnız El-Cezerî çalar (ziyaretçi henüz konuşmadı)
+    base: list[float] = []
+    while (time.monotonic() - start) < 0.35 and (time.monotonic() - start) < dur:
+        try:
+            base.append(_rms(mic.q.get(timeout=0.1)))
+        except queue.Empty:
+            pass
+    echo = sorted(base)[len(base) // 2] if base else 0.0  # medyan eko seviyesi
+    trig = max(opts.barge_threshold, echo * opts.barge_ratio)
+    # 2) Kalan playback: ziyaretçi eşiği geçip SÜRERSE kes
     need = max(1, int(opts.barge_ms / fr_ms))
-    dur = audio.size / XTTS_NATIVE_SR
-    end = time.monotonic() + dur + 0.15
     speech = 0
-    while time.monotonic() < end:
+    while (time.monotonic() - start) < dur + 0.15:
         try:
             f = mic.q.get(timeout=0.1)
         except queue.Empty:
             continue
-        if _rms(f) > opts.barge_threshold:
+        if _rms(f) > trig:
             speech += 1
             if speech >= need:
                 sd.stop()
