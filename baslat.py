@@ -13,6 +13,27 @@ Kullanım:
     python baslat.py --device 24     # belirli mikrofon
     python baslat.py --device "Hands-Free"   # isimle (Bluetooth index'i kaymasın diye)
     (ya da dosyaya çift tıkla)
+
+Ses sistemi AÇILIŞTA OTOMATİK KALİBRE OLUR: boştayken ortam gürültüsünü ölçer,
+tüm eşikleri (dinleme, barge) ona göre türetir; kısa bir El-Cezerî sesiyle eko'yu
+ölçüp barge'ı ayarlar. Normalde HİÇBİR bayrak gerekmez.
+
+Önce GÖRMEK/ölçmek istersen (önerilir):  python scripts/audio_check.py --device 1
+  → ortam + eko ölçümünü ve barge testini canlı gösterir, önerilen değerleri basar.
+
+İnce ayar bayrakları (verilirse ÖLÇÜLEN değeri EZER; verilmezse otomatik kalır):
+    --silence 2.0            duraklama payı (çocuk yavaşsa artır)
+    --min-voice 0.006        gürültü-kapısı RMS (fısıltı yutuluyorsa düşür)
+    --barge-threshold 0.10   ziyaretçi barge eşiği (yine yanlış tetikliyorsa artır)
+    --barge-echo-guard 350   El-Cezerî sustuktan sonra reverb beklemesi (ms)
+    --barge-ms 450           gereken sürekli ziyaretçi konuşması (ms)
+    --no-calibrate           otomatik kalibrasyonu atla (statik/override eşik kullan)
+    --barge                  barge-in'i AÇ (şimdilik VARSAYILAN KAPALI; kod duruyor)
+  Örn:  python baslat.py --device 1 --barge --barge-threshold 0.13
+
+Operatör paneli (PIN) artık sunucuda doğrulanır: varsayılan '1206'. Değiştirmek
+için sistemde  setx BFEST_OP_TOKEN "yeni-pin"  (bu launcher ortamı aynen aktarır).
+Sergiden ÖNCE bir kez:  python scripts/prewarm_tts_cache.py   (TTS cache'i ısıtır).
 """
 # Bu bir kullanıcı-launcher'ı: durum yazdırır (print) ve alt-süreç başlatır (subprocess).
 # ruff: noqa: T201, S603
@@ -26,7 +47,7 @@ from pathlib import Path
 # Festivalde kullanılacak mikrofon. JBL Wave Beam 2 için index 24 ya da daha
 # sağlam olarak isimle "Hands-Free". Cihaz değişirse burayı düzenle ya da
 # komuta --device <N> geç.  (Bulmak için: scripts/mic_level_check.py)
-DEFAULT_DEVICE = "24"
+DEFAULT_DEVICE = "1"
 
 ROOT = Path(__file__).resolve().parent
 VENV_PY = ROOT / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")

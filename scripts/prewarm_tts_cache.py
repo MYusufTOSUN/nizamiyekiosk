@@ -66,7 +66,9 @@ async def prewarm(personas: list[str]) -> int:
 
     elapsed = time.perf_counter() - start
     print(f"\n[OK] {cached}/{total} cevap cache'e yazildi ({elapsed:.0f}s).")
-    print(f"Cache dizini: {cfg.tts.config.get('cache_dir', 'data/tts_cache')}")
+    # XTTS artik kendi alt-klasorune yazar (saglayici izolasyonu): <cache_dir>/xtts
+    root = cfg.tts.config.get("cache_dir", "data/tts_cache")
+    print(f"Cache dizini: {root}/xtts")
     await tts.close()
     return 0
 

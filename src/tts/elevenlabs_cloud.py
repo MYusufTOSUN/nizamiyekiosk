@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from src.core.errors import TTSError
 from src.core.interfaces import TTSProvider
 from src.core.logger import get_logger
+from src.tts.cache_util import provider_cache_dir, prune_cache
 
 _log = get_logger(component="tts.elevenlabs")
 
@@ -40,6 +41,7 @@ class ElevenConfig(BaseModel):
     use_speaker_boost: bool = True
     cache_enabled: bool = True
     cache_dir: str = "data/tts_cache"
+    cache_max_entries: int = 2000   # 28 saatte sınırsız disk büyümesini önler
     timeout_seconds: float = 30.0
 
     model_config = {"extra": "ignore", "protected_namespaces": ()}
@@ -53,9 +55,12 @@ class ElevenLabsCloudTTS(TTSProvider):
             self.config = config
         else:
             self.config = ElevenConfig(**config)
-        self._cache = Path(self.config.cache_dir)
-        if self.config.cache_enabled:
-            self._cache.mkdir(parents=True, exist_ok=True)
+        # Sağlayıcı izolasyonu: kendi alt-klasörüne yaz (prune çakışması olmasın).
+        self._cache = (
+            provider_cache_dir(self.config.cache_dir, "eleven")
+            if self.config.cache_enabled
+            else Path(self.config.cache_dir)
+        )
 
     def _api_key(self) -> str:
         key = self.config.api_key or os.environ.get("ELEVENLABS_API_KEY")
@@ -142,8 +147,9 @@ class ElevenLabsCloudTTS(TTSProvider):
         if buf is not None and cpath is not None and buf:
             try:
                 cpath.write_bytes(bytes(buf))
-            except Exception:  # noqa: BLE001
-                pass
+                prune_cache(self._cache, self.config.cache_max_entries)
+            except OSError as exc:
+                _log.warning("eleven_cache_write_failed", error=str(exc))
 
     async def close(self) -> None:
         return None

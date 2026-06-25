@@ -731,6 +731,31 @@
       "q": "zımbırtı",
       "expect": "miss",
       "category": "asr_noise"
+    },
+    {
+      "q": "Evet ben Konya'dayım.",
+      "expect": "miss",
+      "category": "konusma_cumlesi"
+    },
+    {
+      "q": "Bence elektrik olabilir.",
+      "expect": "miss",
+      "category": "konusma_cumlesi"
+    },
+    {
+      "q": "Bunlar şu anda dünyanın en büyük iki futbolcusu.",
+      "expect": "miss",
+      "category": "konusma_cumlesi"
+    },
+    {
+      "q": "Ben en büyük icadın elektrik olduğunu düşünüyorum.",
+      "expect": "miss",
+      "category": "konusma_cumlesi"
+    },
+    {
+      "q": "Hayır öğrenmedim.",
+      "expect": "miss",
+      "category": "konusma_cumlesi"
     }
   ]
 }

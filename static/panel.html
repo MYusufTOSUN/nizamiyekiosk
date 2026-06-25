@@ -111,13 +111,27 @@
 
 <script>
 (function(){
-  const PIN="1206"; // El-Cezerî (1206) — gerektiğinde değiştir
+  // Operatör token'ı = girilen PIN. Sunucu (X-Op-Token) ile DOĞRULANIR — PIN artık
+  // yalnız UX değil, gerçek yetki. Varsayılan '1206'; sunucuda BFEST_OP_TOKEN ile değişir.
+  let opToken = sessionStorage.getItem('bf_token') || '';
   const $=id=>document.getElementById(id);
   const gate=$('gate'), pinIn=$('pin'), pinErr=$('pinErr');
   function unlock(){ gate.style.display='none'; start(); }
-  function tryPin(){ if(pinIn.value===PIN){ sessionStorage.setItem('bf_ok','1'); unlock(); } else { pinErr.textContent='Hatalı PIN'; pinIn.value=''; } }
+  async function verify(token){
+    try{ const r=await fetch('/api/v1/op/verify',{method:'POST',headers:{'X-Op-Token':token}}); return r.ok; }
+    catch(e){ return null; }
+  }
+  async function tryPin(){
+    const token=pinIn.value;
+    const ok=await verify(token);
+    if(ok){ opToken=token; sessionStorage.setItem('bf_token',token); unlock(); }
+    else if(ok===false){ pinErr.textContent='Hatalı PIN'; pinIn.value=''; }
+    else { pinErr.textContent='Sunucuya ulaşılamadı'; }
+  }
   $('pinBtn').onclick=tryPin; pinIn.addEventListener('keydown',e=>{ if(e.key==='Enter') tryPin(); });
-  if(sessionStorage.getItem('bf_ok')==='1'){ unlock(); } else { pinIn.focus(); }
+  (async()=>{ if(opToken && await verify(opToken)===true){ unlock(); } else { sessionStorage.removeItem('bf_token'); pinIn.focus(); } })();
+  // start() içindeki api() bu token'ı header olarak gönderir.
+  window.__opToken=()=>opToken;
 
   function start(){
     const dot=$('dot'), connTxt=$('connTxt');
@@ -137,8 +151,8 @@
     }
     function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 
-    // REST
-    async function api(path){ try{ const r=await fetch(path,{method:'POST'}); const j=await r.json().catch(()=>({})); return {ok:r.ok,j}; }catch(e){ return {ok:false,j:{detail:String(e)}}; } }
+    // REST — mutating uçlar sunucu-tarafı X-Op-Token ister.
+    async function api(path){ try{ const r=await fetch(path,{method:'POST',headers:{'X-Op-Token':opToken}}); const j=await r.json().catch(()=>({})); if(r.status===401){ log('⚠ yetkisiz (PIN sunucuda reddedildi)'); } return {ok:r.ok,j}; }catch(e){ return {ok:false,j:{detail:String(e)}}; } }
     async function refreshStatus(){ try{ const r=await fetch('/api/v1/status'); const j=await r.json(); setState(j.state); $('sid').textContent=j.active_session?j.active_session.slice(0,8):'yok'; if(j.current_persona) $('persona').textContent=j.current_persona; }catch(e){} }
 
     $('bStart').onclick=async()=>{ const {ok,j}=await api('/api/v1/session/start'); log(ok?'▶ oturum başlatıldı':'⚠ başlatılamadı: '+(j.detail||'')); refreshStatus(); };
@@ -167,6 +181,12 @@
         else if(m.type==='transcription_received'){ pendingQ=d.text||''; }
         else if(m.type==='llm_response_completed'){ addTurn({transcription:pendingQ, response:d.text, source:d.source}); pendingQ=''; }
         else if(m.type==='session_started'){ log('● oturum aktif'); refreshStatus(); }
+        else if(m.type==='mic_lost'){ log('🎤⚠ MİKROFON KAYBI ('+(d.stale_s||'?')+'s) — yeniden açılıyor'); }
+        else if(m.type==='mic_ok'){ log('🎤 mikrofon yeniden bağlandı'); }
+        else if(m.type==='llm_offline'){ log('🌐⚠ İNTERNET/LLM YOK — lokal RAG+statik yedeğe geçildi'); }
+        else if(m.type==='llm_ok'){ log('🌐 LLM erişimi geri geldi (çevrimiçi)'); }
+        else if(m.type==='idle_reset'){ log('🔄 boşta kaldı — sohbet hafızası sıfırlandı'); }
+        else if(m.type==='audio_too_quiet'){ log('🔈 ses çok kısık — algılanamadı (mik/uzaklık?)'); }
       };
     }
     connect(); refreshStatus(); setInterval(refreshStatus,5000);

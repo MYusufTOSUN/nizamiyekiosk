@@ -263,12 +263,24 @@ _INPUT_RULES: tuple[tuple[frozenset[str], str], ...] = (
 )
 
 # Meta-AI / kimlik sızıntısı (çıkış filtresi) — karakter kırılması işaretleri.
+# SUBSTRING eşleşmesi (Türkçe ekleşmeyi yakalamak için: "hologramım", "yapay
+# zekayım", "dil modeliyim" gibi çekimler kelime-sınırını geçemez). Anakronik
+# kimlik kelimeleri (hologram/yazılım/render/projeksiyon) El-Cezerî persona'sında
+# MEŞRU kullanılmaz → substring güvenli, çekim de yakalanır.
+#
+# YANLIŞ-POZİTİF temizliği (eski hatalar düzeltildi):
+#  - bare "eğitildim" KALDIRILDI: tarihî karakterde meşru ("sarayda eğitildim").
+#    Yalnız AI-bağlamı ifadeleriyle ("olarak/veriyle eğitildim") yakalanır.
+#  - bare "bir model" KALDIRILDI: meşru "bir modelini yaptım" cümlesini vururdu.
+#    Kimlik sızıntısı zaten "yapay zeka"/"dil modeli" ile yakalanır.
 META_AI_PATTERNS: tuple[str, ...] = (
-    "yapay zeka", "yapay zekay", "dil modeli", "dil modeliy", "bir model",
+    "yapay zeka", "yapay zekay", "dil modeli", "dil modeliy",
     "openai", "anthropic", "chatgpt", "gpt-", "claude", "llama",
-    "language model", "as an ai", "ben bir asistan", "yapay bir", "eğitildim",
+    "language model", "as an ai", "ben bir asistan", "yapay bir",
     "sistem prompt",
-    # Immersion-kırılması (kimlik) — banned kelime kullanmasa da yakala.
+    # AI-bağlamı "eğitildim" (tarihî "sarayda eğitildim" yanlış-pozitif vermesin)
+    "olarak eğitildim", "veriyle eğitildim", "verilerle eğitildim", "veri ile eğitildim",
+    # Immersion-kırılması (anakronik — persona meşru kullanmaz; çekimleri de yakala)
     "hologram", "gerçek değilim", "gerçek bir insan değil", "beden sahibi değil",
     "yazılım", "sergi için bir ses", "canlandırıldım", "projeksiyon",
     "ekrandayım", "yansımayım", "render", "havlıyorum", "miyavlıyorum",

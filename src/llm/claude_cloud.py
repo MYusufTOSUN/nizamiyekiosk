@@ -105,9 +105,21 @@ class ClaudeCloudLLM(LLMProvider):
         messages: list[dict[str, str]] = []
         if context and context.turns:
             for turn in context.turns[-6:]:
+                content = (turn.text or "").strip()
+                if not content:
+                    continue  # boş-question/greeting turu geçmişe yazılmaz
                 role = "assistant" if turn.role == "persona" else "user"
-                messages.append({"role": role, "content": turn.text})
-        messages.append({"role": "user", "content": question})
+                # Ardışık aynı-rol (örn. boş tur atlanınca) → API alternasyon kuralı
+                # bozulur (400). Aynı rol üst üste gelirse içeriği BİRLEŞTİR.
+                if messages and messages[-1]["role"] == role:
+                    messages[-1]["content"] = f"{messages[-1]['content']}\n{content}"
+                else:
+                    messages.append({"role": role, "content": content})
+        # Yeni soru her zaman 'user'. Son geçmiş mesaj da 'user' ise birleştir.
+        if messages and messages[-1]["role"] == "user":
+            messages[-1]["content"] = f"{messages[-1]['content']}\n{question}"
+        else:
+            messages.append({"role": "user", "content": question})
 
         # Anthropic kurali: ilk mesaj 'user' olmali. Bastaki 'assistant'lari at.
         while messages and messages[0]["role"] != "user":

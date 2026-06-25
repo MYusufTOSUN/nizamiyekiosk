@@ -42,21 +42,25 @@ def test_cache_path_creates_dir(tmp_path: Path) -> None:
     tts = XTTSLocalTTS({"cache_dir": str(cd)})
     p = tts._cache_path("hi", "cezeri", 1.0)
     assert p is not None
-    assert cd.exists()
+    # XTTS KÖK cache'i kullanır (prewarm_tts_cache.py buraya yazar). Prune *.pcm'i
+    # non-recursive tarar → Edge/Eleven alt-klasörlerine dokunmaz.
     assert p.parent == cd
+    assert cd.exists()
     assert p.suffix == ".pcm"
 
 
 def test_cache_prune_keeps_only_max(tmp_path: Path) -> None:
     cd = tmp_path / "tc"
-    cd.mkdir()
-    # 5 fake cache entry oluştur, max=3'e prune
+    # XTTS alt-klasörüne 5 fake cache entry oluştur, max=3'e prune
+    xtts_dir = cd / "xtts"
+    xtts_dir.mkdir(parents=True)
     for i in range(5):
-        f = cd / f"{i:02d}.pcm"
+        f = xtts_dir / f"{i:02d}.pcm"
         f.write_bytes(b"x")
-    tts = XTTSLocalTTS({"cache_dir": str(cd), "cache_max_entries": 3})
-    tts._prune_cache()
-    remaining = sorted(cd.glob("*.pcm"))
+    from src.tts.cache_util import prune_cache
+
+    prune_cache(xtts_dir, 3)
+    remaining = sorted(xtts_dir.glob("*.pcm"))
     assert len(remaining) == 3
     # En yeni 3 dosya kalır (mtime-based)
     assert [f.name for f in remaining] == ["02.pcm", "03.pcm", "04.pcm"]

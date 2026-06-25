@@ -49,7 +49,7 @@ llm:
   # provider'ı 'llama_local' yapıp aşağıdaki yorumlu bloğu aç.
   provider: "claude_cloud"
   config:
-    model: "claude-haiku-4-5"   # daha kaliteli Türkçe için "claude-sonnet-4-6"
+    model: "claude-sonnet-4-6"   # Türkçe kalitesi + persona tutarlılığı
     max_tokens: 150
     timeout_seconds: 30.0
   # --- OFFLINE alternatif (internet yoksa) ---
@@ -74,15 +74,15 @@ llm:
     # uygulanır (embedding rejimindeki 0.86 DEĞİL). eval_rag.py --reranker ile
     # 128 adversarial probe üzerinde tune edildi (kimlik/bilinen-bilinmeyen kişi/
     # çocuk-dili/alan-dışı/asr-noise):
-    #   reranker 0.62 → correct=67, wrong_hit=3 (zararsız intra-DB), correct_miss=37/37
-    #   yani TÜM bilinmeyen kişiler (Atatürk, Hawking, Messi...) + alan-dışı sorular
-    #   DOĞRU şekilde LLM'e düşüyor. Embedding-only ile bunlar ~0.87 ile yanlış
-    #   hazır-cevaba yapışıyordu ("X tanıyor musun" şablonu embedding'e hâkim olunca).
+    #   reranker 0.66 → wrong_hit 5→1; bilinmeyen kişiler + alan-dışı + konuşma-
+    #   CÜMLELERİ ("Konya'dayım", "elektrik olabilir") DOĞRU şekilde LLM'e düşer.
+    #   0.62'de bu cümleler alakasız hazır-cevaba (algi_gorme/modern_ai) çakıyordu.
     #   Cross-encoder query<->aday tam attention'la "Atatürk != Einstein" diyebiliyor.
     # HIZ: reranker sadece top-12 adayı + KISA match_text ile çalışır (cevap metni
-    #   değil) → CPU'da ~9 sn yerine ~0.5 sn. match_text skor rejimi eşiği 0.62.
+    #   değil) → CPU'da ~9 sn yerine ~0.5 sn.
     # NOT: use_reranker:false yaparsan bu eşiği 0.86'ya geri al (rejimler farklı).
-    similarity_threshold: 0.62
+    # eval: python scripts/eval_rag.py --reranker  (tests/rag_eval/cezeri_probes.json)
+    similarity_threshold: 0.66
     margin: 0.0
     use_reranker: true
     # e5 embedder + reranker CPU'da: Whisper(CTranslate2) + torch cuDNN çakışması,

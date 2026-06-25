@@ -25,7 +25,8 @@ dependencies = [
 
 [project.optional-dependencies]
 stt = [
-    "faster-whisper>=1.0.3",
+    # Üst tavan: festival kurulumu reproducible olsun; breaking minor gelmesin.
+    "faster-whisper>=1.0.3,<2.0",
     "silero-vad>=5.1.0",
     "webrtcvad>=2.0.10",
     "sounddevice>=0.5.0",
@@ -43,21 +44,24 @@ llm = [
     # transformers <4.47 — 4.47+ torch 2.6 (AuxRequest) ister, bizde 2.5.1+cu121 var.
     "transformers>=4.40.0,<4.47.0",
     "sentence-transformers>=3.0.0,<3.4.0",
-    "chromadb>=0.5.0",
+    "chromadb>=0.5.0,<0.6",
     "tiktoken>=0.8.0",
     "huggingface-hub>=0.24.0",
     "sentencepiece>=0.2.0",
     "protobuf>=4.0.0",
     # Opsiyonel cloud LLM fallback (claude_cloud provider) — internet gerektirir.
-    "anthropic>=0.40.0",
+    # Üst tavan: anthropic SDK geçmişte breaking minor yayınladı (festival sırasında
+    # sürpriz olmasın); sahada doğrulanan aralığa sabitle.
+    "anthropic>=0.40.0,<1.0",
 ]
 tts = [
     # Coqui TTS — XTTS v2 multi-lingual TTS + ses klonlama (offline alternatif).
     # Windows: torch>=2.0 + CUDA wheel zaten Phase 2'den kurulu.
-    "TTS>=0.22.0",
+    # Üst tavan: Coqui TTS geçmişte breaking minor yayınladı.
+    "TTS>=0.22.0,<0.23",
     "pydub>=0.25.0",
     # Microsoft Edge Neural TTS — doğal Türkçe ses (tr-TR-AhmetNeural), online, ücretsiz.
-    "edge-tts>=6.1.0",
+    "edge-tts>=6.1.0,<8.0",
 ]
 dev = [
     "pytest>=8.3.0",

@@ -27,6 +27,7 @@ from pydantic import BaseModel
 from src.core.errors import TTSError
 from src.core.interfaces import TTSProvider
 from src.core.logger import get_logger
+from src.tts.cache_util import provider_cache_dir, prune_cache
 
 _log = get_logger(component="tts.edge")
 
@@ -41,6 +42,7 @@ class EdgeConfig(BaseModel):
     volume_pct: int = 0
     cache_enabled: bool = True
     cache_dir: str = "data/tts_cache"
+    cache_max_entries: int = 2000   # 28 saatte sınırsız disk büyümesini önler
 
     model_config = {"extra": "ignore", "protected_namespaces": ()}
 
@@ -53,9 +55,13 @@ class EdgeTTS(TTSProvider):
             self.config = config
         else:
             self.config = EdgeConfig(**config)
-        self._cache = Path(self.config.cache_dir)
-        if self.config.cache_enabled:
-            self._cache.mkdir(parents=True, exist_ok=True)
+        # Sağlayıcı izolasyonu: kendi alt-klasörüne yaz (prune diğer sağlayıcının
+        # dosyasını silmesin, format/önek karışmasın).
+        self._cache = (
+            provider_cache_dir(self.config.cache_dir, "edge")
+            if self.config.cache_enabled
+            else Path(self.config.cache_dir)
+        )
 
     def _key(self, text: str) -> str:
         sig = f"edge|{self.config.voice}|{self.config.pitch_hz}|{self.config.rate_pct}|{text}"
@@ -127,17 +133,21 @@ class EdgeTTS(TTSProvider):
         if audio.ndim > 1:
             audio = audio[:, 0]
         if sr != NATIVE_SR:
-            # nadiren; basit doğrusal yeniden örnekleme
-            idx = np.linspace(0, len(audio) - 1, int(len(audio) * NATIVE_SR / sr)).astype(np.int64)
-            audio = audio[idx]
+            # Edge normalde 24 kHz döndürür; format değişirse GERÇEK doğrusal
+            # interpolasyon (nearest-neighbor aliasing'i cache'lenmesin).
+            _log.warning("edge_unexpected_sr", sr=sr, expected=NATIVE_SR)
+            from src.stt.audio_utils import resample
+
+            audio = resample(audio.astype(np.float32), sr, NATIVE_SR)
         pcm = audio.astype(np.int16).tobytes()
 
-        # 4) cache yaz + stream et
+        # 4) cache yaz (+ prune) + stream et
         if cpath is not None:
             try:
                 cpath.write_bytes(pcm)
-            except Exception:  # noqa: BLE001
-                pass
+                prune_cache(self._cache, self.config.cache_max_entries)
+            except OSError as exc:
+                _log.warning("edge_cache_write_failed", error=str(exc))
         for i in range(0, len(pcm), _CHUNK * 2):
             yield pcm[i : i + _CHUNK * 2]
 

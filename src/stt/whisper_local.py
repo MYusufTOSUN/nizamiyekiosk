@@ -50,6 +50,26 @@ HALLUCINATION_BLOCKLIST: frozenset[str] = frozenset(
 
 _HALLUCINATION_STRIP_CHARS = ' \t\n\r.!?:,;"\''
 
+# Gömülü/birleşik varyant katmanı — Whisper credit'i gerçek/uydurma metinle
+# BİRLEŞTİRİR ("İzlediğiniz için teşekkür ederim arkadaşlar", "Altyazı M.K. Hoşça
+# kalın"); bunlar tam-eşleşmez. YALNIZ yüksek-spesifik, ayırt edici alt-dizeler:
+# "teşekkürler" gibi tek-kelime jenerikleri BURAYA KOYMA (gerçek çocuk diyebilir).
+_HALLUCINATION_SUBSTRINGS: tuple[str, ...] = (
+    "altyazı m.k", "altyazi m.k", "m.k. ile çevrildi",
+    "abone ol", "abone olmayı unutma", "kanalımıza abone", "kanalıma abone",
+    "videolarımıza abone", "beğenmeyi unutma",
+    "izlediğiniz için teşekkür",
+)
+
+
+def _tr_lower(text: str) -> str:
+    """Lowercase + Türkçe 'İ' kaynaklı combining-dot (U+0307) temizliği.
+
+    Python ``"İ".lower()`` → "i̇" (i + U+0307 combining dot) üretir; bu, düz 'i'
+    içeren blocklist girişleriyle eşleşmeyi bozar. Combining dot'u silip
+    normalize ederiz."""
+    return text.lower().replace("̇", "")
+
 
 def _normalize_for_blocklist(text: str) -> str:
     """Lowercase + trim leading/trailing punctuation + collapse whitespace.
@@ -57,7 +77,12 @@ def _normalize_for_blocklist(text: str) -> str:
     Whisper "ALTYAZI: M.K." / "altyazı m.k." / " Altyazi M.K. " hepsini aynı
     nokta'ya indirir — case + whitespace + noktalama varyasyonlarına dayanıklı.
     """
-    return " ".join(text.lower().strip(_HALLUCINATION_STRIP_CHARS).split())
+    return " ".join(_tr_lower(text).strip(_HALLUCINATION_STRIP_CHARS).split())
+
+
+def _normalize_for_substring(text: str) -> str:
+    """Substring katmanı için: lower + whitespace collapse (iç noktalama korunur)."""
+    return " ".join(_tr_lower(text).split())
 
 
 _HALLUCINATION_NORMALIZED: frozenset[str] = frozenset(
@@ -66,7 +91,12 @@ _HALLUCINATION_NORMALIZED: frozenset[str] = frozenset(
 
 
 def _is_hallucination(text: str) -> bool:
-    return _normalize_for_blocklist(text) in _HALLUCINATION_NORMALIZED
+    # 1) tam-eşleşme (yanlış-pozitif düşük)
+    if _normalize_for_blocklist(text) in _HALLUCINATION_NORMALIZED:
+        return True
+    # 2) yüksek-spesifik gömülü alt-dize (credit metni başka kelimelerle birleşmiş)
+    sub = _normalize_for_substring(text)
+    return any(s in sub for s in _HALLUCINATION_SUBSTRINGS)
 
 
 _log = get_logger(component="stt.whisper")
@@ -343,9 +373,10 @@ class WhisperLocalSTT(STTProvider):
             confidences.append(float(np.exp(avg_logprob)) if avg_logprob < 0 else 1.0)
 
         text = " ".join(kept_texts).strip()
-        confidence = float(np.mean(confidences)) if confidences else float(
-            getattr(info, "language_probability", 1.0)
-        )
+        # Boş/filtrelenmiş segmentte 'transkript güveni' YOK → 0.0 (eski
+        # language_probability fallback'i ~0.99 verip yanıltıcıydı). Downstream
+        # erken-çıkış eşiği bu değeri kullanır.
+        confidence = float(np.mean(confidences)) if confidences else 0.0
         return text, confidence
 
     async def close(self) -> None:

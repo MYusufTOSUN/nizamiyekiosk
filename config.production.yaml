@@ -59,7 +59,7 @@ llm:
   # ortam degiskeninden okunur (koda gomulmez): setx ANTHROPIC_API_KEY "sk-ant-..."
   provider: "claude_cloud"
   config:
-    model: "claude-haiku-4-5"   # ucuz/hizli; uc-durum testleri gecti. Daha kaliteli istersen "claude-sonnet-4-6"
+    model: "claude-sonnet-4-6"  # Türkçe kalitesi + persona tutarlılığı (Haiku 'Eisa' gibi typo yapıyordu)
     max_tokens: 150             # persona "max 2 cumle"; kisa tut
     timeout_seconds: 30.0
   # --- OFFLINE alternatif (internet yoksa) — provider'i 'llama_local' yapip
@@ -83,9 +83,10 @@ llm:
   rag:
     enabled: true
     # RERANKER REJIMI (eşik reranker sigmoid skoruna uygulanır, embedding 0.86 DEĞİL).
-    # 128 adversarial probe ile tune: 0.62 → bilinmeyen kişiler (Atatürk/Hawking/Messi)
-    # + alan-dışı sorular DOĞRU şekilde LLM'e düşer, 0 zararlı yanlış hazır-cevap.
-    similarity_threshold: 0.62
+    # 133 adversarial probe ile tune (+5 konuşma-cümlesi miss-probe): 0.66 → bilinmeyen
+    # kişiler + alan-dışı + konuşma-CÜMLELERİ ("Konya'dayım", "elektrik olabilir") DOĞRU
+    # şekilde LLM'e düşer. 0.62'de bunlar alakasız hazır-cevaba çakıyordu (wrong_hit 5→1).
+    similarity_threshold: 0.66
     margin: 0.0
     use_reranker: true
     reranker_model: "data/models/reranker/bge-reranker-v2-m3"

@@ -30,6 +30,7 @@ from src.core.interfaces import TTSProvider
 from src.core.logger import get_logger
 from src.core.metrics import tts_latency_ms
 from src.stt.audio_utils import numpy_to_pcm_bytes, resample
+from src.tts.cache_util import prune_cache
 
 _log = get_logger(component="tts.xtts")
 
@@ -127,6 +128,22 @@ def _cache_key(text: str, voice_id: str, speed: float, language: str) -> str:
     """Deterministik hash → cache dosya adı."""
     payload = f"{language}|{voice_id}|{speed:.3f}|{text}".encode()
     return hashlib.sha256(payload).hexdigest()[:24]
+
+
+def _ref_signature(wavs: list[str]) -> str:
+    """Klon referans WAV'larının kısa imzası (yol + mtime_ns + boyut).
+
+    Sergi öncesi ref_*.wav iyileştirilirse imza DEĞİŞİR → cache anahtarı değişir →
+    bayat klon sesi kendiliğinden bypass edilir (eski hata: anahtar yalnız voice_id
+    idi, WAV değişse de eski ses dönerdi)."""
+    parts: list[str] = []
+    for p in sorted(wavs):
+        try:
+            st = os.stat(p)
+            parts.append(f"{p}:{st.st_mtime_ns}:{st.st_size}")
+        except OSError:
+            parts.append(f"{p}:0:0")
+    return hashlib.sha256("|".join(parts).encode()).hexdigest()[:12]
 
 
 class XTTSLocalTTS(TTSProvider):
@@ -346,7 +363,12 @@ class XTTSLocalTTS(TTSProvider):
         # builtin-cache çakışmasın (prewarm'lanmış klon cache korunur).
         speaker_wav = self._voice_refs.get(voice_id) if self.config.use_voice_clone else None
         builtin_speaker = self.config.builtin_speaker if not speaker_wav else None
-        voice_sig = voice_id if speaker_wav else f"{voice_id}#blt:{builtin_speaker}"
+        # Klon modunda voice_sig'e ref WAV imzasını dahil et — ref dosyaları
+        # değişirse cache anahtarı değişsin (bayat klon sesi dönmesin).
+        if speaker_wav:
+            voice_sig = f"{voice_id}#clone:{_ref_signature(speaker_wav)}"
+        else:
+            voice_sig = f"{voice_id}#blt:{builtin_speaker}"
 
         # B4: Disk audio cache — RAG hit'ler aynı cevabı üretir, ikinci kullanıcıya
         # XTTS'i hiç çağırma, disk'ten chunk'la stream et.
@@ -442,10 +464,12 @@ class XTTSLocalTTS(TTSProvider):
 
         producer_task = asyncio.create_task(asyncio.to_thread(producer))
 
+        completed = False  # yalnız EOS (None) alınınca TAM say → yarım cache yazma
         try:
             while True:
                 item = await queue.get()
                 if item is None:
+                    completed = True
                     break
                 if isinstance(item, Exception):
                     raise item
@@ -467,24 +491,42 @@ class XTTSLocalTTS(TTSProvider):
             total_ms = int((time.perf_counter() - start) * 1000)
             _log.info("tts_complete", total_ms=total_ms, voice_id=voice_id, pieces=len(pieces))
             await producer_task
-            if cache_buffer and cache_path is not None:
+            # ZEHİRLENME ÖNLEME: yalnız sentez TAM bittiyse cache yaz. Tüketici erken
+            # iptal ederse (barge/aclose/timeout) cache_buffer YARIM olur → yazma,
+            # yoksa her tekrar 1 sn'lik bozuk sesi çalar (sahada görülen bug).
+            if completed and cache_buffer and cache_path is not None:
                 try:
                     self._write_cache(cache_path, bytes(cache_buffer))
                 except OSError as exc:
                     _log.warning("tts_cache_write_failed", error=str(exc))
+            elif cache_buffer and not completed:
+                _log.info("tts_cache_skip_partial", bytes=len(cache_buffer))
+
+    def _cache_dir(self) -> Path:
+        """KÖK cache dizini (data/tts_cache) — prewarm_tts_cache.py BURAYA yazar; XTTS
+        de buradan okur. (Alt-klasöre taşımak 235 prewarm dosyasını ÖKSÜZ bırakıp
+        her cevabı yeniden sentezletiyordu.) Prune ``*.pcm``'i NON-RECURSIVE tarar →
+        Edge/ElevenLabs alt-klasörlerine (data/tts_cache/edge|eleven) DOKUNMAZ."""
+        d = Path(self.config.cache_dir)
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+        return d
 
     def _cache_path(self, text: str, voice_id: str, speed: float) -> Path | None:
         if not self.config.cache_enabled:
             return None
         key = _cache_key(text, voice_id, speed, self.config.language)
-        cache_dir = Path(self.config.cache_dir)
-        try:
-            cache_dir.mkdir(parents=True, exist_ok=True)
-        except OSError:
-            return None
-        return cache_dir / f"{key}.pcm"
+        return self._cache_dir() / f"{key}.pcm"
 
     async def _stream_cached(self, path: Path) -> AsyncIterator[bytes]:
+        # LRU: cache HIT'te mtime'ı tazele → en popüler RAG-hit cevabı yaşça
+        # eskiyip prune'da silinmesin.
+        try:
+            os.utime(path, None)
+        except OSError:
+            pass
         cs = self.config.output_chunk_samples * 2  # int16 → 2 byte/sample
         with path.open("rb") as f:
             while True:
@@ -496,21 +538,11 @@ class XTTSLocalTTS(TTSProvider):
                 await asyncio.sleep(0)
 
     def _write_cache(self, path: Path, data: bytes) -> None:
-        path.write_bytes(data)
-        self._prune_cache()
-
-    def _prune_cache(self) -> None:
-        """En eski cache'leri sil (LRU değil mtime-based, basit)."""
-        cache_dir = Path(self.config.cache_dir)
-        if not cache_dir.exists():
-            return
-        files = sorted(cache_dir.glob("*.pcm"), key=lambda p: p.stat().st_mtime)
-        excess = len(files) - self.config.cache_max_entries
-        for f in files[: max(0, excess)]:
-            try:
-                f.unlink()
-            except OSError:
-                pass
+        # Atomik yazım: geçici dosya + os.replace (okuma yarısı kesilmesin).
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        tmp.write_bytes(data)
+        os.replace(tmp, path)
+        prune_cache(self._cache_dir(), self.config.cache_max_entries)
 
     async def close(self) -> None:
         self._model = None
