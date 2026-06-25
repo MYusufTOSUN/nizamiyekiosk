@@ -29,6 +29,7 @@ import argparse
 import asyncio
 import contextlib
 import os
+import re
 import sys
 import threading
 import time
@@ -128,6 +129,31 @@ def _vram_str() -> str:
 
 def _is_oom(exc: BaseException) -> bool:
     return "out of memory" in str(exc).lower()
+
+
+# Sahne yönergesi / jest betimlemesi temizliği (her şey HOPARLÖRDEN okunur).
+_EMOTE_WRAP = re.compile(r"[*\[(][^*\])]{0,80}?[*\])]")
+_NARR_ADVERB = (
+    "nazikçe", "hafifçe", "usulca", "yavaşça", "sakince", "içtenlikle", "gülerek",
+    "gülümseyerek", "düşünerek", "eğilerek", "tebessümle", "şefkatle", "merakla",
+)
+_NARR_VERB = (
+    "gülümser", "gülümsüyor", "düşünür", "düşünüyor", "eğilir", "bakar", "bakıyor",
+    "başını sallar", "nefes alır", "iç çeker", "göz kırpar",
+)
+
+
+def _strip_stage_directions(text: str) -> str:
+    """LLM çıktısından sahne yönergesi/jest betimlemesini at — yoksa TTS 'Nazikçe
+    gülümser...' diye OKUR. (1) *...*/(...)/[...] sarmaları, (2) baştaki anlatı
+    cümlesi (…/—/... ile biten ve anlatı sözcüğü içeren) kaldırılır."""
+    t = _EMOTE_WRAP.sub(" ", text)
+    m = re.match(r"^\s*([^.!?…]{1,60}?)\s*(\.\.\.|…|—)\s+(.+)$", t, re.S)
+    if m:
+        lead = m.group(1).lower()
+        if lead.startswith(_NARR_ADVERB) or any(v in lead for v in _NARR_VERB):
+            t = m.group(3)
+    return re.sub(r"\s+", " ", t).strip()
 
 
 def _safe_console() -> None:
@@ -492,7 +518,9 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, mi
 
                 try:
                     raw = await asyncio.wait_for(_collect_llm(text, ctx), LLM_TIMEOUT)
-                    response = safety.check_output(trim_to_last_sentence(raw), persona).text
+                    # sahne yönergesi/jest temizle (TTS sadece SÖZÜ okusun)
+                    clean = _strip_stage_directions(raw)
+                    response = safety.check_output(trim_to_last_sentence(clean), persona).text
                     source = "generated"
                     if not kiosk.llm_ok:  # internet/LLM geri geldi
                         kiosk.llm_ok = True
