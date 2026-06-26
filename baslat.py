@@ -34,6 +34,13 @@ tüm eşikleri (dinleme, barge) ona göre türetir; kısa bir El-Cezerî sesiyle
 Operatör paneli (PIN) artık sunucuda doğrulanır: varsayılan '1206'. Değiştirmek
 için sistemde  setx BFEST_OP_TOKEN "yeni-pin"  (bu launcher ortamı aynen aktarır).
 Sergiden ÖNCE bir kez:  python scripts/prewarm_tts_cache.py   (TTS cache'i ısıtır).
+
+OTOMATİK YENİDEN BAŞLATMA (gözetmen): festival.py beklenmedik şekilde çıkarsa
+(çökme) launcher onu KENDİLİĞİNDEN yeniden başlatır — sergi gece boyu manuel
+müdahale olmadan ayakta kalır. Sergiyi DURDURMAK için bu pencerede Ctrl+C bas.
+Kısa sürede üst üste çökerse (ölümcül hata: eksik model/anahtar, port dolu)
+gözetmen pes edip net bir uyarı basar (sonsuz döngüye girmez).
+Yeniden-başlatmayı kapatmak (hata ayıklama): python baslat.py --no-restart
 """
 # Bu bir kullanıcı-launcher'ı: durum yazdırır (print) ve alt-süreç başlatır (subprocess).
 # ruff: noqa: T201, S603
@@ -42,6 +49,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 # Festivalde kullanılacak mikrofon. JBL Wave Beam 2 için index 24 ya da daha
@@ -52,6 +60,11 @@ DEFAULT_DEVICE = "1"
 ROOT = Path(__file__).resolve().parent
 VENV_PY = ROOT / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 FESTIVAL = ROOT / "scripts" / "festival.py"
+
+# Gözetmen (auto-restart) ayarları
+RESTART_DELAY_S = 3.0   # çökme sonrası yeniden başlatmadan önce bekleme
+CRASH_WINDOW_S = 60.0   # bu kayan pencerede
+MAX_CRASHES = 5         # bu kadar çökme olursa pes et (muhtemelen ölümcül hata)
 
 
 def main() -> int:
@@ -70,19 +83,71 @@ def main() -> int:
     env["COQUI_TOS_AGREED"] = "1"
     env["PYTHONUTF8"] = "1"
 
-    # Kullanıcı --device verdiyse ona dokunma; vermediyse varsayılanı ekle.
-    args = sys.argv[1:]
+    # baslat'a özel bayrak: --no-restart (tek sefer çalıştır, gözetmen kapalı).
+    # Geri kalan tüm argümanlar festival.py'ye aynen aktarılır.
+    raw = sys.argv[1:]
+    supervise = True
+    args: list[str] = []
+    for a in raw:
+        if a in ("--no-restart", "--no-supervise"):
+            supervise = False
+        else:
+            args.append(a)
     if not any(a == "--device" or a.startswith("--device=") for a in args):
         args = ["--device", DEFAULT_DEVICE, *args]
 
     cmd = [str(VENV_PY), str(FESTIVAL), *args]
     print("BilimFest başlatılıyor (venv üzerinde)…")
-    print("  ", " ".join(cmd), "\n")
-    try:
-        return subprocess.call(cmd, env=env, cwd=str(ROOT))
-    except KeyboardInterrupt:
-        print("\n[baslat] kapatıldı.")
-        return 0
+    print("  ", " ".join(cmd))
+    if supervise:
+        print("  [gözetmen] çökerse otomatik yeniden başlatılır. Durdurmak için Ctrl+C.\n")
+    else:
+        print("  [gözetmen KAPALI] (--no-restart) — tek sefer çalışacak.\n")
+
+    crashes: list[float] = []
+    run = 0
+    while True:
+        run += 1
+        if run > 1:
+            print(f"[gözetmen] festival.py #{run}. kez başlatılıyor…\n")
+        try:
+            rc = subprocess.call(cmd, env=env, cwd=str(ROOT))
+        except KeyboardInterrupt:
+            # Operatör Ctrl+C bastı (alt-süreç de Ctrl+C aldı) → temiz çıkış, restart yok.
+            print("\n[baslat] Ctrl+C — operatör durdurdu, çıkılıyor.")
+            return 0
+
+        if not supervise:
+            return rc
+
+        # festival.py kendiliğinden çıktı (çökme veya beklenmedik dönüş) → yeniden başlat.
+        now = time.monotonic()
+        crashes.append(now)
+        crashes[:] = [t for t in crashes if now - t <= CRASH_WINDOW_S]
+        print(
+            f"\n[gözetmen] festival.py çıktı (kod {rc}). "
+            f"Son {int(CRASH_WINDOW_S)}s içinde {len(crashes)} çıkış."
+        )
+
+        if len(crashes) >= MAX_CRASHES:
+            print("\n" + "=" * 64)
+            print(
+                f"[gözetmen] {int(CRASH_WINDOW_S)} saniyede {MAX_CRASHES} kez çöktü — DURDURULDU."
+            )
+            print("Bu genelde ölümcül bir hata: eksik model/anahtar, port dolu, bozuk config.")
+            print("Yukarıdaki festival.py çıktısını incele, düzelt, tekrar başlat.")
+            print("=" * 64)
+            return rc or 1
+
+        print(
+            f"[gözetmen] {RESTART_DELAY_S:.0f}s sonra yeniden başlatılıyor… "
+            "(durdurmak için Ctrl+C)"
+        )
+        try:
+            time.sleep(RESTART_DELAY_S)
+        except KeyboardInterrupt:
+            print("\n[baslat] Ctrl+C — çıkılıyor.")
+            return 0
 
 
 if __name__ == "__main__":
