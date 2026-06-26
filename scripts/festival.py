@@ -251,6 +251,21 @@ def _wants_switch(text: str) -> bool:
     return any(cue in t for cue in _SWITCH_CUES)
 
 
+_IMG_EXTS = ("png", "jpg", "jpeg", "webp")
+
+
+def _char_image_url(persona_id: str) -> str:
+    """static/characters/<id>.<ext> — gerçek dosyayı bul (png/jpg/jpeg/webp).
+
+    Geçici görseller .jpg/.png olabilir; bulunamazsa .png döner ve ekran tarafı
+    görseli yükleyemeyince holografik harf-placeholder gösterir (kırılmaz)."""
+    base = _STATIC / "characters"
+    for ext in _IMG_EXTS:
+        if (base / f"{persona_id}.{ext}").is_file():
+            return f"/static/characters/{persona_id}.{ext}"
+    return f"/static/characters/{persona_id}.png"
+
+
 # --- web uygulaması (ekran + panel + REST kontrol) --------------------------
 def build_app(hub: Hub, kiosk: Kiosk, op_token: str) -> FastAPI:
     app = FastAPI(title="BilimFest Festival Kiosk")
@@ -315,7 +330,7 @@ def build_app(hub: Hub, kiosk: Kiosk, op_token: str) -> FastAPI:
                     "id": p.id,
                     "name": p.name,
                     "era": p.era,
-                    "image": f"/static/characters/{p.id}.png",
+                    "image": _char_image_url(p.id),
                 }
                 for p in list_personas()
             ],

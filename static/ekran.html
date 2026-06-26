@@ -75,9 +75,11 @@
   body[data-state="selection"] .chooser{display:flex}
   .chooser h1{font-family:"Georgia",serif; font-size:clamp(1.6rem,4vw,3rem); color:var(--gold-soft);
               text-shadow:0 0 30px #e6b94e44; margin-bottom:.4em}
-  .chooser .sub{color:var(--muted); letter-spacing:.16em; font-size:clamp(.8rem,1.8vw,1.1rem)}
-  .stage{position:relative; width:min(78vw,820px); height:min(46vh,420px); perspective:1300px; margin:3vh 0 1vh}
-  .cring{position:absolute; inset:0; transform-style:preserve-3d; animation:turn 22s linear infinite}
+  .chooser .prompt{margin-top:2vh; color:var(--gold-soft); letter-spacing:.14em;
+                   font-size:clamp(1.05rem,2.6vw,1.7rem); text-shadow:0 0 24px #e6b94e44}
+  .stage{position:relative; width:min(78vw,820px); height:min(46vh,420px); perspective:1300px; margin:2vh 0 1vh}
+  /* yavaş yavaş dönen hologramlar — seçim yapılana dek */
+  .cring{position:absolute; inset:0; transform-style:preserve-3d; animation:turn 40s linear infinite}
   @keyframes turn{to{transform:rotateY(360deg)}}
   .ccard{position:absolute; left:50%; top:50%; width:210px; height:300px; margin:-150px 0 0 -105px;
          transform-style:preserve-3d; text-align:center}
@@ -103,9 +105,9 @@
   <!-- Seçim ekranı: dönen hologramlar -->
   <div class="chooser">
     <h1>Kiminle konuşmak istersin?</h1>
-    <div class="sub">İsmini söyle — hologram önüne gelsin</div>
     <div class="stage"><div class="cring" id="cring"></div></div>
-    <div class="listening-pulse">● SENİ DİNLİYORUM</div>
+    <div class="prompt">Konuşmak istediğin âlimin ismini söyle</div>
+    <div class="listening-pulse">● Seni dinliyorum</div>
   </div>
 
   <!-- Seçilen karakter görünümü -->
