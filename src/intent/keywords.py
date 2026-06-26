@@ -5,6 +5,21 @@ from __future__ import annotations
 # Karakter id → tetikleyici kelime kümeleri.
 # Phase 1: sadece Cezerî. Diğer karakterler belirlenince buraya eklenir.
 CHARACTER_KEYWORDS: dict[str, list[str]] = {
+    # Asıl proje karakteri (Nizamiye Medresesi). STT'nin duyabileceği varyantlar:
+    "gazali": [
+        "gazali",
+        "gazâlî",
+        "gazzali",
+        "gazeli",
+        "el gazali",
+        "el-gazali",
+        "imam gazali",
+        "imam gazâlî",
+        "gazali hoca",
+        "hüccetül islam",
+        "hüccetü'l-islam",
+    ],
+    # Test/seçim ekranı için tutuluyor (asıl sergide yer almayacak):
     "cezeri": [
         "cezeri",
         "cezerî",

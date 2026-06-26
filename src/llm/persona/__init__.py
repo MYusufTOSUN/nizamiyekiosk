@@ -10,8 +10,12 @@ from __future__ import annotations
 
 from src.core.interfaces import PersonaConfig
 from src.llm.persona.cezeri import CEZERI_PERSONA
+from src.llm.persona.gazali import GAZALI_PERSONA
 
+# Asıl proje (Nizamiye Medresesi) karakteri: GAZÂLÎ. Cezerî test/seçim ekranı
+# için tutuluyor (asıl sergide yer almayacak).
 PERSONAS: dict[str, PersonaConfig] = {
+    GAZALI_PERSONA.id: GAZALI_PERSONA,
     CEZERI_PERSONA.id: CEZERI_PERSONA,
 }
 
@@ -24,4 +28,4 @@ def list_personas() -> list[PersonaConfig]:
     return list(PERSONAS.values())
 
 
-__all__ = ["PERSONAS", "get_persona", "list_personas", "CEZERI_PERSONA"]
+__all__ = ["PERSONAS", "get_persona", "list_personas", "CEZERI_PERSONA", "GAZALI_PERSONA"]
