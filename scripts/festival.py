@@ -50,8 +50,9 @@ from src.core.config import get_config
 from src.core.factory import ProviderFactory, validate_startup
 from src.core.interfaces import ConversationContext, DialogueTurn
 from src.core.logger import configure_logging
+from src.intent.keywords import CHARACTER_KEYWORDS
 from src.llm.llama_local import trim_to_last_sentence
-from src.llm.persona import get_persona
+from src.llm.persona import PERSONAS, get_persona, list_personas
 from src.llm.rag_store import ChromaRAGStore
 from src.llm.safety import SafetyFilter
 from src.stt.audio_utils import numpy_to_pcm_bytes
@@ -200,11 +201,54 @@ class Kiosk:
     state: str = "idle"
     session_id: str | None = None
     paused: bool = False
-    persona_id: str = "cezeri"
+    # Asıl proje karakteri Gazâlî. selecting=True iken açılış "seçim" ekranı:
+    # ziyaretçi bir âlimin ismini söyleyince o persona'ya geçilir.
+    persona_id: str = "gazali"
+    selecting: bool = True
     history: list[DialogueTurn] = field(default_factory=list)
     llm_ok: bool = True
     mic_ok: bool = True
     last_activity: float = field(default_factory=time.monotonic)
+
+
+# --- karakter seçimi (sesle isim) -------------------------------------------
+SELECTION_PROMPT = (
+    "Hangi âlimle sohbet etmek istersin? İsmini söylemen yeter — "
+    "Gazâlî mi, Cezerî mi?"
+)
+
+
+def _norm_tr(s: str) -> str:
+    """Türkçe-duyarlı küçük harf (İ→i, I→ı) — isim eşleştirme için."""
+    return s.replace("İ", "i").replace("I", "ı").lower()
+
+
+def _detect_character(text: str) -> str | None:
+    """Transcript bir karakterin ismini içeriyorsa o persona_id'yi döndür.
+
+    CHARACTER_KEYWORDS tablosunu kullanır; yalnız KAYITLI persona'ları seçer.
+    """
+    t = _norm_tr(text)
+    for pid, kws in CHARACTER_KEYWORDS.items():
+        if pid not in PERSONAS:
+            continue
+        if any(_norm_tr(kw) in t for kw in kws):
+            return pid
+    return None
+
+
+# Konuşma ORTASINDA başka karaktere geçmek için açık niyet gerekir — yoksa
+# "fil saati nedir" gibi konu-kelimesi yanlışlıkla karakter değiştirmesin.
+# (Açılış seçim ekranında bu gerekmez; orada her isim seçer.)
+_SWITCH_CUES = (
+    "gelsin", "çağır", "getir", "geç", "değiştir", "konuşmak istiyorum",
+    "konuşalım", "ile konuş", "istiyorum", "bağla", "çıksın", "gel ",
+)
+
+
+def _wants_switch(text: str) -> bool:
+    t = _norm_tr(text)
+    return any(cue in t for cue in _SWITCH_CUES)
 
 
 # --- web uygulaması (ekran + panel + REST kontrol) --------------------------
@@ -255,6 +299,40 @@ def build_app(hub: Hub, kiosk: Kiosk, op_token: str) -> FastAPI:
     async def _set_state(s: str) -> None:
         kiosk.state = s
         await hub.send("state_changed", {"new": s})
+
+    @app.get("/api/v1/characters")
+    async def characters() -> JSONResponse:
+        """Seçim ekranının döndürdüğü karakter listesi (görsel yolu dahil).
+
+        Görseller geçici: static/characters/<id>.png (kullanıcı yerleştirir;
+        sonra 3D modele geçilir). Dosya yoksa ekran isim baş harfini gösterir.
+        """
+        return JSONResponse({
+            "selecting": kiosk.selecting,
+            "current": kiosk.persona_id,
+            "characters": [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "era": p.era,
+                    "image": f"/static/characters/{p.id}.png",
+                }
+                for p in list_personas()
+            ],
+        })
+
+    @app.post("/api/v1/select", dependencies=[Depends(require_op)])
+    async def select(persona_id: str = "") -> JSONResponse:
+        """Operatör/panel manuel karakter seçimi (sesle seçimin yedeği)."""
+        p = get_persona(persona_id)
+        if p is None:
+            raise HTTPException(status_code=404, detail="bilinmeyen karakter")
+        kiosk.persona_id = persona_id
+        kiosk.selecting = False
+        kiosk.history.clear()
+        await hub.send("character_selected", {"persona_id": persona_id, "name": p.name})
+        await _set_state("welcome")
+        return JSONResponse({"selected": persona_id, "name": p.name})
 
     @app.post("/api/v1/session/start", dependencies=[Depends(require_op)])
     async def session_start() -> JSONResponse:
@@ -451,7 +529,13 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, mi
                 await hub.send("idle_reset", {})
                 print("[idle] uzun sessizlik — sohbet hafızası sıfırlandı")
 
-            await set_state("listening")
+            # Geçerli persona'yı kiosk.persona_id'den çöz — panel/ses seçimi onu
+            # değiştirmiş olabilir (closure'daki persona böylece güncellenir).
+            _cur = get_persona(kiosk.persona_id)
+            if _cur is not None:
+                persona = _cur
+
+            await set_state("selection" if kiosk.selecting else "listening")
             audio16, reason = await asyncio.to_thread(endpointer.listen, mic, active)
             if audio16 is None:
                 if reason == "çok_kısık":
@@ -475,6 +559,35 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, mi
             print(f"[ziyaretçi] {text}  (conf={confidence:.2f})")
             kiosk.last_activity = time.monotonic()
             await hub.send("transcription_received", {"text": text})
+
+            # --- AÇILIŞ / KARAKTER SEÇİMİ (sesle ismini söyleyince o gelir) ---
+            chosen = _detect_character(text)
+            if chosen and (
+                kiosk.selecting
+                or (chosen != kiosk.persona_id and _wants_switch(text))
+            ):
+                kiosk.persona_id = chosen
+                kiosk.selecting = False
+                persona = get_persona(chosen) or persona
+                kiosk.history.clear()
+                print(f"[seçim] karakter -> {persona.name} ({chosen})")
+                await hub.send(
+                    "character_selected", {"persona_id": chosen, "name": persona.name}
+                )
+                await set_state("welcome")
+                greeting = (persona.initial_greeting or "").strip() or (
+                    f"Esselâmü aleyküm evladım, ben {persona.name}. Neyi merak ediyorsun?"
+                )
+                if active():
+                    await synth_and_play(greeting)
+                kiosk.last_activity = time.monotonic()
+                await set_state("listening")
+                continue
+            if kiosk.selecting:
+                # Henüz karakter seçilmedi; nazikçe ismini iste (isim duyulana dek).
+                if active():
+                    await synth_and_play(SELECTION_PROMPT)
+                continue
 
             t_resp0 = time.monotonic()
             category = safety.classify_input(text)
@@ -510,9 +623,11 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, mi
                     if r.similarity >= GROUNDING_MIN
                 ] if results else []
 
-                async def _collect_llm(_text: str, _ctx: ConversationContext) -> str:
+                async def _collect_llm(
+                    _text: str, _ctx: ConversationContext, _persona=persona
+                ) -> str:
                     parts: list[str] = []
-                    async for tok in llm.generate_response(_text, persona, _ctx):
+                    async for tok in llm.generate_response(_text, _persona, _ctx):
                         parts.append(tok)
                     return "".join(parts).strip()
 
@@ -551,7 +666,7 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, mi
                     print(f"[llm yedek] {type(exc).__name__} -> {source}")
 
             print(f"[zaman] yanıt({source})={time.monotonic() - t_resp0:.2f}s")
-            print(f"[El-Cezerî/{source}] {response}")
+            print(f"[{persona.name}/{source}] {response}")
             await hub.send("llm_response_completed", {"source": source, "text": response})
             kiosk.history.append(DialogueTurn(role="visitor", text=text))
             kiosk.history.append(DialogueTurn(role="persona", text=response))
@@ -578,10 +693,11 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, mi
 
 
 async def _boot(cfg) -> tuple[Any, ...]:
-    persona = get_persona("cezeri")
+    # Açılış varsayılanı Gazâlî (asıl proje); seçim ekranı ilk persona'yı belirler.
+    persona = get_persona("gazali")
     print(f"[1/4] TTS ({cfg.tts.provider}) yükleniyor...")
     tts = ProviderFactory.create_tts(cfg.tts)
-    async for _ in tts.synthesize_stream("Bir, iki, üç.", "cezeri"):
+    async for _ in tts.synthesize_stream("Bir, iki, üç.", persona.voice_id):
         pass
     print("[2/4] Whisper STT yükleniyor...")
     stt_kwargs = {**cfg.stt.config}
@@ -597,7 +713,7 @@ async def _boot(cfg) -> tuple[Any, ...]:
         "reranker_model": cfg.llm.rag.reranker_model,
     })
     await rag._ensure_ready()
-    await rag.query("merhaba", "cezeri", top_k=1)
+    await rag.query("merhaba", "gazali", top_k=1)
     print(f"[4/4] LLM ({cfg.llm.provider}) hazırlanıyor...")
     llm = ProviderFactory.create_llm(cfg.llm)
     llm_ok = True
@@ -684,7 +800,7 @@ async def main(opts: Opts) -> int:
     barge = E.BargeDetector(cal, opts.barge_cfg)
 
     hub = Hub()
-    kiosk = Kiosk(persona_id="cezeri", session_id=uuid.uuid4().hex, llm_ok=llm_ok)
+    kiosk = Kiosk(persona_id="gazali", session_id=uuid.uuid4().hex, llm_ok=llm_ok)
     op_token = os.environ.get("BFEST_OP_TOKEN", "1206")
     app = build_app(hub, kiosk, op_token)
     server = uvicorn.Server(
