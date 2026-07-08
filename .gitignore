@@ -95,3 +95,8 @@ uvicorn.err
 
 # Ham ses kayıtları (klon kaynağı; dönüştürülmüş ref_*.wav repoda yeterli)
 afc/
+
+# Test ses çıktıları + ham klon kaynakları (kaynak değil; ref_*.wav zaten track)
+data/*.wav
+data/voices/**/*.m4a
+data/voices/**/*.aac

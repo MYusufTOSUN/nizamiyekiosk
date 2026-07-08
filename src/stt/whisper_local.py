@@ -114,7 +114,20 @@ class WhisperConfig(BaseModel):
     sample_rate: int = DEFAULT_SAMPLE_RATE
     beam_size: int = 5
     best_of: int = 5
-    temperature: float = 0.0
+    # SICAKLIK FALLBACK (atipik/zor konuşma için KRİTİK): tek 0.0 yerine artan
+    # sıcaklık listesi. Greedy decode (0.0) başarısız olursa (yüksek sıkıştırma
+    # oranı ya da düşük logprob) Whisper bir sonraki sıcaklıkla TEKRAR dener —
+    # aksanlı/hızlı/yutarak/kısık konuşanda saçma çıktıyı toparlar. Tek float
+    # verilirse fallback DEVRE DIŞI kalır.
+    temperature: float | list[float] = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    # Tekrarlı/uydurma çıktıyı (compression_ratio bunun üstündeyse) reddet → bir üst
+    # sıcaklığa fallback tetikler. faster-whisper varsayılanı 2.4.
+    compression_ratio_threshold: float = 2.4
+    # SES-SEVİYESİ NORMALİZASYONU: kısık/uzak ya da çok yüksek konuşanı aynı tepe
+    # seviyesine getir (Whisper atipik seviyede daha az saçmalar). RMS-kapısı sessiz
+    # buffer'ı zaten eler; bu yalnız gerçek konuşmayı eşitler.
+    loudness_normalize: bool = True
+    target_peak: float = 0.97
     # Decoder'ı domain sözlüğüne yönlendir (isim/terim algısını artırır). Çocuklar
     # "Cezeri", "fil saati", "El-Harezmî" gibi kelimeleri net telaffuz edemez;
     # initial_prompt Whisper'a beklenen bağlamı verir. Boş => kullanılmaz.
@@ -296,6 +309,9 @@ class WhisperLocalSTT(STTProvider):
             )
             return None
 
+        # SES-SEVİYESİ NORMALİZASYONU — kısık/uzak ya da yüksek konuşanı eşitle.
+        audio_np = self._normalize_loudness(audio_np)
+
         start = time.perf_counter()
         try:
             text, confidence = await asyncio.to_thread(
@@ -340,6 +356,17 @@ class WhisperLocalSTT(STTProvider):
             duration_ms=latency_ms,
         )
 
+    def _normalize_loudness(self, audio: Any) -> Any:
+        """Tepe seviyesini target_peak'e ölçekle (kısık konuşanı yükselt, yükseği
+        kıs). RMS-kapısını geçen GERÇEK konuşmaya uygulanır; sessizi yükseltmez."""
+        if not self.config.loudness_normalize or audio.size == 0:
+            return audio
+        peak = float(np.abs(audio).max())
+        if peak < 1e-4:  # neredeyse sessiz — dokunma (gürültüyü yükseltme)
+            return audio
+        scaled = audio * (self.config.target_peak / peak)
+        return np.clip(scaled, -1.0, 1.0).astype(np.float32)
+
     def _whisper_call_sync(
         self,
         audio: Any,
@@ -352,7 +379,8 @@ class WhisperLocalSTT(STTProvider):
             language=language or self.config.language,
             beam_size=self.config.beam_size,
             best_of=self.config.best_of,
-            temperature=self.config.temperature,
+            temperature=self.config.temperature,  # liste → sıcaklık fallback aktif
+            compression_ratio_threshold=self.config.compression_ratio_threshold,
             vad_filter=False,  # bizim VAD zaten segmentledi
             condition_on_previous_text=False,
             initial_prompt=self.config.initial_prompt or None,

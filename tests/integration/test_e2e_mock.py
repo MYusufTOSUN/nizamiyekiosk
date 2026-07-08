@@ -95,6 +95,22 @@ def test_session_lifecycle() -> None:
         assert end.json()["ended"] is True
 
 
+def test_selection_endpoint_returns_to_carousel() -> None:
+    """Operatör paneli 'Karakter Seçimine Dön': SELECTION durumu + persona sıfır."""
+    with TestClient(app) as client:
+        client.post("/api/v1/session/start")
+        r = client.post("/api/v1/selection")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["state"] == "selection"
+        assert data["session_id"]
+        # status endpoint'i de seçim durumunu + sıfırlanmış karakteri göstermeli
+        st = client.get("/api/v1/status").json()
+        assert st["state"] == "selection"
+        assert st["current_persona"] is None
+        client.post("/api/v1/session/end")
+
+
 def test_metrics_endpoint() -> None:
     with TestClient(app) as client:
         r = client.get("/api/v1/metrics")

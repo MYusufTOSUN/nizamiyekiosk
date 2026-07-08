@@ -237,20 +237,6 @@ def _detect_character(text: str) -> str | None:
     return None
 
 
-# Konuşma ORTASINDA başka karaktere geçmek için açık niyet gerekir — yoksa
-# "fil saati nedir" gibi konu-kelimesi yanlışlıkla karakter değiştirmesin.
-# (Açılış seçim ekranında bu gerekmez; orada her isim seçer.)
-_SWITCH_CUES = (
-    "gelsin", "çağır", "getir", "geç", "değiştir", "konuşmak istiyorum",
-    "konuşalım", "ile konuş", "istiyorum", "bağla", "çıksın", "gel ",
-)
-
-
-def _wants_switch(text: str) -> bool:
-    t = _norm_tr(text)
-    return any(cue in t for cue in _SWITCH_CUES)
-
-
 _IMG_EXTS = ("png", "jpg", "jpeg", "webp")
 
 
@@ -494,6 +480,10 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, mi
         Barge KAPALI (varsayılan): sd.play + sd.wait — KANITLI, TAM bitene kadar
         çalar (duvar-saati poll + koşulsuz sd.stop YOK → cümle ortada kesilmez).
         Barge AÇIK: playback boyu referans-kapılı izle, tetiklenirse kes."""
+        # TEK ÇIKIŞ GEÇİDİ: TTS'e giden HER metin (selamlama, seçim istemi, fallback,
+        # deflection, üretilen cevap) son bir kez check_output'tan geçer. Kaba söz ya
+        # da kimlik sızıntısı HİÇBİR yoldan hoparlöre ulaşamaz (fail-closed güvenlik ağı).
+        text = safety.check_output(text, persona).text
         audio = await _collect_tts(text)
         secs = audio.size / E.SPEAKER_SR
         print(f"[tts] toplandı {secs:.2f}s ({audio.size} örnek)")
@@ -541,8 +531,9 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, mi
 
             if kiosk.history and (time.monotonic() - kiosk.last_activity) > IDLE_RESET_SECONDS:
                 kiosk.history.clear()
+                kiosk.selecting = True   # yeni ziyaretçi → açılış seçim ekranına dön
                 await hub.send("idle_reset", {})
-                print("[idle] uzun sessizlik — sohbet hafızası sıfırlandı")
+                print("[idle] uzun sessizlik — hafıza sıfırlandı, karakter seçimine dönüldü")
 
             # Geçerli persona'yı kiosk.persona_id'den çöz — panel/ses seçimi onu
             # değiştirmiş olabilir (closure'daki persona böylece güncellenir).
@@ -573,14 +564,18 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, mi
                 continue
             print(f"[ziyaretçi] {text}  (conf={confidence:.2f})")
             kiosk.last_activity = time.monotonic()
-            await hub.send("transcription_received", {"text": text})
+            # Ekrana/panele giden transkripsiyon: kaba söz varsa nötr yer-tutucu
+            # gösterilir (halka açık ekranda küfür belirmez). Sınıflandırma/seçim
+            # içeride HAM 'text' ile yapılır (filtre doğru çalışsın).
+            await hub.send("transcription_received", {"text": safety.sanitize_for_history(text)})
 
             # --- AÇILIŞ / KARAKTER SEÇİMİ (sesle ismini söyleyince o gelir) ---
+            # KARAKTER KİLİDİ: geçiş YALNIZCA açılış seçim ekranında (selecting=True).
+            # Sohbete bir kez girdikten sonra ziyaretçi başka karakterin ismini söylese
+            # bile KARAKTER DEĞİŞMEZ — o isim normal sohbet akışında ele alınır. Yeni
+            # ziyaretçi için seçim ekranı idle-reset ile geri gelir.
             chosen = _detect_character(text)
-            if chosen and (
-                kiosk.selecting
-                or (chosen != kiosk.persona_id and _wants_switch(text))
-            ):
+            if chosen and kiosk.selecting:
                 kiosk.persona_id = chosen
                 kiosk.selecting = False
                 persona = get_persona(chosen) or persona
@@ -683,7 +678,12 @@ async def audio_loop(kiosk, hub, *, stt, tts, rag, llm, safety, persona, cfg, mi
             print(f"[zaman] yanıt({source})={time.monotonic() - t_resp0:.2f}s")
             print(f"[{persona.name}/{source}] {response}")
             await hub.send("llm_response_completed", {"source": source, "text": response})
-            kiosk.history.append(DialogueTurn(role="visitor", text=text))
+            # ÇOK-TURLU SIZINTI önleme: ziyaretçinin HAM sözünü değil, sanitize edilmiş
+            # halini geçmişe yaz — kaba söz varsa nötr yer-tutucu saklanır, böylece
+            # sonraki turda LLM grounding'den o kelimeyi TEKRARLAYAMAZ.
+            kiosk.history.append(
+                DialogueTurn(role="visitor", text=safety.sanitize_for_history(text))
+            )
             kiosk.history.append(DialogueTurn(role="persona", text=response))
             del kiosk.history[:-20]
             kiosk.last_activity = time.monotonic()

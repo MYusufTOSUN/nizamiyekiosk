@@ -39,6 +39,7 @@
   button.act:active{transform:translateY(1px)}
   button.act:disabled{opacity:.45; cursor:not-allowed}
   .b-primary{background:linear-gradient(135deg,#f3d488,#e6b94e); grid-column:1 / -1; font-size:1.2rem; padding:22px}
+  .b-select{background:linear-gradient(135deg,#9f86e6,#7b5fd0); color:#fff; grid-column:1 / -1}
   .b-start{background:#43c479} .b-end{background:#8d97b6}
   .b-mute{background:#5b8def; color:#fff} .b-stop{background:#e0584f; color:#fff}
   .hint{font-size:.74rem; color:var(--muted); margin:-8px 2px 14px}
@@ -92,12 +93,13 @@
 
   <div class="controls">
     <button class="act b-primary" id="bNew">🔄 Yeni Ziyaretçi — Sıfırla</button>
+    <button class="act b-select" id="bSelect">🎭 Karakter Seçimine Dön</button>
     <button class="act b-start" id="bStart">▶ Oturum Başlat</button>
     <button class="act b-end" id="bEnd">⏹ Oturum Bitir</button>
     <button class="act b-mute" id="bInt">🔇 Sustur / Atla</button>
     <button class="act b-stop" id="bStop">🛑 Acil Durdur</button>
   </div>
-  <div class="hint">“Yeni Ziyaretçi”, oturumu kapatıp yenisini açar — önceki sohbet hafızası (bağlam) sıfırlanır.</div>
+  <div class="hint">“Yeni Ziyaretçi” oturumu kapatıp yenisini açar (bağlam sıfırlanır). “Karakter Seçimine Dön” ekranı dönen âlim seçim carousel’ine döndürür ve karakteri sıfırlar — ziyaretçi yeni âlim seçebilir.</div>
 
   <div class="card">
     <h3>Konuşma</h3>
@@ -135,7 +137,7 @@
 
   function start(){
     const dot=$('dot'), connTxt=$('connTxt');
-    const STATE_LABEL={idle:'BEKLEMEDE',welcome:'KARŞILAMA',listening:'DİNLİYOR',selection:'DİNLİYOR',thinking:'DÜŞÜNÜYOR',speaking:'KONUŞUYOR',farewell:'VEDA',error:'HATA'};
+    const STATE_LABEL={idle:'BEKLEMEDE',welcome:'KARŞILAMA',listening:'DİNLİYOR',selection:'KARAKTER SEÇİMİ',thinking:'DÜŞÜNÜYOR',speaking:'KONUŞUYOR',farewell:'VEDA',error:'HATA'};
     const SRC_LABEL={rag:'HAZIR CEVAP',generated:'CLAUDE',fallback:'GÜVENLİK',greeting:'SELAM'};
     function setState(s){ const el=$('state'); el.textContent=STATE_LABEL[s]||s||'—'; el.className='badge s-'+(s||'idle'); }
     function log(t,cls){ const d=$('log'); const now=new Date().toLocaleTimeString('tr-TR'); d.innerHTML=`<div><span class="t">${now}</span> ${t}</div>`+d.innerHTML; }
@@ -159,6 +161,12 @@
     $('bEnd').onclick=async()=>{ const {ok,j}=await api('/api/v1/session/end'); log(ok?'⏹ oturum bitti':'⚠ '+(j.detail||'aktif oturum yok')); refreshStatus(); };
     $('bInt').onclick=async()=>{ await api('/api/v1/interrupt'); log('🔇 sustur/atla'); };
     $('bStop').onclick=async()=>{ if(!confirm('ACİL DURDUR: çalışan tur kesilecek ve oturum kapanacak. Onaylıyor musun?')) return; await api('/api/v1/emergency_stop'); log('🛑 ACİL DURDUR'); refreshStatus(); };
+    $('bSelect').onclick=async()=>{
+      if(!confirm('Karakter seçim ekranına dönülecek: çalışan tur kesilir, oturum kapanır ve karakter seçimi sıfırlanır. Devam?')) return;
+      const {ok,j}=await api('/api/v1/selection');
+      turnsEl.innerHTML='<div class="empty">Karakter seçim ekranı — âlim bekleniyor.</div>'; hasTurn=false; $('lat').textContent='—';
+      log(ok?'🎭 KARAKTER SEÇİMİNE DÖNÜLDÜ (carousel)':'⚠ '+(j.detail||'')); refreshStatus();
+    };
     $('bNew').onclick=async()=>{
       if(!confirm('Yeni ziyaretçi: mevcut oturum kapatılıp sohbet hafızası sıfırlanacak. Devam?')) return;
       await api('/api/v1/session/end'); const {ok,j}=await api('/api/v1/session/start');

@@ -46,6 +46,19 @@ class ClaudeConfig(BaseModel):
     api_key: str | None = None
     timeout_seconds: float = 30.0
 
+    # === HIZ AYARLARI (kiosk için tavan hız) ===
+    # PROMPT CACHING: dev persona system prompt'u önbelleğe alınır (cache_control).
+    # Kiosk aynı persona ile sürekli çağrı yapar → ilk çağrıdan sonra system prefix
+    # CACHE'ten okunur: TTFT ~10x düşer, maliyet ~%90 azalır. RAG grounding ayrı,
+    # önbelleksiz blokta (değişken; prefix-cache'i bozmaz).
+    use_prompt_cache: bool = True
+    # THINKING: kısa persona cevapları derin akıl yürütme gerektirmez → kapat (hız).
+    #   "disabled" (varsayılan, en hızlı) | "adaptive" (kalite gerekiyorsa) | "" (gönderme)
+    thinking: str = "disabled"
+    # EFFORT: Sonnet 4.6 varsayılanı "high" (gereksiz gecikme). Kısa kiosk cevapları
+    # için "low" yeterli ve çok daha hızlı. Kalite düşerse "medium" yap. "" => gönderme.
+    effort: str = "low"
+
     model_config = {"extra": "ignore", "protected_namespaces": ()}
 
 
@@ -89,18 +102,33 @@ class ClaudeCloudLLM(LLMProvider):
         question: str,
         persona: PersonaConfig,
         context: ConversationContext | None,
-    ) -> tuple[str, list[dict[str, str]]]:
-        """Anthropic icin (system, messages) uret. Anthropic'te system AYRI alandir."""
-        system = persona.system_prompt + _INJECTION_GUARD
+    ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+        """Anthropic icin (system_blocks, messages) uret. system AYRI alandir.
 
-        # RAG grounding: esik alti en yakin onayli cevaplar few-shot olarak.
+        PROMPT CACHING: STABLE persona prompt'u (her çağrıda aynı) cache_control'lü
+        ilk blokta → önbelleğe yazılır/okunur. DEĞİŞKEN RAG grounding AYRI, sonraki
+        önbelleksiz blokta → prefix-cache'i bozmaz (skill 'shared prefix, varying
+        suffix' deseni). Persona prompt ~3-4K token > Sonnet 4.6 min 2048 → cache'lenir.
+        """
+        stable_system = persona.system_prompt + _INJECTION_GUARD
+        if self.config.use_prompt_cache:
+            system_blocks: list[dict[str, Any]] = [
+                {"type": "text", "text": stable_system,
+                 "cache_control": {"type": "ephemeral"}}
+            ]
+        else:
+            system_blocks = [{"type": "text", "text": stable_system}]
+
+        # RAG grounding: esik alti en yakin onayli cevaplar few-shot olarak — AYRI
+        # blok (degisken; cache_control YOK ki persona prefix-cache'i bozulmasin).
         if context and context.retrieved:
             examples = "\n".join(f"- {r}" for r in context.retrieved[:3])
-            system += (
+            grounding = (
                 "\n\nBENZER SORULARA VERDİĞİN ONAYLI ÖRNEK CEVAPLAR "
                 "(üslubunu ve bilgini buradan al, kopyalama, kendi cümlenle söyle):\n"
                 + examples
             )
+            system_blocks.append({"type": "text", "text": grounding})
 
         messages: list[dict[str, str]] = []
         if context and context.turns:
@@ -124,7 +152,7 @@ class ClaudeCloudLLM(LLMProvider):
         # Anthropic kurali: ilk mesaj 'user' olmali. Bastaki 'assistant'lari at.
         while messages and messages[0]["role"] != "user":
             messages.pop(0)
-        return system, messages
+        return system_blocks, messages
 
     async def warmup(self, persona: PersonaConfig | None = None) -> int:
         """Startup'ta anahtar + baglanti dogrulamasi (fail-fast gorunurluk).
@@ -138,11 +166,23 @@ class ClaudeCloudLLM(LLMProvider):
         start = _t.perf_counter()
         client = self._ensure_client()
         try:
-            await client.messages.create(
-                model=self.config.model,
-                max_tokens=4,
-                messages=[{"role": "user", "content": "merhaba"}],
-            )
+            if persona is not None and self.config.use_prompt_cache:
+                # PERSONA CACHE PREWARM: persona prefix'ini ÖNDEN cache'e yaz ki ilk
+                # ziyaretçi cold-cache (yüksek TTFT) yaşamasın. (Festival birden çok
+                # persona kullanıyorsa her biri için ayrı warmup çağrılabilir.)
+                system, _msgs = self._build("merhaba", persona, None)
+                await client.messages.create(
+                    model=self.config.model,
+                    max_tokens=1,
+                    system=system,
+                    messages=[{"role": "user", "content": "merhaba"}],
+                )
+            else:
+                await client.messages.create(
+                    model=self.config.model,
+                    max_tokens=4,
+                    messages=[{"role": "user", "content": "merhaba"}],
+                )
         except Exception as exc:  # noqa: BLE001
             _log.warning("claude_warmup_failed", error=str(exc)[:160])
             raise
@@ -163,6 +203,12 @@ class ClaudeCloudLLM(LLMProvider):
             "system": system,
             "messages": messages,
         }
+        # HIZ: düşünmeyi kapat + düşük efor (kısa persona cevabı için yeterli, çok
+        # daha hızlı). Sabit gönderildikleri için prompt-cache'i bozmazlar.
+        if self.config.thinking in ("disabled", "adaptive"):
+            kwargs["thinking"] = {"type": self.config.thinking}
+        if self.config.effort:
+            kwargs["output_config"] = {"effort": self.config.effort}
         if self.config.temperature is not None:
             kwargs["temperature"] = self.config.temperature
 

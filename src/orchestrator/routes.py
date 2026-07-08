@@ -67,12 +67,23 @@ async def ready(request: Request) -> JSONResponse:
 async def status(request: Request) -> JSONResponse:
     store = _store(request)
     active = store.active
+    # Gerçek durum state machine'de (session.state pipeline'da senkron tutulmaz).
+    sm = request.app.state.state_machines.get(active.session_id) if active else None
+    if sm is not None:
+        state = sm.state.value
+    elif active is not None:
+        state = active.state.value
+    else:
+        state = SessionState.IDLE.value
     return JSONResponse(
         {
             "active_session": active.session_id if active else None,
-            "state": active.state.value if active else SessionState.IDLE.value,
+            "state": state,
             "current_persona": active.current_persona if active else None,
             "active_sessions_tracked": len(request.app.state.state_machines),
+            # Warmup (model ısıtma) tamamlandı mı — ekran 'Hazırlanıyor…' overlay'i
+            # bunu yoklar (True olunca seçim carousel'ini açar).
+            "ready": bool(getattr(request.app.state, "ready", False)),
         }
     )
 
@@ -171,6 +182,52 @@ async def interrupt(request: Request) -> JSONResponse:
             SceneCommand(command="stop_audio", params={}, request_id=uuid.uuid4().hex)
         )
     return JSONResponse({"status": "interrupted"})
+
+
+@router.post("/api/v1/selection")
+async def show_selection(request: Request) -> JSONResponse:
+    """Operatör 'Karakter Seçimi'ne dön — çalışan turu kes, oturumu kapat,
+    TEMİZ oturum aç ve sahneyi SELECTION (dönen carousel) durumuna al.
+
+    Karakter kilidi (``current_persona``) sıfırlanır; ziyaretçi yeni bir âlim
+    seçebilir. Ekran (ekran.html) ``state_changed`` → ``selection`` olayıyla
+    seçim carousel'ini gösterir.
+    """
+    app_state = request.app.state
+    # 1) Çalışan turu iptal et (sohbet ortasında basılırsa) + sesi sustur.
+    cancel_ev = getattr(app_state, "active_cancel_event", None)
+    if cancel_ev is not None:
+        cancel_ev.set()
+    scene = app_state.providers.get("scene") if hasattr(app_state, "providers") else None
+    if scene is not None:
+        await scene.send_command(
+            SceneCommand(command="stop_audio", params={}, request_id=uuid.uuid4().hex)
+        )
+    # 2) Mevcut oturumu kapat.
+    store = _store(request)
+    active = store.active
+    if active is not None:
+        await store.end_async(active.session_id)
+        _drop_state_machine(request, active.session_id)
+    # 3) Temiz oturum (current_persona=None) + state machine → SELECTION.
+    session = await store.create_async()
+    sm = StateMachine(session.session_id, initial_state=session.state)
+    request.app.state.state_machines[session.session_id] = sm
+
+    async def broadcast(event: SessionEvent) -> None:
+        for queue in _broadcast_listeners(request):
+            try:
+                queue.put_nowait(event)
+            except asyncio.QueueFull:
+                pass
+
+    sm.add_listener(broadcast)
+    await sm.transition_to(SessionState.SELECTION)
+    await broadcast(
+        SessionEvent(session_id=session.session_id, type="session_started", data={})
+    )
+    sessions_total.labels(status="selection").inc()
+    return JSONResponse({"session_id": session.session_id, "state": sm.state.value})
 
 
 @router.get("/api/v1/metrics")

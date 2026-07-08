@@ -83,24 +83,54 @@
   @keyframes turn{to{transform:rotateY(360deg)}}
   .ccard{position:absolute; left:50%; top:50%; width:210px; height:300px; margin:-150px 0 0 -105px;
          transform-style:preserve-3d; text-align:center}
-  .cimg{width:210px; height:248px; border-radius:14px; object-fit:cover;
-        background:radial-gradient(circle at 50% 35%, #15314a 0%, #0b1c2e 70%, #060f1a 100%);
-        border:1px solid #7fe9ff44; box-shadow:0 0 38px #7fe9ff33, inset 0 0 40px #0008;
-        filter:saturate(1.05) brightness(1.02)}
-  .cph{width:210px; height:248px; border-radius:14px; display:flex; align-items:center; justify-content:center;
-       font-family:"Georgia",serif; font-size:5rem; color:var(--gold-soft);
-       background:radial-gradient(circle at 50% 35%, #1a2440 0%, #0b1430 72%, #060c1a 100%);
-       border:1px solid #7fe9ff44; box-shadow:0 0 38px #7fe9ff33, inset 0 0 40px #0008; text-shadow:0 0 24px #7fe9ff66}
+  /* SVG holografik figür kartı (fotoğraf değil) */
+  .choloWrap{position:relative; width:210px; height:258px; border-radius:14px; overflow:hidden;
+       background:radial-gradient(circle at 50% 30%, #0d2740 0%, #08172a 62%, #050c18 100%);
+       border:1px solid #7fe9ff55; box-shadow:0 0 40px #7fe9ff2e, inset 0 0 46px #0009}
+  .cholo{position:absolute; inset:0; width:100%; height:100%;
+       filter:drop-shadow(0 0 5px #7fe9ffaa) drop-shadow(0 0 16px #38c6ff55);
+       animation:holoflicker 4.5s linear infinite}
+  /* ince tarama çizgileri (sürekli akan) */
+  .choloWrap::after{content:""; position:absolute; inset:0; pointer-events:none; mix-blend-mode:screen;
+       background:repeating-linear-gradient(0deg,#7fe9ff00 0 2px,#7fe9ff16 2px 3px,#7fe9ff00 3px 5px);
+       animation:holoscan 5.5s linear infinite}
+  /* yukarıdan aşağı süzülen parlak tarama bandı */
+  .choloWrap::before{content:""; position:absolute; left:0; right:0; height:40%; top:-40%; z-index:1;
+       pointer-events:none; background:linear-gradient(#7fe9ff00,#7fe9ff22 58%,#7fe9ff00);
+       animation:holoband 4.8s ease-in-out infinite}
+  @keyframes holoscan{to{background-position:0 -110px}}
+  @keyframes holoband{0%{top:-40%}58%,100%{top:118%}}
+  @keyframes holoflicker{0%,100%{opacity:.92}47%{opacity:.85}50%{opacity:1}53%{opacity:.9}}
   .cname{margin-top:.6em; font-family:"Georgia",serif; font-size:1.25rem; color:var(--cream);
          letter-spacing:.04em; text-shadow:0 0 16px #e6b94e55}
   .cera{display:block; font-size:.7rem; color:var(--muted); letter-spacing:.1em; margin-top:.2em}
   .listening-pulse{margin-top:2vh; color:var(--holo); letter-spacing:.2em; font-size:.85rem;
                    opacity:.55; animation:breathe 2s ease-in-out infinite}
+
+  /* ===== AÇILIŞ HAZIRLIK OVERLAY'İ (modeller ısınana dek) ===== */
+  .boot{position:fixed; inset:0; z-index:20; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:2.4vh;
+        background:radial-gradient(900px 600px at 50% 40%, #1a1436 0%, var(--bg1) 55%, var(--bg0) 100%);
+        transition:opacity .6s ease}
+  .boot.hidden{opacity:0; pointer-events:none}
+  .bootspin{width:66px; height:66px; border-radius:50%;
+        border:4px solid #e6b94e2e; border-top-color:var(--gold);
+        animation:spin 1s linear infinite}
+  .boottext{color:var(--gold-soft); letter-spacing:.14em;
+        font-size:clamp(1.1rem,2.8vw,1.7rem); text-shadow:0 0 24px #e6b94e44}
+  .bootsub{color:var(--muted); letter-spacing:.1em; font-size:.85rem}
 </style>
 </head>
 <body data-state="idle">
   <div class="brand">NİZAMİYE MEDRESESİ<small>İLİM &amp; HİKMET MECLİSİ</small></div>
   <span class="dot" id="dot" title="bağlantı"></span>
+
+  <!-- Açılış hazırlık overlay'i: modeller (STT/TTS/RAG) ısınana dek gösterilir -->
+  <div class="boot" id="boot">
+    <div class="bootspin"></div>
+    <div class="boottext">Âlimler hazırlanıyor…</div>
+    <div class="bootsub">Sistem başlatılıyor, lütfen birkaç saniye bekleyin</div>
+  </div>
 
   <!-- Seçim ekranı: dönen hologramlar -->
   <div class="chooser">
@@ -153,7 +183,58 @@
     footEl.textContent=p.name.toUpperCase()+(p.era?(" · "+p.era):"");
     qEl.classList.remove('show'); aEl.classList.remove('show');
   }
-  // Carousel kartlarını kur (dönen hologramlar)
+  // === Holografik SVG figür (fotoğraf yerine — "hologram gibi") ===
+  // Karaktere özel amblem: El-Cezerî=çark/dişli, Gazâlî=açık kitap, diğer=yıldız.
+  const HOLO_EMBLEM={
+    cezeri:'<g transform="translate(105,206)" stroke="#cdf6ff" stroke-opacity=".92" fill="none">'+
+      '<circle r="14" fill="#7fe9ff" fill-opacity=".16" stroke-width="1.6"/><circle r="5.5" stroke-width="1.4"/>'+
+      '<g stroke-width="2.4" stroke-linecap="round">'+
+      '<line y1="-14" y2="-19"/><line y1="14" y2="19"/><line x1="-14" x2="-19"/><line x1="14" x2="19"/>'+
+      '<line x1="-10" y1="-10" x2="-13.4" y2="-13.4"/><line x1="10" y1="10" x2="13.4" y2="13.4"/>'+
+      '<line x1="10" y1="-10" x2="13.4" y2="-13.4"/><line x1="-10" y1="10" x2="-13.4" y2="13.4"/></g></g>',
+    gazali:'<g transform="translate(105,205)" stroke="#cdf6ff" stroke-width="1.5" stroke-opacity=".92" fill="#7fe9ff" fill-opacity=".16">'+
+      '<path d="M0,-9 C-6,-13 -15,-13 -19,-10 L-19,9 C-15,6 -6,6 0,9 C6,6 15,6 19,9 L19,-10 C15,-13 6,-13 0,-9 Z"/>'+
+      '<line x1="0" y1="-9" x2="0" y2="9" stroke-width="1.4"/><g stroke-width=".9" stroke-opacity=".5">'+
+      '<line x1="-15" y1="-5" x2="-4" y2="-4.4"/><line x1="-15" y1="0" x2="-4" y2=".4"/><line x1="-15" y1="5" x2="-4" y2="5.4"/>'+
+      '<line x1="4" y1="-4.4" x2="15" y2="-5"/><line x1="4" y1=".4" x2="15" y2="0"/><line x1="4" y1="5.4" x2="15" y2="5"/></g></g>',
+    nizamulmulk:'<g transform="translate(105,205)" stroke="#cdf6ff" stroke-width="1.5" stroke-opacity=".92" fill="none" stroke-linecap="round">'+
+      '<line x1="0" y1="-14" x2="0" y2="9"/><line x1="-15" y1="-10" x2="15" y2="-10"/>'+
+      '<circle cx="0" cy="-14" r="1.8" fill="#cdf6ff" stroke="none"/><line x1="-9" y1="9" x2="9" y2="9"/>'+
+      '<line x1="-15" y1="-10" x2="-15" y2="-6"/><line x1="15" y1="-10" x2="15" y2="-6"/>'+
+      '<path d="M-20,-6 A5 5 0 0 0 -10,-6 Z" fill="#7fe9ff" fill-opacity=".18"/>'+
+      '<path d="M10,-6 A5 5 0 0 0 20,-6 Z" fill="#7fe9ff" fill-opacity=".18"/></g>',
+    alparslan:'<g transform="translate(105,204)" stroke="#cdf6ff" stroke-width="1.5" stroke-opacity=".92" fill="#7fe9ff" fill-opacity=".14">'+
+      '<path d="M0,-15 C-9,-12 -14,-10 -14,-4 C-14,7 -7,13 0,16 C7,13 14,7 14,-4 C14,-10 9,-12 0,-15 Z"/>'+
+      '<path d="M5,-5 A7.5 7.5 0 1 0 5,9 A5.6 5.6 0 1 1 5,-5 Z" fill="#cdf6ff" fill-opacity=".55" stroke="none"/></g>'
+  };
+  function emblemFor(p){ return HOLO_EMBLEM[p.id]||
+    '<g transform="translate(105,205)" stroke="#cdf6ff" stroke-width="1.6" stroke-opacity=".9" fill="#7fe9ff" fill-opacity=".16">'+
+    '<path d="M0,-13 3.5,-4 13,-4 5.5,2.5 8.5,12 0,5.5 -8.5,12 -5.5,2.5 -13,-4 -3.5,-4 Z"/></g>'; }
+  function holoSVG(p){
+    const u=(p.id||p.name||'x').replace(/[^a-z0-9]/gi,'');
+    return '<svg class="cholo" viewBox="0 0 210 260" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">'+
+      '<defs>'+
+      '<linearGradient id="hb'+u+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdf6ff"/>'+
+      '<stop offset=".5" stop-color="#3fd2ff"/><stop offset="1" stop-color="#0a6ea0"/></linearGradient>'+
+      '<radialGradient id="hbase'+u+'" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#aef0ff" stop-opacity=".9"/>'+
+      '<stop offset="1" stop-color="#1ea0d8" stop-opacity="0"/></radialGradient></defs>'+
+      '<polygon points="105,150 168,246 42,246" fill="#7fe9ff" opacity=".06"/>'+
+      '<ellipse cx="105" cy="246" rx="70" ry="14" fill="url(#hbase'+u+')"/>'+
+      '<ellipse cx="105" cy="246" rx="50" ry="7.5" fill="none" stroke="#bdf6ff" stroke-width="1.2" opacity=".7"/>'+
+      '<g fill="url(#hb'+u+')" fill-opacity=".20" stroke="#9fefff" stroke-width="1.5" stroke-opacity=".92" stroke-linejoin="round">'+
+      '<path d="M58,238 C56,198 70,170 90,161 L120,161 C140,170 154,198 152,238 Z"/>'+      /* omuz/cübbe */
+      '<path d="M96,152 L114,152 L114,164 L96,164 Z" fill-opacity=".28"/>'+                 /* boyun */
+      '<ellipse cx="105" cy="122" rx="25" ry="29"/>'+                                       /* baş */
+      '<path d="M83,126 C84,152 96,170 105,170 C114,170 126,152 127,126 C120,138 90,138 83,126 Z" fill-opacity=".26"/>'+ /* sakal */
+      '<path d="M66,98 C66,72 90,58 105,58 C120,58 144,72 144,98 C144,100 142,102 138,102 C128,88 82,88 72,102 C68,102 66,100 66,98 Z"/>'+ /* sarık */
+      '<ellipse cx="105" cy="94" rx="34" ry="15" fill-opacity=".15"/></g>'+                 /* sarık vurgu */
+      '<path d="M97,118 q8,-6 16,0" stroke="#cdf6ff" stroke-width="1" stroke-opacity=".55" fill="none"/>'+ /* kaş */
+      emblemFor(p)+
+      '<g stroke="#7fe9ff" stroke-width="1" opacity=".16"><line x1="70" y1="112" x2="140" y2="112"/>'+
+      '<line x1="60" y1="152" x2="150" y2="152"/><line x1="56" y1="200" x2="154" y2="200"/></g>'+
+      '</svg>';
+  }
+  // Carousel kartlarını kur (dönen holografik figürler)
   function buildCarousel(list){
     cring.innerHTML='';
     const n=Math.max(list.length,1), radius= n<=2?300: (n<=3?320:360);
@@ -162,19 +243,22 @@
       const card=document.createElement('div');
       card.className='ccard';
       card.style.transform=`rotateY(${ang}deg) translateZ(${radius}px)`;
-      const img=document.createElement('img');
-      img.className='cimg'; img.src=p.image; img.alt=p.name;
-      img.onerror=function(){ const ph=document.createElement('div'); ph.className='cph';
-        ph.textContent=(p.name||'?').trim()[0]||'?'; card.replaceChild(ph,img); };
+      const holo=document.createElement('div');
+      holo.className='choloWrap';
+      holo.innerHTML=holoSVG(p);
       const nm=document.createElement('div'); nm.className='cname';
       nm.innerHTML=p.name+'<span class="cera">'+(p.era||'')+'</span>';
-      card.appendChild(img); card.appendChild(nm); cring.appendChild(card);
+      card.appendChild(holo); card.appendChild(nm); cring.appendChild(card);
     });
   }
   fetch('/api/v1/characters').then(r=>r.json()).then(j=>{
-    (j.characters||[]).forEach(p=>characters[p.id]=p);
-    buildCarousel(j.characters||[]);
-    if(j.current) setCharacter(j.current);
+    // API sözleşmesi: düz dizi döner ([{id,name,era,...}]). Eski {characters:[...]}
+    // biçimini de tolere et.
+    const list = Array.isArray(j) ? j : (j.characters||[]);
+    list.forEach(p=>characters[p.id]=p);
+    buildCarousel(list);
+    const cur = Array.isArray(j) ? null : j.current;
+    if(cur) setCharacter(cur);
   }).catch(()=>{});
 
   function wsURL(){ return (location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/events'; }
@@ -192,9 +276,23 @@
       else if(m.type==='transcription_received'){ if(d.text){ qEl.textContent=d.text; qEl.classList.add('show'); aEl.classList.remove('show'); } }
       else if(m.type==='llm_response_completed'){ if(d.text){ aEl.textContent=d.text; aEl.classList.add('show'); } }
       else if(m.type==='session_started'){ qEl.classList.remove('show'); aEl.classList.remove('show'); }
+      else if(m.type==='system_ready'){ markReady(); }
     };
   }
   connect();
+
+  // === Açılış hazırlık kapısı: warmup bitene dek 'Hazırlanıyor…' overlay ===
+  // İki sinyal (belt-and-suspenders): WS 'system_ready' olayı (anında) + /api/v1/status
+  // yoklaması (olay kaçarsa veya WS geç bağlanırsa). İlk gelen overlay'i kaldırır.
+  const bootEl=document.getElementById('boot');
+  let bootDone=false;
+  function markReady(){ if(bootDone) return; bootDone=true; bootEl.classList.add('hidden'); }
+  (function pollReady(){
+    if(bootDone) return;
+    fetch('/api/v1/status').then(r=>r.json()).then(j=>{
+      if(j&&j.ready){ markReady(); } else { setTimeout(pollReady,1000); }
+    }).catch(()=>setTimeout(pollReady,1500));
+  })();
   document.addEventListener('dblclick',()=>{ if(document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen(); });
 })();
 </script>

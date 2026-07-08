@@ -19,6 +19,31 @@ CHARACTER_KEYWORDS: dict[str, list[str]] = {
         "hüccetül islam",
         "hüccetü'l-islam",
     ],
+    # Selçuklu/Nizamiye teması — vezir:
+    "nizamulmulk": [
+        "nizamülmülk",
+        "nizamul mülk",
+        "nizamül mülk",
+        "nizam ül mülk",
+        "nizamulmulk",
+        "nizamulmülk",
+        "vezir",
+        "vezir nizamülmülk",
+        "büyük vezir",
+        "siyasetname",
+        "medrese kurucusu",
+    ],
+    # Selçuklu/Nizamiye teması — sultan: ALPARSLAN ŞİMDİLİK DEAKTİF (kullanıcı isteği).
+    # Geri açmak için bu bloğu yorumdan çıkar + persona/__init__.py'deki kaydı aç.
+    # "alparslan": [
+    #     "alparslan",
+    #     "alp arslan",
+    #     "alpaslan",
+    #     "sultan alparslan",
+    #     "sultan alp arslan",
+    #     "malazgirt",
+    #     "selçuklu sultanı",
+    # ],
     # Test/seçim ekranı için tutuluyor (asıl sergide yer almayacak):
     "cezeri": [
         "cezeri",

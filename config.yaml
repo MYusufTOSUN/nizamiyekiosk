@@ -30,7 +30,12 @@ stt:
     sample_rate: 16000
     beam_size: 5                  # çocuk/kısa cümle doğruluğu kritik → 1'den 5'e
     best_of: 5                    # ("sen nerelisin"i yanlış duyma riskini azaltır)
-    temperature: 0.0
+    # SICAKLIK FALLBACK: tek 0.0 yerine artan liste — greedy decode başarısız olursa
+    # (atipik/hızlı/kısık konuşma) bir üst sıcaklıkla tekrar dener, saçmalamayı toparlar.
+    temperature: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    compression_ratio_threshold: 2.4   # tekrarlı/uydurma çıktıyı reddet → fallback tetikler
+    loudness_normalize: true           # kısık/uzak/yüksek konuşanı aynı tepe seviyesine getir
+    target_peak: 0.97
     # Decoder'ı Türkçe + domain sözlüğüne yönlendir → "Cezeri", "fil saati",
     # "otomat", "dişli", "mıknatıs" gibi terimleri çocuk telaffuzunda daha iyi
     # yakalar. Ölçülü tut (uzun/isim-dolu prompt sessizlikte halüsinasyon riski).
@@ -52,6 +57,12 @@ llm:
     model: "claude-sonnet-4-6"   # Türkçe kalitesi + persona tutarlılığı
     max_tokens: 150
     timeout_seconds: 30.0
+    # HIZ: persona prompt'u önbelleğe al (TTFT/maliyet ~%90↓); düşünmeyi kapat +
+    # düşük efor (kısa kiosk cevabı derin akıl yürütme gerektirmez). Kalite düşerse
+    # effort'u "medium" yap ya da thinking'i "adaptive".
+    use_prompt_cache: true
+    thinking: "disabled"
+    effort: "low"
   # --- OFFLINE alternatif (internet yoksa) ---
   # provider: "llama_local"
   # config:

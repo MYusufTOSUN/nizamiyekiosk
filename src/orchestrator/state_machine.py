@@ -33,7 +33,8 @@ EventListener = Callable[[SessionEvent], Awaitable[None]]
 
 
 VALID_TRANSITIONS: dict[SessionState, set[SessionState]] = {
-    SessionState.IDLE: {SessionState.WELCOME, SessionState.ERROR},
+    # SELECTION: operatör panelinden "Karakter Seçimi"ne dönüş (temiz oturum → carousel)
+    SessionState.IDLE: {SessionState.WELCOME, SessionState.SELECTION, SessionState.ERROR},
     SessionState.WELCOME: {SessionState.LISTENING, SessionState.IDLE, SessionState.ERROR},
     SessionState.LISTENING: {
         SessionState.SELECTION,

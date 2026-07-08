@@ -29,7 +29,7 @@ from src.core.interfaces import (
     SessionState,
 )
 from src.core.logger import configure_logging, get_logger
-from src.llm.persona import get_persona
+from src.llm.persona import list_personas
 from src.orchestrator.monitor import gpu_vram_monitor
 from src.orchestrator.pipeline import ConversationPipeline
 from src.orchestrator.routes import router
@@ -91,47 +91,77 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
     )
 
-    # Warmup SIRASI KRİTİK: TTS (XTTS) önce yüklenmeli ki torch cuDNN context'i
-    # kurulsun; sonra Whisper (CTranslate2) ilk turda bunu kullanır ve XTTS
-    # GPU'da kalır (aksi halde Whisper-önce yüklenince XTTS CPU'ya düşüp 10x
-    # yavaşlardı). İlk inference JIT cezası da burada yutulur.
-    tts = providers["tts"]
-    if hasattr(tts, "warmup"):
-        try:
-            ms = await tts.warmup("cezeri")  # type: ignore[attr-defined]
-            _log.info("tts_warmup_done", ms=ms)
-        except Exception as exc:  # noqa: BLE001
-            _log.warning("tts_warmup_failed", error=str(exc))
+    # === NON-BLOCKING WARMUP (best-practice cold-start çözümü) ===
+    # ESKİDEN: warmup 'yield' öncesi sıralı çalışıyordu → sunucu tüm modeller
+    # yüklenene kadar HİÇBİR isteği (statik ekran.html dahil) kabul etmiyordu
+    # ("proje ilk açılınca çok bekliyor"). ARTIK: warmup ARKA PLANDA; sunucu
+    # anında açılır, ekran hemen gelir ve hazır olana dek 'Hazırlanıyor…' gösterir.
+    # Ayrıca TÜM aktif karakterler ısıtılır (yalnız cezeri değil) → hangi âlim
+    # seçilirse seçilsin ilk cevap soğuk-start yaşamaz ("seçince bekletiyor" çözümü).
+    app.state.ready = False
 
-    # LLM warmup — ilk ziyaretçi cold KV-cache yaşamasın
-    llm = providers["llm"]
-    persona = get_persona("cezeri")
-    if persona is not None and hasattr(llm, "warmup"):
-        try:
-            ms = await llm.warmup(persona)  # type: ignore[attr-defined]
-            _log.info("llm_warmup_done", ms=ms)
-        except Exception as exc:  # noqa: BLE001
-            _log.warning("llm_warmup_failed", error=str(exc))
+    async def _warmup_all() -> None:
+        import time as _t
 
-    # STT warmup — Whisper'i VRAM'e yukle (XTTS'ten SONRA: cuDNN context hazir).
-    # Ilk ziyaretci cold model-load (~3 sn) + kernel JIT yasamaz; pik VRAM
-    # startup'ta belli olur (festivalde sonradan OOM surprizi olmaz).
-    stt = providers["stt"]
-    if hasattr(stt, "warmup"):
+        t0 = _t.perf_counter()
+        tts = providers["tts"]
+        stt = providers["stt"]
+        llm = providers["llm"]
+        rag = providers["rag"]
+        personas = list_personas()
+        # cuDNN SIRASI KRİTİK: XTTS modeli Whisper'DAN ÖNCE yüklenmeli (torch cuDNN
+        # context'i XTTS kursun; aksi halde XTTS CPU'ya düşüp ~10x yavaşlar).
+        first_voice = personas[0].voice_id if personas else "cezeri"
         try:
-            ms = await stt.warmup()  # type: ignore[attr-defined]
-            _log.info("stt_warmup_done", ms=ms)
-        except Exception as exc:  # noqa: BLE001
-            _log.warning("stt_warmup_failed", error=str(exc))
+            if hasattr(tts, "warmup"):
+                try:
+                    ms = await tts.warmup(first_voice)  # type: ignore[attr-defined]
+                    _log.info("tts_warmup_done", voice=first_voice, ms=ms)
+                except Exception as exc:  # noqa: BLE001
+                    _log.warning("tts_warmup_failed", error=str(exc))
+            if hasattr(stt, "warmup"):
+                try:
+                    ms = await stt.warmup()  # type: ignore[attr-defined]
+                    _log.info("stt_warmup_done", ms=ms)
+                except Exception as exc:  # noqa: BLE001
+                    _log.warning("stt_warmup_failed", error=str(exc))
+            # HER aktif karakter için: RAG koleksiyonu + LLM prompt-cache + TTS latent.
+            # (RAG e5/reranker ilk çağrıda shared yüklenir; sonraki personalar yalnız
+            # kendi Chroma koleksiyonunu ısıtır. XTTS ilk voice'u yüklü; kalanlar yalnız
+            # speaker-latent hesaplar.)
+            for p in personas:
+                if hasattr(rag, "warmup"):
+                    try:
+                        await rag.warmup(p.id)  # type: ignore[attr-defined]
+                    except Exception as exc:  # noqa: BLE001
+                        _log.warning("rag_warmup_failed", persona=p.id, error=str(exc))
+                if hasattr(llm, "warmup"):
+                    try:
+                        await llm.warmup(p)  # type: ignore[attr-defined]
+                    except Exception as exc:  # noqa: BLE001
+                        _log.warning("llm_warmup_failed", persona=p.id, error=str(exc))
+                if hasattr(tts, "warmup"):
+                    try:
+                        await tts.warmup(p.voice_id)  # type: ignore[attr-defined]
+                    except Exception as exc:  # noqa: BLE001
+                        _log.warning("tts_warmup_failed", persona=p.id, error=str(exc))
+        finally:
+            # Kısmi hata olsa bile kapı sonsuza kilitlenmesin: her durumda hazır işaretle.
+            app.state.ready = True
+            _log.info(
+                "warmup_all_done",
+                personas=len(personas),
+                ms=int((_t.perf_counter() - t0) * 1000),
+            )
+            # Ekran/panel 'Hazırlanıyor…' overlay'ini kaldırsın diye hazır sinyali.
+            ready_ev = SessionEvent(session_id="system", type="system_ready", data={})
+            for q in event_listeners:
+                try:
+                    q.put_nowait(ready_ev)
+                except asyncio.QueueFull:
+                    pass
 
-    # RAG warmup — e5 + reranker CPU'da once yuklensin (ilk sorgu hizli olsun)
-    rag = providers["rag"]
-    if hasattr(rag, "warmup"):
-        try:
-            ms = await rag.warmup("cezeri")  # type: ignore[attr-defined]
-            _log.info("rag_warmup_done", ms=ms)
-        except Exception as exc:  # noqa: BLE001
-            _log.warning("rag_warmup_failed", error=str(exc))
+    warmup_task = asyncio.create_task(_warmup_all())
 
     # Arka plan görevleri: watchdog + VRAM monitor (M3)
     watchdog_task = asyncio.create_task(
@@ -145,7 +175,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
     _log.info("shutdown")
-    for t in (watchdog_task, vram_task):
+    for t in (warmup_task, watchdog_task, vram_task):
         t.cancel()
         try:
             await t
@@ -193,6 +223,15 @@ async def ws_audio(websocket: WebSocket) -> None:
     """Ziyaretçi mikrofonundan PCM stream alır, pipeline'ı çalıştırır."""
     await websocket.accept()
     app_state: Any = websocket.app.state
+
+    # WARMUP KAPISI: modeller (XTTS→Whisper DOĞRU SIRADA) yüklenene kadar bekle.
+    # Aksi halde ilk tur run_turn'ün lazy-load'u arka plan warmup'ıyla yarışıp
+    # XTTS'i CPU'ya düşürebilir (kalıcı ~10x yavaşlama). Kurulum ilk ~1 dk sürer;
+    # ziyaretçi o an etkileşime girmez. 60 sn sonra yine de devam et (güvenlik).
+    waited = 0.0
+    while not getattr(app_state, "ready", True) and waited < 60.0:
+        await asyncio.sleep(0.2)
+        waited += 0.2
 
     sessions: SessionStore = app_state.sessions
     session = sessions.active

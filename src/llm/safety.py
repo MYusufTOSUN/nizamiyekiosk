@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from src.core.interfaces import PersonaConfig
 from src.core.logger import get_logger
 from src.intent.detector import turkish_lower
+from src.llm import profanity
 
 _log = get_logger(component="llm.safety")
 
@@ -329,43 +330,61 @@ class SafetyFilter:
                 if _has_word(n, kw):
                     _log.info("safety_input", category=category, kw=kw)
                     return category
+        # Kapsamlı küfür/kaba-söz (evazyon-dayanıklı; ham + kanonik metin). Yukarıdaki
+        # özel kategoriler (self_worth "ben aptalım" vb.) ÖNCELİKLİ kaldı; geri kalan
+        # tüm kaba söz buraya düşer → LLM çağrılmadan nazik "inappropriate" fallback.
+        if profanity.contains(text):
+            _log.info("safety_input", category="inappropriate", kw="profanity")
+            return "inappropriate"
         return None
 
     def check_output(self, text: str, persona: PersonaConfig) -> OutputVerdict:
-        """LLM çıktısını tara; güvensizse persona fallback'ine çevir."""
-        n = _norm(text)
-        if not n:
-            return OutputVerdict(
-                safe=False,
-                text=self._fallback(persona, "unknown_modern"),
-                reason="empty",
-            )
+        """LLM/kurate çıktısını tara; güvensizse persona fallback'ine çevir.
 
-        for kw in PROFANITY_ROOTS:
-            if _has_word(n, kw):
-                _log.warning("safety_output_profanity", kw=kw)
+        ASIL GÜVENLİK AĞI — TTS'e giden son nokta. FAIL-CLOSED: herhangi bir hata
+        (None, dev metin, regex) olursa güvenli fallback döner (fail-open OLMAZ).
+        Küfür/kaba-söz hem ham hem KANONİK metinde aranır (evazyon-dayanıklı:
+        'b o k', 'b0k', 'boook'); giriş filtresi kaçırsa bile çıkış yakalar.
+        """
+        try:
+            n = _norm(text)
+            if not n:
+                return OutputVerdict(
+                    safe=False,
+                    text=self._fallback(persona, "unknown_modern"),
+                    reason="empty",
+                )
+
+            # Kapsamlı küfür/kaba-söz (profanity modülü: ham + kanonik, wb + substring).
+            hit = profanity.find(text)
+            if hit:
+                _log.warning("safety_output_profanity", kw=hit)
                 return OutputVerdict(
                     safe=False, text=self._fallback(persona, "inappropriate"), reason="profanity"
                 )
 
-        for kw in OUTPUT_INSULTS:
-            if _has_word(n, kw):
-                _log.warning("safety_output_insult", kw=kw)
-                return OutputVerdict(
-                    safe=False, text=self._fallback(persona, "inappropriate"), reason="insult"
-                )
+            for pat in META_AI_PATTERNS:
+                if pat in n:
+                    _log.warning("safety_output_meta_ai", pattern=pat)
+                    # Karaktere döndüren "identity" fallback.
+                    return OutputVerdict(
+                        safe=False,
+                        text=self._fallback(persona, "identity"),
+                        reason="meta_ai_leak",
+                    )
 
-        for pat in META_AI_PATTERNS:
-            if pat in n:
-                _log.warning("safety_output_meta_ai", pattern=pat)
-                # Karaktere döndüren "identity" fallback.
-                return OutputVerdict(
-                    safe=False,
-                    text=self._fallback(persona, "identity"),
-                    reason="meta_ai_leak",
-                )
+            return OutputVerdict(safe=True, text=text)
+        except Exception as exc:  # noqa: BLE001 — FAIL-CLOSED: hata = güvensiz say
+            _log.error("safety_check_output_error", error=str(exc))
+            return OutputVerdict(
+                safe=False, text=self._fallback(persona, "inappropriate"), reason="error"
+            )
 
-        return OutputVerdict(safe=True, text=text)
+    def sanitize_for_history(self, text: str) -> str:
+        """Ziyaretçi metnini geçmişe/ekrana yazmadan ÖNCE kaba sözden temizle:
+        kaba söz varsa nötr yer-tutucu döner (sonraki turda LLM grounding'den
+        kaba kelimeyi TEKRARLAMASIN). Temizse metni aynen döndürür."""
+        return profanity.sanitize_for_history(text)
 
     @staticmethod
     def _fallback(persona: PersonaConfig, key: str) -> str:
