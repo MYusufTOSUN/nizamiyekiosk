@@ -208,6 +208,9 @@ class Kiosk:
     history: list[DialogueTurn] = field(default_factory=list)
     llm_ok: bool = True
     mic_ok: bool = True
+    # Ekranın boot-overlay'i bunu bekler: /api/v1/status 'ready' + WS 'system_ready'.
+    # Server _boot() bittikten sonra kalktığı için main() bunu True ile kurar.
+    ready: bool = False
     last_activity: float = field(default_factory=time.monotonic)
 
 
@@ -295,6 +298,7 @@ def build_app(hub: Hub, kiosk: Kiosk, op_token: str) -> FastAPI:
             "current_persona": kiosk.persona_id,
             "llm_ok": kiosk.llm_ok,
             "mic_ok": kiosk.mic_ok,
+            "ready": kiosk.ready,
         })
 
     async def _set_state(s: str) -> None:
@@ -374,6 +378,8 @@ def build_app(hub: Hub, kiosk: Kiosk, op_token: str) -> FastAPI:
         hub.clients.add(ws)
         with contextlib.suppress(Exception):
             await ws.send_json({"type": "state_changed", "data": {"new": kiosk.state}})
+            if kiosk.ready:
+                await ws.send_json({"type": "system_ready", "data": {}})
         try:
             while True:
                 await ws.receive_text()
@@ -815,7 +821,11 @@ async def main(opts: Opts) -> int:
     barge = E.BargeDetector(cal, opts.barge_cfg)
 
     hub = Hub()
-    kiosk = Kiosk(persona_id="gazali", session_id=uuid.uuid4().hex, llm_ok=llm_ok)
+    # ready=True: _boot() (modeller) bu noktada tamamlandı; server bundan sonra
+    # kalkıyor → ekranın boot-overlay'i status/ws üzerinden anında kapanır.
+    kiosk = Kiosk(
+        persona_id="gazali", session_id=uuid.uuid4().hex, llm_ok=llm_ok, ready=True
+    )
     op_token = os.environ.get("BFEST_OP_TOKEN", "1206")
     app = build_app(hub, kiosk, op_token)
     server = uvicorn.Server(
