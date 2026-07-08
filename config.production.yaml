@@ -36,12 +36,7 @@ stt:
     sample_rate: 16000
     beam_size: 5            # festival: kalite > hız
     best_of: 5
-    # SICAKLIK FALLBACK: atipik/hızlı/kısık konuşmada greedy decode saçmalarsa
-    # bir üst sıcaklıkla tekrar dener (en kritik doğruluk kaldıracı).
-    temperature: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
-    compression_ratio_threshold: 2.4   # tekrarlı/uydurma çıktıyı reddet → fallback tetikler
-    loudness_normalize: true           # kısık/uzak/yüksek konuşanı aynı seviyeye getir
-    target_peak: 0.97
+    temperature: 0.0
     initial_prompt: "El-Cezerî ile robot, otomat, fil saati, su saati, dişli çark, mıknatıs ve bilim hakkında Türkçe sohbet."
     vad_threshold: 0.5
     min_speech_duration_ms: 250
@@ -67,12 +62,6 @@ llm:
     model: "claude-sonnet-4-6"  # Türkçe kalitesi + persona tutarlılığı (Haiku 'Eisa' gibi typo yapıyordu)
     max_tokens: 150             # persona "max 2 cumle"; kisa tut
     timeout_seconds: 30.0
-    # HIZ (tavan): persona prompt'unu önbelleğe al (TTFT/maliyet ~%90↓); düşünmeyi
-    # kapat + düşük efor (kısa kiosk cevabı için yeterli, çok daha hızlı).
-    # Kalite düşerse: effort "medium" ya da thinking "adaptive".
-    use_prompt_cache: true
-    thinking: "disabled"
-    effort: "low"
   # --- OFFLINE alternatif (internet yoksa) — provider'i 'llama_local' yapip
   #     config'i asagidakiyle degistir (yerel GGUF, ~2.8 GB VRAM, ~10 tok/s):
   #   provider: "llama_local"
