@@ -52,10 +52,10 @@ import sys
 import time
 from pathlib import Path
 
-# Festivalde kullanılacak mikrofon. JBL Wave Beam 2 için index 24 ya da daha
-# sağlam olarak isimle "Hands-Free". Cihaz değişirse burayı düzenle ya da
-# komuta --device <N> geç.  (Bulmak için: scripts/mic_level_check.py)
-DEFAULT_DEVICE = "1"
+# Mikrofon: None → SİSTEM VARSAYILANI (laptopun default mikrofonu). Belirli bir
+# cihaz istersen index ("1") ya da isim ("Shure MV5") yaz, ya da komuta
+# --device <N> geç.  (Bulmak için: scripts/mic_level_check.py)
+DEFAULT_DEVICE: str | None = None
 
 ROOT = Path(__file__).resolve().parent
 VENV_PY = ROOT / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
@@ -93,7 +93,9 @@ def main() -> int:
             supervise = False
         else:
             args.append(a)
-    if not any(a == "--device" or a.startswith("--device=") for a in args):
+    if DEFAULT_DEVICE is not None and not any(
+        a == "--device" or a.startswith("--device=") for a in args
+    ):
         args = ["--device", DEFAULT_DEVICE, *args]
 
     cmd = [str(VENV_PY), str(FESTIVAL), *args]
