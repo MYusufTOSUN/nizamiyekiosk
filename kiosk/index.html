@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Nizamiye Medresesi — Kiosk</title>
+<style>
+  :root{
+    --ink:#0b1020; --ink2:#131a2e; --ink3:#1a2340; --line:rgba(227,181,82,.18);
+    --line2:rgba(227,181,82,.4); --gold:#e3b552; --goldb:#f6d98a; --cream:#f3ead4;
+    --soft:#c7ccdb; --muted:#8a93ac; --good:#7fd39a; --bad:#e5906f;
+    --serif:Georgia,'Times New Roman',serif; --sans:system-ui,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  html,body{height:100%;overflow:hidden}
+  body{background:var(--ink);color:var(--cream);font-family:var(--sans);touch-action:manipulation}
+  img{pointer-events:none;-webkit-user-drag:none}
+
+  /* dekor: tezhip dokusu */
+  .pattern{position:fixed;inset:0;pointer-events:none;opacity:.05;z-index:0;
+    background:repeating-conic-gradient(from 22.5deg at 50% 50%,var(--gold) 0 1deg,transparent 1deg 45deg);
+    background-size:64px 64px}
+
+  .screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;
+    justify-content:center;padding:3vmin;z-index:1}
+  .screen.active{display:flex}
+
+  h1{font-family:var(--serif);color:var(--goldb);letter-spacing:.02em;text-align:center}
+  .eyebrow{font-size:1.9vmin;letter-spacing:.4em;color:var(--gold);text-transform:uppercase;font-weight:700}
+
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  button:disabled{opacity:.4;cursor:default}
+
+  /* ---------- ANA EKRAN ---------- */
+  #attract h1{font-size:8vmin;margin:.4em 0 .1em}
+  #attract .sub{font-size:2.6vmin;color:var(--soft);text-align:center;max-width:60ch}
+  .att-chars{display:flex;gap:5vmin;margin:5vmin 0}
+  .att-chars .m{width:16vmin;height:16vmin;border-radius:50%;overflow:hidden;
+    border:1px solid var(--line2);background:radial-gradient(circle at 50% 34%,rgba(227,181,82,.16),var(--ink3));
+    animation:float 5s ease-in-out infinite}
+  .att-chars .m:nth-child(2){animation-delay:1.2s}.att-chars .m:nth-child(3){animation-delay:2.4s}
+  .att-chars img{width:100%;height:100%;object-fit:cover}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.4vmin)}}
+  .bigbtn{font-family:var(--serif);font-size:4.6vmin;color:var(--ink);letter-spacing:.15em;
+    background:linear-gradient(180deg,var(--goldb),var(--gold));border-radius:100px;
+    padding:.55em 2.2em;box-shadow:0 12px 44px -12px rgba(227,181,82,.55);animation:pulse 2.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+  .hint{margin-top:3vmin;color:var(--muted);font-size:2vmin}
+
+  /* ---------- KARAKTER SEÇ ---------- */
+  #select .rule{font-family:var(--serif);font-size:4.2vmin;color:var(--goldb);text-align:center;margin:1vmin 0 4vmin}
+  .cards{display:flex;gap:3.5vmin;flex-wrap:wrap;justify-content:center}
+  .card{width:26vmin;padding:2.6vmin 2vmin;background:var(--ink2);border:1px solid var(--line);
+    border-radius:2.4vmin;display:flex;flex-direction:column;align-items:center;gap:1.4vmin;
+    transition:transform .15s,border-color .15s}
+  .card:active{transform:scale(.96);border-color:var(--line2)}
+  .card .m{width:15vmin;height:15vmin;border-radius:50%;overflow:hidden;border:1px solid var(--line2);
+    background:radial-gradient(circle at 50% 34%,rgba(227,181,82,.16),var(--ink3))}
+  .card img{width:100%;height:100%;object-fit:cover}
+  .card b{font-family:var(--serif);font-size:2.8vmin;color:var(--cream)}
+  .card span{font-size:1.7vmin;color:var(--muted);text-align:center}
+
+  /* ---------- SORULAR ---------- */
+  #ask{justify-content:flex-start;padding-top:2.5vmin}
+  .topbar{width:100%;max-width:170vmin;display:flex;align-items:center;gap:2vmin;margin-bottom:2vmin}
+  .topbar .m{width:9vmin;height:9vmin;border-radius:50%;overflow:hidden;flex:none;
+    border:1px solid var(--line2);background:var(--ink3)}
+  .topbar img{width:100%;height:100%;object-fit:cover}
+  .topbar .who b{font-family:var(--serif);font-size:3.2vmin;display:block}
+  .topbar .who span{font-size:1.8vmin;color:var(--muted)}
+  .rights{margin-inline-start:auto;text-align:end}
+  .rights .dots{font-size:3.6vmin;letter-spacing:.25em;color:var(--gold)}
+  .rights .dots .used{opacity:.22}
+  .rights small{display:block;color:var(--muted);font-size:1.7vmin}
+  .cats{display:grid;grid-template-columns:repeat(3,1fr);gap:2vmin;width:100%;max-width:170vmin;flex:1;min-height:0}
+  .cat{background:var(--ink2);border:1px solid var(--line);border-radius:2vmin;padding:2vmin;
+    display:flex;flex-direction:column;gap:1.6vmin;overflow:hidden}
+  .cat h3{font-family:var(--serif);color:var(--gold);font-size:2.5vmin;text-align:center;
+    border-bottom:1px solid var(--line);padding-bottom:1.2vmin}
+  .q{background:var(--ink3);border:1px solid var(--line);border-radius:1.6vmin;color:var(--cream);
+    font-size:2.15vmin;line-height:1.4;padding:2vmin 1.8vmin;text-align:start;min-height:9vmin;
+    transition:transform .12s,border-color .12s;position:relative}
+  .q:active{transform:scale(.97);border-color:var(--line2)}
+  .q.asked{opacity:.38}
+  .q.asked::after{content:"✓";position:absolute;top:.6vmin;inset-inline-end:1.2vmin;color:var(--good);font-size:2.4vmin}
+  .switchrow{width:100%;max-width:170vmin;display:flex;align-items:center;gap:2vmin;margin-top:2vmin;
+    padding-top:1.6vmin;border-top:1px solid var(--line)}
+  .switchrow span{color:var(--muted);font-size:2vmin}
+  .sw{display:flex;align-items:center;gap:1.2vmin;background:var(--ink2);border:1px solid var(--line);
+    border-radius:100px;padding:.9vmin 2.2vmin .9vmin 1vmin;font-size:2vmin;color:var(--cream)}
+  .sw:active{border-color:var(--line2)}
+  .sw .m{width:4.6vmin;height:4.6vmin;border-radius:50%;overflow:hidden;background:var(--ink3)}
+  .sw img{width:100%;height:100%;object-fit:cover}
+
+  /* ---------- OYNATMA ---------- */
+  #play{gap:2.4vmin}
+  #play .m{width:34vmin;height:34vmin;border-radius:50%;overflow:hidden;position:relative;
+    border:1px solid var(--line2);background:radial-gradient(circle at 50% 34%,rgba(227,181,82,.2),var(--ink3));
+    box-shadow:0 0 9vmin -2vmin rgba(227,181,82,.5)}
+  #play .m::after{content:"";position:absolute;inset:-1.4vmin;border-radius:50%;
+    border:1px solid rgba(227,181,82,.35);animation:ring 2.2s ease-out infinite}
+  @keyframes ring{0%{transform:scale(.92);opacity:.9}100%{transform:scale(1.12);opacity:0}}
+  #play img{width:100%;height:100%;object-fit:cover}
+  #playName{font-family:var(--serif);font-size:4vmin;color:var(--goldb)}
+  #playQ{font-size:2.5vmin;color:var(--soft);max-width:70ch;text-align:center;min-height:3vmin}
+  .eq{display:flex;gap:.9vmin;height:5vmin;align-items:flex-end}
+  .eq i{width:1.1vmin;background:linear-gradient(180deg,var(--goldb),var(--gold));border-radius:2px;
+    animation:eq 1s ease-in-out infinite}
+  .eq i:nth-child(1){animation-delay:0s;height:40%}.eq i:nth-child(2){animation-delay:.15s;height:80%}
+  .eq i:nth-child(3){animation-delay:.3s;height:55%}.eq i:nth-child(4){animation-delay:.45s;height:95%}
+  .eq i:nth-child(5){animation-delay:.6s;height:60%}.eq i:nth-child(6){animation-delay:.75s;height:35%}
+  .eq i:nth-child(7){animation-delay:.9s;height:70%}
+  @keyframes eq{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+  #skipBtn{position:fixed;bottom:3.5vmin;inset-inline-end:3.5vmin;color:var(--muted);font-size:2.2vmin;
+    border:1px solid var(--line);border-radius:100px;padding:1.2vmin 3vmin;background:rgba(19,26,46,.8);display:none}
+  #vplayer{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:none;z-index:0}
+
+  /* ---------- TEŞEKKÜR ---------- */
+  #thanks h1{font-size:6.5vmin}
+  #thanks p{font-size:2.6vmin;color:var(--soft);margin-top:1.6vmin;text-align:center}
+
+  /* ---------- ADMİN ---------- */
+  #hotspot{position:fixed;top:0;inset-inline-start:0;width:12vmin;height:12vmin;z-index:50}
+  .overlay{position:fixed;inset:0;background:rgba(5,7,15,.88);z-index:60;display:none;
+    align-items:center;justify-content:center}
+  .overlay.active{display:flex}
+  .panel{background:var(--ink2);border:1px solid var(--line2);border-radius:2vmin;
+    padding:3.4vmin;width:min(92vw,72vmin);max-height:92vh;overflow:auto}
+  .panel h2{font-family:var(--serif);color:var(--gold);margin-bottom:2vmin;font-size:3.2vmin}
+  .pinrow{display:flex;gap:1.2vmin;justify-content:center;margin:2vmin 0;font-size:4.4vmin;letter-spacing:.4em;color:var(--goldb);min-height:5.4vmin}
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:1.6vmin}
+  .pad button{background:var(--ink3);border:1px solid var(--line);border-radius:1.4vmin;
+    font-size:3.4vmin;color:var(--cream);padding:2vmin}
+  .pad button:active{border-color:var(--line2)}
+  .arow{display:flex;align-items:center;justify-content:space-between;gap:2vmin;
+    padding:1.6vmin 0;border-bottom:1px solid var(--line);font-size:2.2vmin}
+  .arow .val{color:var(--goldb);font-weight:700}
+  .abtn{background:var(--ink3);border:1px solid var(--line);border-radius:1.2vmin;
+    color:var(--cream);padding:1.2vmin 2.4vmin;font-size:2vmin}
+  .abtn.warn{color:var(--bad)}
+  .stepper{display:flex;gap:1vmin;align-items:center}
+  .stepper button{width:5vmin;height:5vmin;background:var(--ink3);border:1px solid var(--line);
+    border-radius:1vmin;font-size:2.8vmin;color:var(--gold)}
+  input[type=range]{accent-color:var(--gold);width:22vmin}
+  .toast{position:fixed;bottom:4vmin;left:50%;transform:translateX(-50%);z-index:70;
+    background:var(--ink2);border:1px solid var(--line2);border-radius:100px;color:var(--cream);
+    padding:1.6vmin 3.4vmin;font-size:2.2vmin;display:none}
+</style>
+</head>
+<body>
+<div class="pattern"></div>
+
+<!-- ANA EKRAN -->
+<section id="attract" class="screen active">
+  <p class="eyebrow">Selçuklu'nun İlim Ocağı</p>
+  <h1>Nizamiye Medresesi</h1>
+  <p class="sub">Bin yıl öncesinden üç büyük insan seninle konuşmak için bekliyor</p>
+  <div class="att-chars" id="attChars"></div>
+  <button class="bigbtn" id="startBtn">BAŞLA</button>
+  <p class="hint">Dokunarak başla</p>
+</section>
+
+<!-- KARAKTER SEÇ -->
+<section id="select" class="screen">
+  <p class="eyebrow">Hoş Geldin</p>
+  <p class="rule" id="selectRule"></p>
+  <div class="cards" id="charCards"></div>
+  <p class="hint">Bir âlim seç; seni kendisi selamlayacak</p>
+</section>
+
+<!-- SORULAR -->
+<section id="ask" class="screen">
+  <div class="topbar">
+    <div class="m"><img id="askImg" alt=""></div>
+    <div class="who"><b id="askName"></b><span id="askTitle"></span></div>
+    <div class="rights"><div class="dots" id="rightsDots"></div><small id="rightsText"></small></div>
+  </div>
+  <div class="cats" id="cats"></div>
+  <div class="switchrow" id="switchRow"></div>
+</section>
+
+<!-- OYNATMA -->
+<section id="play" class="screen">
+  <div class="m"><img id="playImg" alt=""></div>
+  <div id="playName"></div>
+  <div id="playQ"></div>
+  <div class="eq" id="eq"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+</section>
+<button id="skipBtn">İleri »</button>
+<video id="vplayer" playsinline></video>
+<audio id="player"></audio>
+
+<!-- TEŞEKKÜR -->
+<section id="thanks" class="screen">
+  <p class="eyebrow">Nizamiye Medresesi</p>
+  <h1>Teşekkürler!</h1>
+  <p>Bin yıl öncesiyle sohbet ettin.<br>Sergiyi gezmeye devam et; kapımız herkese açık.</p>
+</section>
+
+<!-- ADMİN -->
+<div id="hotspot"></div>
+<div class="overlay" id="pinOverlay">
+  <div class="panel">
+    <h2>Yönetici Girişi</h2>
+    <div class="pinrow" id="pinDots"></div>
+    <div class="pad" id="pinPad"></div>
+  </div>
+</div>
+<div class="overlay" id="adminOverlay">
+  <div class="panel">
+    <h2>Yönetici Paneli</h2>
+    <div class="arow"><span>Soru hakkı / ziyaretçi</span>
+      <div class="stepper"><button data-set="rights" data-d="-1">−</button><span class="val" id="vRights"></span><button data-set="rights" data-d="1">+</button></div></div>
+    <div class="arow"><span>Boşta sıfırlama (sn)</span>
+      <div class="stepper"><button data-set="idle" data-d="-15">−</button><span class="val" id="vIdle"></span><button data-set="idle" data-d="15">+</button></div></div>
+    <div class="arow"><span>Ses seviyesi</span>
+      <input type="range" id="vVol" min="0" max="100" step="5"></div>
+    <div class="arow"><span>Medya kaynağı</span>
+      <button class="abtn" id="vMedia"></button></div>
+    <div class="arow"><span>Ses testi</span>
+      <span><button class="abtn" data-test="gazali">Gazâlî</button>
+      <button class="abtn" data-test="nizamulmulk">Nizamülmülk</button>
+      <button class="abtn" data-test="meliksah">Melikşah</button></span></div>
+    <div class="arow"><span>İstatistik</span><span class="val" id="vStats"></span></div>
+    <div class="arow"><span>Sayaçları sıfırla</span><button class="abtn warn" id="statReset">Sıfırla</button></div>
+    <div class="arow" style="border:none;justify-content:flex-end;gap:1.6vmin;padding-top:2.6vmin">
+      <button class="abtn" id="adminHome">Ana ekrana dön</button>
+      <button class="abtn" id="adminClose">Paneli kapat</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="data.js"></script>
+<script>
+(function(){
+"use strict";
+const D = window.KIOSK_DATA;
+const $ = (id) => document.getElementById(id);
+const chars = D.characters;
+const byId = Object.fromEntries(chars.map(c => [c.id, c]));
+
+/* ---------- ayarlar (localStorage ile kalıcı) ---------- */
+const LS = "nizamiye_kiosk";
+function loadCfg(){
+  let s = {};
+  try { s = JSON.parse(localStorage.getItem(LS + "_cfg") || "{}"); } catch(e){}
+  return Object.assign({}, D.config, s);
+}
+let CFG = loadCfg();
+function saveCfg(patch){
+  Object.assign(CFG, patch);
+  const base = {};
+  for (const k in CFG) if (JSON.stringify(CFG[k]) !== JSON.stringify(D.config[k])) base[k] = CFG[k];
+  try { localStorage.setItem(LS + "_cfg", JSON.stringify(base)); } catch(e){}
+}
+function stats(){ try { return JSON.parse(localStorage.getItem(LS + "_stats") || "{}"); } catch(e){ return {}; } }
+function bump(key){
+  const s = stats(); s[key] = (s[key] || 0) + 1;
+  try { localStorage.setItem(LS + "_stats", JSON.stringify(s)); } catch(e){}
+}
+
+/* ---------- ekran yönetimi ---------- */
+const screens = ["attract","select","ask","play","thanks"];
+function show(name){
+  screens.forEach(s => $(s).classList.toggle("active", s === name));
+  $("skipBtn").style.display = "none";
+}
+
+/* ---------- oturum durumu ---------- */
+let S = null; // {rights, char, met:{}, asked:{}, playedVar:{}, lastChar}
+function newSession(){
+  S = { rights: CFG.rights, char: null, met: {}, asked: {}, playedVar: {} };
+}
+
+/* ---------- medya motoru ---------- */
+const audio = $("player"), video = $("vplayer");
+let watchdog = null, onEndCb = null, playing = false;
+function mediaEl(){ return CFG.mediaExt === ".mp4" ? video : audio; }
+function stopMedia(){
+  clearTimeout(watchdog); watchdog = null; onEndCb = null; playing = false;
+  [audio, video].forEach(el => { el.onended = el.onerror = null; try { el.pause(); } catch(e){} });
+  video.style.display = "none";
+}
+function playClip(code, dur, onEnd){
+  stopMedia();
+  playing = true; onEndCb = onEnd;
+  const el = mediaEl();
+  const base = CFG.mediaExt === ".mp4" ? CFG.videoBase : CFG.mediaBase;
+  el.src = base + code + CFG.mediaExt;
+  el.volume = (CFG.volume == null ? 100 : CFG.volume) / 100;
+  if (el === video) video.style.display = "block";
+  const finish = (ok) => {
+    if (!playing) return;
+    const cb = onEndCb; stopMedia();
+    if (!ok) toast("Ses dosyası açılamadı — devam ediliyor");
+    if (cb) cb(ok);
+  };
+  el.onended = () => finish(true);
+  el.onerror = () => finish(false);
+  el.play().catch(() => finish(false));
+  // bekçi: dosya süresi + 8sn içinde bitmezse zorla ilerle (asla takılı kalma)
+  watchdog = setTimeout(() => finish(true), (dur + 8) * 1000);
+  // geç butonu
+  setTimeout(() => { if (playing) $("skipBtn").style.display = "block"; }, CFG.skipAfterMs);
+}
+$("skipBtn").addEventListener("click", () => {
+  if (!playing) return;
+  const cb = onEndCb; stopMedia(); $("skipBtn").style.display = "none";
+  if (cb) cb(true);
+});
+
+/* ---------- rastgele seçim (tekrarsız) ---------- */
+function pick(list, usedKey){
+  S.playedVar[usedKey] = S.playedVar[usedKey] || [];
+  const used = S.playedVar[usedKey];
+  let free = list.filter(x => !used.includes(x.code));
+  if (!free.length) { used.length = 0; free = list; }
+  const sel = free[Math.floor(Math.random() * free.length)];
+  used.push(sel.code);
+  return sel;
+}
+
+/* ---------- ekran kurulumları ---------- */
+function buildAttract(){
+  $("attChars").innerHTML = chars.map(c =>
+    `<div class="m"><img src="${c.img}" alt="${c.name}"></div>`).join("");
+}
+function buildSelect(){
+  $("selectRule").textContent = `İstediğin âlime toplam ${S ? S.rights : CFG.rights} soru sorabilirsin`;
+  $("charCards").innerHTML = chars.map(c => `
+    <button class="card" data-char="${c.id}">
+      <div class="m"><img src="${c.img}" alt=""></div>
+      <b>${c.name}</b><span>${c.title}</span>
+    </button>`).join("");
+}
+function rightsUI(){
+  const total = CFG.rights, left = S.rights;
+  $("rightsDots").innerHTML = Array.from({length: total}, (_, i) =>
+    `<span class="${i < total - left ? "used" : ""}">✦</span>`).join("");
+  $("rightsText").textContent = `Kalan soru hakkın: ${left}`;
+}
+function buildAsk(){
+  const c = byId[S.char];
+  $("askImg").src = c.img; $("askName").textContent = c.name; $("askTitle").textContent = c.title;
+  rightsUI();
+  $("cats").innerHTML = c.categories.map((cat, ci) => `
+    <div class="cat"><h3>${cat.name}</h3>
+      ${cat.questions.map((q, qi) => {
+        const key = S.char + "_" + ci + "_" + qi;
+        const asked = S.asked[key] ? " asked" : "";
+        return `<button class="q${asked}" data-c="${ci}" data-q="${qi}" ${asked ? "disabled" : ""}>${q.q}</button>`;
+      }).join("")}
+    </div>`).join("");
+  const others = chars.filter(x => x.id !== S.char);
+  $("switchRow").innerHTML = `<span>Başka bir âlime sormak istersen:</span>` +
+    others.map(o => `
+      <button class="sw" data-sw="${o.id}"><span class="m"><img src="${o.img}" alt=""></span>${o.name}</button>`).join("");
+}
+
+/* ---------- akış ---------- */
+function toAttract(){ stopMedia(); S = null; show("attract"); }
+function startSession(){
+  newSession(); bump("oturum");
+  buildSelect(); show("select");
+}
+function selectChar(id, viaSwitch){
+  S.char = id;
+  const c = byId[id];
+  if (!S.met[id]) {
+    S.met[id] = true;
+    const intro = pick(c.intros, id + "_int");
+    playScreen(c, null);
+    playClip(intro.code, intro.dur, () => { buildAsk(); show("ask"); });
+  } else {
+    buildAsk(); show("ask");
+  }
+}
+function playScreen(c, questionText){
+  $("playImg").src = c.img; $("playName").textContent = c.name;
+  $("playQ").textContent = questionText || "";
+  show("play");
+}
+function askQuestion(ci, qi){
+  const c = byId[S.char];
+  const q = c.categories[ci].questions[qi];
+  const key = S.char + "_" + ci + "_" + qi;
+  if (S.asked[key] || S.rights <= 0) return;
+  S.asked[key] = true;
+  S.rights -= 1;
+  bump("soru_" + q.variants[0].code.replace(/_v\d$/, ""));
+  const v = pick(q.variants, key);
+  playScreen(c, "“" + q.q + "”");
+  playClip(v.code, v.dur, () => {
+    if (S.rights > 0) { buildAsk(); show("ask"); }
+    else finishSession();
+  });
+}
+function finishSession(){
+  bump("tamamlanan");
+  const c = byId[S.char];
+  const out = pick(c.outros, S.char + "_out");
+  playScreen(c, "");
+  playClip(out.code, out.dur, () => {
+    show("thanks");
+    setTimeout(toAttract, CFG.thanksMs);
+  });
+}
+
+/* ---------- boşta kalma bekçisi ---------- */
+let idleTimer = null;
+function idleReset(){
+  clearTimeout(idleTimer);
+  if ($("attract").classList.contains("active")) return;
+  idleTimer = setTimeout(() => { if (!playing) toAttract(); else idleReset(); }, CFG.idleMs);
+}
+["pointerdown","touchstart","keydown"].forEach(ev =>
+  document.addEventListener(ev, idleReset, {passive: true}));
+
+/* ---------- olaylar (delegasyon) ---------- */
+$("startBtn").addEventListener("click", startSession);
+$("charCards").addEventListener("click", e => {
+  const b = e.target.closest("[data-char]"); if (b) selectChar(b.dataset.char);
+});
+$("cats").addEventListener("click", e => {
+  const b = e.target.closest(".q"); if (b && !b.disabled) askQuestion(+b.dataset.c, +b.dataset.q);
+});
+$("switchRow").addEventListener("click", e => {
+  const b = e.target.closest("[data-sw]"); if (b) selectChar(b.dataset.sw, true);
+});
+$("thanks").addEventListener("click", toAttract);
+document.addEventListener("contextmenu", e => e.preventDefault());
+document.addEventListener("dblclick", e => e.preventDefault());
+
+/* ---------- admin ---------- */
+let taps = [], pinBuf = "";
+$("hotspot").addEventListener("pointerdown", () => {
+  const now = Date.now();
+  taps = taps.filter(t => now - t < 3000); taps.push(now);
+  if (taps.length >= 5) { taps = []; openPin(); }
+});
+function openPin(){
+  pinBuf = ""; drawPin();
+  $("pinPad").innerHTML = [1,2,3,4,5,6,7,8,9,"⌫",0,"✕"].map(k =>
+    `<button data-k="${k}">${k}</button>`).join("");
+  $("pinOverlay").classList.add("active");
+}
+function drawPin(){ $("pinDots").textContent = "●".repeat(pinBuf.length) || "····"; }
+$("pinPad").addEventListener("click", e => {
+  const b = e.target.closest("[data-k]"); if (!b) return;
+  const k = b.dataset.k;
+  if (k === "✕") { $("pinOverlay").classList.remove("active"); return; }
+  if (k === "⌫") { pinBuf = pinBuf.slice(0, -1); drawPin(); return; }
+  pinBuf += k; drawPin();
+  if (pinBuf.length >= String(CFG.pin).length) {
+    if (pinBuf === String(CFG.pin)) { $("pinOverlay").classList.remove("active"); openAdmin(); }
+    else { pinBuf = ""; drawPin(); toast("Hatalı PIN"); }
+  }
+});
+function openAdmin(){
+  $("vRights").textContent = CFG.rights;
+  $("vIdle").textContent = Math.round(CFG.idleMs / 1000);
+  $("vVol").value = CFG.volume == null ? 100 : CFG.volume;
+  $("vMedia").textContent = CFG.mediaExt === ".mp4" ? "Video (videolar/)" : "Ses (sesler/)";
+  const s = stats();
+  $("vStats").textContent = `oturum ${s.oturum || 0} · tamamlanan ${s.tamamlanan || 0}`;
+  $("adminOverlay").classList.add("active");
+}
+$("adminOverlay").addEventListener("click", e => {
+  const st = e.target.closest("[data-set]");
+  if (st) {
+    if (st.dataset.set === "rights") saveCfg({ rights: Math.min(5, Math.max(1, CFG.rights + (+st.dataset.d))) });
+    if (st.dataset.set === "idle") saveCfg({ idleMs: Math.min(300000, Math.max(30000, CFG.idleMs + (+st.dataset.d) * 1000)) });
+    openAdmin(); return;
+  }
+  const t = e.target.closest("[data-test]");
+  if (t) { const c = byId[t.dataset.test]; const i = c.intros[0]; playClipAdminTest(i); return; }
+});
+function playClipAdminTest(i){
+  stopMedia(); audio.src = CFG.mediaBase + i.code + ".mp3";
+  audio.volume = (CFG.volume == null ? 100 : CFG.volume) / 100; audio.play().catch(()=>toast("Çalınamadı"));
+}
+$("vVol").addEventListener("input", e => { saveCfg({ volume: +e.target.value }); audio.volume = (+e.target.value)/100; });
+$("vMedia").addEventListener("click", () => {
+  saveCfg({ mediaExt: CFG.mediaExt === ".mp4" ? ".mp3" : ".mp4" }); openAdmin();
+});
+$("statReset").addEventListener("click", () => {
+  try { localStorage.removeItem(LS + "_stats"); } catch(e){} openAdmin();
+});
+$("adminHome").addEventListener("click", () => { $("adminOverlay").classList.remove("active"); toAttract(); });
+$("adminClose").addEventListener("click", () => { stopMedia(); $("adminOverlay").classList.remove("active"); });
+
+/* ---------- toast ---------- */
+let toastT = null;
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(toastT); toastT = setTimeout(() => t.style.display = "none", 2600);
+}
+
+/* ---------- başlat ---------- */
+buildAttract();
+show("attract");
+})();
+</script>
+</body>
+</html>
