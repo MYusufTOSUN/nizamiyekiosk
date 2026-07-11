@@ -143,6 +143,15 @@
   /* ---------- TEŞEKKÜR ---------- */
   #thanks h1{font-size:6.5vmin}
   #thanks p{font-size:2.6vmin;color:var(--soft);margin-top:1.6vmin;text-align:center}
+  .qrbox{display:flex;align-items:center;gap:3.4vmin;margin-top:4.5vmin;
+    background:var(--ink2);border:1px solid var(--line2);border-radius:2.4vmin;padding:2.8vmin 3.4vmin}
+  .qrcard{background:#fff;border-radius:1.6vmin;padding:1.6vmin;flex:none;
+    box-shadow:0 0 6vmin -1vmin rgba(227,181,82,.45)}
+  .qrcard img{width:22vmin;height:22vmin;display:block}
+  .qrtext{display:flex;flex-direction:column;gap:1vmin;text-align:start;max-width:44vmin}
+  .qrtext b{font-family:var(--serif);font-size:3.4vmin;color:var(--goldb)}
+  .qrtext span{font-size:2.2vmin;color:var(--soft);line-height:1.5}
+  .qrtext small{color:var(--muted);font-size:1.7vmin;word-break:break-all}
 
   /* ---------- ADMİN ---------- */
   #hotspot{position:fixed;top:0;inset-inline-start:0;width:12vmin;height:12vmin;z-index:50}
@@ -220,6 +229,14 @@
   <p class="eyebrow">Nizamiye Medresesi</p>
   <h1>Teşekkürler!</h1>
   <p>Bin yıl öncesiyle sohbet ettin.<br>Sergiyi gezmeye devam et; kapımız herkese açık.</p>
+  <div class="qrbox" id="qrBox" style="display:none">
+    <div class="qrcard"><img id="qrImg" src="img/qr.svg" alt="Nizamiye web sitesi QR"></div>
+    <div class="qrtext">
+      <b>Hikâye burada bitmiyor</b>
+      <span>Telefonunla QR'ı okut;<br>Nizamiye'nin dünyasını keşfetmeye devam et</span>
+      <small id="qrUrl"></small>
+    </div>
+  </div>
 </section>
 
 <!-- ADMİN -->
@@ -421,14 +438,24 @@ function askQuestion(ci, qi){
     else finishSession();
   });
 }
+let thanksTimer = null;
 function finishSession(){
   bump("tamamlanan");
   const c = byId[S.char];
   const out = pick(c.outros, S.char + "_out");
   playScreen(c, "");
   playClip(out.code, out.dur, () => {
+    // QR: webUrl tanimliysa goster (kiosk_qr.py doldurur)
+    if (CFG.webUrl) {
+      $("qrBox").style.display = "flex";
+      $("qrUrl").textContent = CFG.webUrl;
+      $("qrImg").src = "img/qr.svg?" + Date.now(); // guncel QR (onbellege takilmasin)
+    } else {
+      $("qrBox").style.display = "none";
+    }
     show("thanks");
-    setTimeout(toAttract, CFG.thanksMs);
+    clearTimeout(thanksTimer);
+    thanksTimer = setTimeout(toAttract, CFG.thanksMs);
   });
 }
 

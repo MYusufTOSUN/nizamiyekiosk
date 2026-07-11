@@ -3,12 +3,13 @@ window.KIOSK_DATA = {
   "pin": "1206",
   "rights": 3,
   "idleMs": 75000,
-  "thanksMs": 6000,
+  "thanksMs": 20000,
   "skipAfterMs": 6000,
   "mediaBase": "../sesler/",
   "mediaExt": ".mp3",
   "videoBase": "../videolar/",
-  "videoExt": ".mp4"
+  "videoExt": ".mp4",
+  "webUrl": "http://10.211.49.48:4321/"
  },
  "characters": [
   {

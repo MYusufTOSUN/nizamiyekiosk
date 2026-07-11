@@ -47,9 +47,10 @@ for r in rows:
 
 data = {
     "config": {
-        "pin": "1206", "rights": 3, "idleMs": 75000, "thanksMs": 6000,
+        "pin": "1206", "rights": 3, "idleMs": 75000, "thanksMs": 20000,
         "skipAfterMs": 6000, "mediaBase": "../sesler/", "mediaExt": ".mp3",
         "videoBase": "../videolar/", "videoExt": ".mp4",
+        "webUrl": "",  # kiosk_qr.py doldurur (yerel ag IP'siyle)
     },
     "characters": [chars[c] for c in ORDER],
 }
