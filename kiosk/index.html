@@ -149,9 +149,6 @@
   .eq i:nth-child(5){animation-delay:.6s;height:60%}.eq i:nth-child(6){animation-delay:.75s;height:35%}
   .eq i:nth-child(7){animation-delay:.9s;height:70%}
   @keyframes eq{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
-  #skipBtn{position:fixed;bottom:3.5vmin;inset-inline-end:3.5vmin;color:var(--soft);font-size:2.4vmin;
-    border:1px solid rgba(227,181,82,.45);border-radius:100px;padding:1.6vmin 3.6vmin;min-height:6vmin;
-    background:rgba(19,26,46,.85);display:none}
   #vplayer{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:none;z-index:0}
 
   /* ---------- TEŞEKKÜR ---------- */
@@ -238,7 +235,6 @@
   <div id="playQ"></div>
   <div class="eq" id="eq"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 </section>
-<button id="skipBtn">İleri »</button>
 <video id="vplayer" playsinline></video>
 <audio id="player"></audio>
 
@@ -335,7 +331,6 @@ function bump(key){
 const screens = ["attract","select","ask","play","thanks"];
 function show(name){
   screens.forEach(s => $(s).classList.toggle("active", s === name));
-  $("skipBtn").style.display = "none";
 }
 
 /* ---------- oturum durumu ---------- */
@@ -372,14 +367,7 @@ function playClip(code, dur, onEnd){
   el.play().catch(() => finish(false));
   // bekçi: dosya süresi + 8sn içinde bitmezse zorla ilerle (asla takılı kalma)
   watchdog = setTimeout(() => finish(true), (dur + 8) * 1000);
-  // geç butonu
-  setTimeout(() => { if (playing) $("skipBtn").style.display = "block"; }, CFG.skipAfterMs);
 }
-$("skipBtn").addEventListener("click", () => {
-  if (!playing) return;
-  const cb = onEndCb; stopMedia(); $("skipBtn").style.display = "none";
-  if (cb) cb(true);
-});
 
 /* ---------- rastgele seçim (tekrarsız) ---------- */
 function pick(list, usedKey){
