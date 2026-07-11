@@ -71,6 +71,10 @@
     padding:.55em 2.2em;box-shadow:0 12px 44px -12px rgba(227,181,82,.55);animation:pulse 2.6s ease-in-out infinite}
   @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
   .hint{margin-top:3vmin;color:var(--muted);font-size:2vmin}
+  .teaser{margin-top:3.4vmin;font-size:2.5vmin;color:var(--soft);min-height:3.6vmin;text-align:center}
+  .teaser span{display:inline-block;opacity:0;transition:opacity .6s ease}
+  .teaser span.show{opacity:1}
+  .teaser b{color:var(--goldb);font-family:var(--serif);font-size:1.08em}
 
   /* ---------- KARAKTER SEÇ ---------- */
   #select .rule{font-family:var(--serif);font-size:4.6vmin;color:var(--goldb);text-align:center;margin:1vmin 0 4vmin}
@@ -204,7 +208,7 @@
   <p class="sub">Bin yıl öncesinden üç büyük insan seninle konuşmak için bekliyor</p>
   <div class="att-chars" id="attChars"></div>
   <button class="bigbtn" id="startBtn">BAŞLA</button>
-  <p class="hint">Dokunarak başla</p>
+  <p class="teaser"><span id="teaserText"></span></p>
 </section>
 
 <!-- KARAKTER SEÇ -->
@@ -598,6 +602,25 @@ function toast(msg){
   const t = $("toast"); t.textContent = msg; t.style.display = "block";
   clearTimeout(toastT); toastT = setTimeout(() => t.style.display = "none", 2600);
 }
+
+/* ---------- attract soru şeridi (derinlik iması) ---------- */
+const DATIVE = { gazali: "İmam Gazâlî'ye", nizamulmulk: "Nizamülmülk'e", meliksah: "Sultan Melikşah'a" };
+const TEASERS = [];
+for (let i = 0; i < 3; i++)
+  for (const c of chars)
+    TEASERS.push({ q: c.categories[i].questions[0].q, kime: DATIVE[c.id] || c.name + "'e" });
+let tIdx = 0;
+const tEl = $("teaserText");
+function teaserShow(){
+  tEl.innerHTML = "&ldquo;" + TEASERS[tIdx].q + "&rdquo; &mdash; <b>" + TEASERS[tIdx].kime + "</b> sor";
+  tEl.classList.add("show");
+}
+teaserShow();
+setInterval(() => {
+  if (!$("attract").classList.contains("active")) return;
+  tEl.classList.remove("show");
+  setTimeout(() => { tIdx = (tIdx + 1) % TEASERS.length; teaserShow(); }, 620);
+}, 4000);
 
 /* ---------- başlat ---------- */
 buildAttract();
