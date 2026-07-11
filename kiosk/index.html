@@ -32,7 +32,7 @@
     --sans:'Hanken Grotesk',system-ui,'Segoe UI',sans-serif;
   }
   *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
-  html,body{height:100%;overflow:hidden}
+  html,body{height:100%;overflow:hidden;overscroll-behavior:none}
   body{color:var(--cream);font-family:var(--sans);touch-action:manipulation;font-weight:400;
     background:radial-gradient(120vmin 60vmin at 50% -12%,rgba(227,181,82,.12),transparent 62%),
                radial-gradient(140vmin 70vmin at 50% 112%,rgba(227,181,82,.07),transparent 60%),var(--ink)}
@@ -96,24 +96,33 @@
   .rights{margin-inline-start:auto;text-align:end}
   .rights .dots{font-size:3.6vmin;letter-spacing:.25em;color:var(--gold)}
   .rights .dots .used{opacity:.22}
-  .rights small{display:block;color:var(--muted);font-size:1.7vmin}
+  .rights small{display:block;color:var(--muted);font-size:2vmin}
+  .endbtn{inline-size:6.5vmin;block-size:6.5vmin;border-radius:50%;flex:none;margin-inline-start:2.4vmin;
+    border:1px solid rgba(227,181,82,.45);background:var(--ink3);color:var(--muted);font-size:2.8vmin;
+    display:grid;place-items:center}
+  .endbtn:active{border-color:var(--goldb);color:var(--cream)}
+  .confirm-actions{display:flex;gap:1.6vmin;justify-content:flex-end;margin-top:3vmin}
+  .confirm-actions .abtn.primary{background:linear-gradient(180deg,var(--goldb),var(--gold));color:var(--ink);border:none;font-weight:600}
   .cats{display:grid;grid-template-columns:repeat(3,1fr);gap:2vmin;width:100%;max-width:170vmin;flex:1;min-height:0}
   .cat{background:var(--ink2);border:1px solid var(--line);border-radius:2vmin;padding:2vmin;
     display:flex;flex-direction:column;gap:1.6vmin;overflow:hidden}
   .cat h3{font-family:var(--serif);color:var(--gold);font-size:2.9vmin;text-align:center;
     border-bottom:1px solid var(--line);padding-bottom:1.2vmin}
-  .q{background:var(--ink3);border:1px solid var(--line);border-radius:1.6vmin;color:var(--cream);
-    font-size:2.15vmin;line-height:1.4;padding:2vmin 1.8vmin;text-align:start;min-height:9vmin;
-    transition:transform .12s,border-color .12s;position:relative}
-  .q:active{transform:scale(.97);border-color:var(--line2)}
+  .q{background:linear-gradient(180deg,#222c50,var(--ink3));border:1px solid rgba(227,181,82,.45);
+    border-radius:1.6vmin;color:var(--cream);
+    box-shadow:0 .5vmin 1.6vmin rgba(0,0,0,.5),inset 0 1px 0 rgba(246,217,138,.14);
+    font-size:2.5vmin;line-height:1.4;padding:2vmin 1.8vmin;text-align:start;min-height:9.5vmin;
+    transition:transform .12s,border-color .12s,box-shadow .12s;position:relative}
+  .q:active{transform:scale(.97);border-color:var(--goldb);box-shadow:0 .2vmin .6vmin rgba(0,0,0,.5)}
   .q.asked{opacity:.38}
   .q.asked::after{content:"✓";position:absolute;top:.6vmin;inset-inline-end:1.2vmin;color:var(--good);font-size:2.4vmin}
   .switchrow{width:100%;max-width:170vmin;display:flex;align-items:center;gap:2vmin;margin-top:2vmin;
     padding-top:1.6vmin;border-top:1px solid var(--line)}
   .switchrow span{color:var(--muted);font-size:2vmin}
-  .sw{display:flex;align-items:center;gap:1.2vmin;background:var(--ink2);border:1px solid var(--line);
-    border-radius:100px;padding:.9vmin 2.2vmin .9vmin 1vmin;font-size:2vmin;color:var(--cream)}
-  .sw:active{border-color:var(--line2)}
+  .sw{display:flex;align-items:center;gap:1.2vmin;background:var(--ink2);border:1px solid rgba(227,181,82,.45);
+    border-radius:100px;padding:1.1vmin 2.6vmin 1.1vmin 1.2vmin;font-size:2.2vmin;color:var(--cream);
+    min-height:6vmin;box-shadow:0 .4vmin 1.2vmin rgba(0,0,0,.4)}
+  .sw:active{border-color:var(--goldb)}
   .sw .m{width:4.6vmin;height:4.6vmin;border-radius:50%;overflow:hidden;background:var(--ink3)}
   .sw img{width:100%;height:100%;object-fit:cover}
 
@@ -136,8 +145,9 @@
   .eq i:nth-child(5){animation-delay:.6s;height:60%}.eq i:nth-child(6){animation-delay:.75s;height:35%}
   .eq i:nth-child(7){animation-delay:.9s;height:70%}
   @keyframes eq{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
-  #skipBtn{position:fixed;bottom:3.5vmin;inset-inline-end:3.5vmin;color:var(--muted);font-size:2.2vmin;
-    border:1px solid var(--line);border-radius:100px;padding:1.2vmin 3vmin;background:rgba(19,26,46,.8);display:none}
+  #skipBtn{position:fixed;bottom:3.5vmin;inset-inline-end:3.5vmin;color:var(--soft);font-size:2.4vmin;
+    border:1px solid rgba(227,181,82,.45);border-radius:100px;padding:1.6vmin 3.6vmin;min-height:6vmin;
+    background:rgba(19,26,46,.85);display:none}
   #vplayer{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;display:none;z-index:0}
 
   /* ---------- TEŞEKKÜR ---------- */
@@ -211,6 +221,7 @@
     <div class="m"><img id="askImg" alt=""></div>
     <div class="who"><b id="askName"></b><span id="askTitle"></span></div>
     <div class="rights"><div class="dots" id="rightsDots"></div><small id="rightsText"></small></div>
+    <button class="endbtn" id="endBtn" aria-label="Oturumu bitir">✕</button>
   </div>
   <div class="cats" id="cats"></div>
   <div class="switchrow" id="switchRow"></div>
@@ -272,6 +283,16 @@
     <div class="arow" style="border:none;justify-content:flex-end;gap:1.6vmin;padding-top:2.6vmin">
       <button class="abtn" id="adminHome">Ana ekrana dön</button>
       <button class="abtn" id="adminClose">Paneli kapat</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="confirmOverlay">
+  <div class="panel">
+    <h2>Ana ekrana dönülsün mü?</h2>
+    <p style="color:var(--soft);font-size:2.3vmin">Oturumun sona erer; kalan soru hakların silinir.</p>
+    <div class="confirm-actions">
+      <button class="abtn primary" id="confirmStay">Devam Edeceğim</button>
+      <button class="abtn" id="confirmEnd">Bitir</button>
     </div>
   </div>
 </div>
@@ -405,7 +426,15 @@ function buildAsk(){
 }
 
 /* ---------- akış ---------- */
-function toAttract(){ stopMedia(); S = null; show("attract"); }
+function toAttract(){
+  // terk analitigi: tamamlanmamis oturum sifirlaniyorsa nerede birakildigini say
+  if (S && !S.completed) {
+    bump("terk");
+    const scr = document.querySelector(".screen.active");
+    if (scr && scr.id !== "attract") bump("terk_" + scr.id);
+  }
+  stopMedia(); S = null; show("attract");
+}
 function startSession(){
   newSession(); bump("oturum");
   buildSelect(); show("select");
@@ -444,6 +473,7 @@ function askQuestion(ci, qi){
 }
 let thanksTimer = null;
 function finishSession(){
+  S.completed = true;
   bump("tamamlanan");
   const c = byId[S.char];
   const out = pick(c.outros, S.char + "_out");
@@ -485,8 +515,23 @@ $("switchRow").addEventListener("click", e => {
   const b = e.target.closest("[data-sw]"); if (b) selectChar(b.dataset.sw, true);
 });
 $("thanks").addEventListener("click", toAttract);
+$("endBtn").addEventListener("click", () => $("confirmOverlay").classList.add("active"));
+$("confirmStay").addEventListener("click", () => $("confirmOverlay").classList.remove("active"));
+$("confirmEnd").addEventListener("click", () => {
+  $("confirmOverlay").classList.remove("active");
+  bump("terk_manuel");
+  toAttract();
+});
 document.addEventListener("contextmenu", e => e.preventDefault());
 document.addEventListener("dblclick", e => e.preventDefault());
+// pinch/jest katmanli savunma (bayrak + CSS + JS birlikte)
+["gesturestart","gesturechange","gestureend"].forEach(ev =>
+  document.addEventListener(ev, e => e.preventDefault()));
+document.addEventListener("touchmove", e => { if (e.touches.length > 1) e.preventDefault(); }, {passive:false});
+document.addEventListener("wheel", e => { if (e.ctrlKey) e.preventDefault(); }, {passive:false});
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey && ["+","-","=","0"].includes(e.key)) e.preventDefault();
+});
 
 /* ---------- admin ---------- */
 let taps = [], pinBuf = "";
@@ -519,7 +564,8 @@ function openAdmin(){
   $("vVol").value = CFG.volume == null ? 100 : CFG.volume;
   $("vMedia").textContent = CFG.mediaExt === ".mp4" ? "Video (videolar/)" : "Ses (sesler/)";
   const s = stats();
-  $("vStats").textContent = `oturum ${s.oturum || 0} · tamamlanan ${s.tamamlanan || 0}`;
+  $("vStats").textContent = `oturum ${s.oturum || 0} · tamamlanan ${s.tamamlanan || 0} · terk ${s.terk || 0}` +
+    ` (seçim ${s.terk_select || 0} · soru ${s.terk_ask || 0} · oynatma ${s.terk_play || 0} · elle ${s.terk_manuel || 0})`;
   $("adminOverlay").classList.add("active");
 }
 $("adminOverlay").addEventListener("click", e => {
