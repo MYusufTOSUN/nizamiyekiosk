@@ -426,7 +426,7 @@ function buildAsk(){
   const others = chars.filter(x => x.id !== S.char);
   $("switchRow").innerHTML = `<span>Başka bir karaktere sormak istersen:</span>` +
     others.map(o => `
-      <button class="sw" data-sw="${o.id}"><span class="m"><img src="${o.img}" alt=""></span>${o.name}</button>`).join("");
+      <button class="sw" data-sw="${o.id}"><span class="m"><img src="${o.imgK || o.img}" alt=""></span>${o.name}</button>`).join("");
 }
 
 /* ---------- akış ---------- */
@@ -456,7 +456,7 @@ function selectChar(id, viaSwitch){
   }
 }
 function playScreen(c, questionText){
-  $("playImg").src = c.img; $("playName").textContent = c.name;
+  $("playImg").src = c.imgB || c.img; $("playName").textContent = c.name;
   $("playQ").textContent = questionText || "";
   show("play");
 }

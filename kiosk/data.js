@@ -16,7 +16,9 @@ window.KIOSK_DATA = {
    "id": "gazali",
    "name": "İmam Gazâlî",
    "title": "Hüccetü'l-İslâm · Baş Müderris",
-   "img": "img/gazali.svg",
+   "img": "img/gazali_o.svg",
+   "imgB": "img/gazali_b.svg",
+   "imgK": "img/gazali_k.svg",
    "intros": [
     {
      "code": "gazali_int_1",
@@ -168,7 +170,9 @@ window.KIOSK_DATA = {
    "id": "nizamulmulk",
    "name": "Nizamülmülk",
    "title": "Büyük Selçuklu Veziri",
-   "img": "img/nizamulmulk.svg",
+   "img": "img/nizamulmulk_o.svg",
+   "imgB": "img/nizamulmulk_b.svg",
+   "imgK": "img/nizamulmulk_k.svg",
    "intros": [
     {
      "code": "nizamulmulk_int_1",
@@ -320,7 +324,9 @@ window.KIOSK_DATA = {
    "id": "meliksah",
    "name": "Sultan Melikşah",
    "title": "Büyük Selçuklu Hükümdarı",
-   "img": "img/meliksah.svg",
+   "img": "img/meliksah_o.svg",
+   "imgB": "img/meliksah_b.svg",
+   "imgK": "img/meliksah_k.svg",
    "intros": [
     {
      "code": "meliksah_int_1",

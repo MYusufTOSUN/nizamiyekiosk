@@ -22,7 +22,10 @@ ORDER = ["gazali", "nizamulmulk", "meliksah"]
 
 rows = list(csv.DictReader(open(ROOT / "senaryolar" / "manifest.csv", encoding="utf-8-sig")))
 chars: dict[str, dict] = {
-    c: {"id": c, **META[c], "img": f"img/{c}.svg", "intros": [], "outros": [],
+    c: {"id": c, **META[c],
+        # hedcut kurali: her kullanim boyu icin ayri uretim (b=buyuk, o=orta, k=kucuk)
+        "img": f"img/{c}_o.svg", "imgB": f"img/{c}_b.svg", "imgK": f"img/{c}_k.svg",
+        "intros": [], "outros": [],
         "categories": [{"name": CATS[c][k], "questions": []} for k in (1, 2, 3)]}
     for c in ORDER
 }
