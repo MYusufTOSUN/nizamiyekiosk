@@ -33,5 +33,5 @@ html = (
     "<p>Beğenmediklerinin kodunu not et, bana söyle; sadece onları yeniden üretirim.</p>"
     + "".join(secs) + "</body></html>"
 )
-(ROOT / "sesler" / "dinle.html").write_text(html, encoding="utf-8")
-print("yazildi:", ROOT / "sesler" / "dinle.html")
+(ROOT / "kiosk" / "sesler" / "dinle.html").write_text(html, encoding="utf-8")
+print("yazildi:", ROOT / "kiosk" / "sesler" / "dinle.html")

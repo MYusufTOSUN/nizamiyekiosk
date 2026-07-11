@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 SRC = ROOT / "senaryolar" / "eleven"
-OUT = ROOT / "sesler"
+OUT = ROOT / "kiosk" / "sesler"  # kiosk icine gomulu (Vercel Root Dir = kiosk)
 OUT.mkdir(exist_ok=True)
 
 def api_key() -> str:

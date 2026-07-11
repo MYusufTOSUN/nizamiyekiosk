@@ -51,8 +51,9 @@ for r in rows:
 data = {
     "config": {
         "pin": "1206", "rights": 3, "idleMs": 75000, "thanksMs": 20000,
-        "skipAfterMs": 6000, "mediaBase": "../sesler/", "mediaExt": ".mp3",
-        "videoBase": "../videolar/", "videoExt": ".mp4",
+        # Yollar kiosk klasorune GORECE (hem file:// hem Vercel'de calisir; Root Dir = kiosk)
+        "skipAfterMs": 6000, "mediaBase": "sesler/", "mediaExt": ".mp3",
+        "videoBase": "videolar/", "videoExt": ".mp4",
         # Canli site adresi (QR bununla gosterilir). Ozel durum icin kiosk_qr.py override eder.
         "webUrl": "https://nizamiyeweb.vercel.app/",
     },

@@ -5,9 +5,9 @@ window.KIOSK_DATA = {
   "idleMs": 75000,
   "thanksMs": 20000,
   "skipAfterMs": 6000,
-  "mediaBase": "../sesler/",
+  "mediaBase": "sesler/",
   "mediaExt": ".mp3",
-  "videoBase": "../videolar/",
+  "videoBase": "videolar/",
   "videoExt": ".mp4",
   "webUrl": "https://nizamiyeweb.vercel.app/"
  },
