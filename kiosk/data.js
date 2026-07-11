@@ -9,7 +9,7 @@ window.KIOSK_DATA = {
   "mediaExt": ".mp3",
   "videoBase": "../videolar/",
   "videoExt": ".mp4",
-  "webUrl": "http://10.211.49.48:4321/"
+  "webUrl": "https://nizamiyeweb.vercel.app/"
  },
  "characters": [
   {
