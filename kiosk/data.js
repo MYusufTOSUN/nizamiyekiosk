@@ -9,7 +9,7 @@ window.KIOSK_DATA = {
   "mediaExt": ".mp3",
   "videoBase": "../videolar/",
   "videoExt": ".mp4",
-  "webUrl": "https://nizamiyeweb.vercel.app/"
+  "webUrl": ""
  },
  "characters": [
   {
@@ -34,15 +34,11 @@ window.KIOSK_DATA = {
    "outros": [
     {
      "code": "gazali_out_1",
-     "dur": 13.0
+     "dur": 15.3
     },
     {
      "code": "gazali_out_2",
-     "dur": 13.5
-    },
-    {
-     "code": "gazali_out_3",
-     "dur": 12.3
+     "dur": 14.8
     }
    ],
    "categories": [
@@ -190,15 +186,11 @@ window.KIOSK_DATA = {
    "outros": [
     {
      "code": "nizamulmulk_out_1",
-     "dur": 13.0
+     "dur": 14.9
     },
     {
      "code": "nizamulmulk_out_2",
-     "dur": 14.3
-    },
-    {
-     "code": "nizamulmulk_out_3",
-     "dur": 12.5
+     "dur": 14.1
     }
    ],
    "categories": [
@@ -346,15 +338,11 @@ window.KIOSK_DATA = {
    "outros": [
     {
      "code": "meliksah_out_1",
-     "dur": 13.9
+     "dur": 15.3
     },
     {
      "code": "meliksah_out_2",
-     "dur": 13.0
-    },
-    {
-     "code": "meliksah_out_3",
-     "dur": 13.5
+     "dur": 12.7
     }
    ],
    "categories": [
