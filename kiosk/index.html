@@ -39,10 +39,10 @@
   b,strong{font-weight:600}
   img{pointer-events:none;-webkit-user-drag:none}
 
-  /* dekor: Selcuklu yildiz-hac deseni (8 koseli yildiz tessellasyonu) */
+  /* dekor: Selcuklu tac-kapi rozeti (12 koseli yildiz + kose 8'li yildiz + baklava kafes) */
   .pattern{position:fixed;inset:0;pointer-events:none;opacity:.085;z-index:0;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cdefs%3E%3Cg id='s' fill='none' stroke='%23e3b552' stroke-width='1'%3E%3Crect x='-21' y='-21' width='42' height='42'/%3E%3Crect x='-21' y='-21' width='42' height='42' transform='rotate(45)'/%3E%3Ccircle r='2.2' fill='%23e3b552' stroke='none'/%3E%3C/g%3E%3C/defs%3E%3Cuse href='%23s' transform='translate(70 70)'/%3E%3Cuse href='%23s' transform='translate(0 0)'/%3E%3Cuse href='%23s' transform='translate(140 0)'/%3E%3Cuse href='%23s' transform='translate(0 140)'/%3E%3Cuse href='%23s' transform='translate(140 140)'/%3E%3Cg fill='%23e3b552' opacity='.55'%3E%3Crect x='66' y='-4' width='8' height='8' transform='rotate(45 70 0)'/%3E%3Crect x='66' y='136' width='8' height='8' transform='rotate(45 70 140)'/%3E%3Crect x='-4' y='66' width='8' height='8' transform='rotate(45 0 70)'/%3E%3Crect x='136' y='66' width='8' height='8' transform='rotate(45 140 70)'/%3E%3C/g%3E%3C/svg%3E");
-    background-size:140px 140px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cg fill='none' stroke='%23e3b552' stroke-width='1'%3E%3Cpolygon points='80.0,8.0 152.0,80.0 80.0,152.0 8.0,80.0' stroke-width='0.7' opacity='0.55'/%3E%3Cpolygon points='80.0,46.0 109.4,63.0 109.4,97.0 80.0,114.0 50.6,97.0 50.6,63.0'/%3E%3Cpolygon points='97.0,50.6 114.0,80.0 97.0,109.4 63.0,109.4 46.0,80.0 63.0,50.6'/%3E%3Ccircle cx='80.0' cy='80.0' r='13'/%3E%3Ccircle cx='80.0' cy='80.0' r='2.2' fill='%23e3b552' stroke='none'/%3E%3Ccircle cx='80.0' cy='46.0' r='1.3' fill='%23e3b552' stroke='none'/%3E%3Ccircle cx='97.0' cy='50.6' r='1.3' fill='%23e3b552' stroke='none'/%3E%3Ccircle cx='109.4' cy='63.0' r='1.3' fill='%23e3b552' stroke='none'/%3E%3Ccircle cx='114.0' cy='80.0' r='1.3' fill='%23e3b552' stroke='none'/%3E%3Ccircle cx='109.4' cy='97.0' r='1.3' fill='%23e3b552' stroke='none'/%3E%3Ccircle cx='97.0' cy='109.4' r='1.3' fill='%23e3b552' stroke='none'/%3E%3Ccircle cx='80.0' cy='114.0' r='1.3' fill='%23e3b552' stroke='none'/%3E%3Ccircle cx='63.0' cy='109.4' r='1.3' fill='%23e3b552' stroke='none'/%3E%3Ccircle cx='50.6' cy='97.0' r='1.3' fill='%23e3b552' stroke='none'/%3E%3Ccircle cx='46.0' cy='80.0' r='1.3' fill='%23e3b552' stroke='none'/%3E%3Ccircle cx='50.6' cy='63.0' r='1.3' fill='%23e3b552' stroke='none'/%3E%3Ccircle cx='63.0' cy='50.6' r='1.3' fill='%23e3b552' stroke='none'/%3E%3Cpolygon points='9.2,-9.2 9.2,9.2 -9.2,9.2 -9.2,-9.2' opacity='0.8'/%3E%3Cpolygon points='0.0,-13.0 13.0,0.0 0.0,13.0 -13.0,0.0' opacity='0.8'/%3E%3Cpolygon points='169.2,-9.2 169.2,9.2 150.8,9.2 150.8,-9.2' opacity='0.8'/%3E%3Cpolygon points='160.0,-13.0 173.0,0.0 160.0,13.0 147.0,0.0' opacity='0.8'/%3E%3Cpolygon points='9.2,150.8 9.2,169.2 -9.2,169.2 -9.2,150.8' opacity='0.8'/%3E%3Cpolygon points='0.0,147.0 13.0,160.0 0.0,173.0 -13.0,160.0' opacity='0.8'/%3E%3Cpolygon points='169.2,150.8 169.2,169.2 150.8,169.2 150.8,150.8' opacity='0.8'/%3E%3Cpolygon points='160.0,147.0 173.0,160.0 160.0,173.0 147.0,160.0' opacity='0.8'/%3E%3C/g%3E%3C/svg%3E");
+    background-size:160px 160px;
     -webkit-mask-image:radial-gradient(140vmin 90vmin at 50% 50%,rgba(0,0,0,.55) 0%,#000 78%);
     mask-image:radial-gradient(140vmin 90vmin at 50% 50%,rgba(0,0,0,.55) 0%,#000 78%)}
 
@@ -246,7 +246,7 @@
   <div class="qrbox" id="qrBox" style="display:none">
     <div class="qrcard"><img id="qrImg" src="img/qr.svg" alt="Nizamiye web sitesi QR"></div>
     <div class="qrtext">
-      <b>Hikâye burada bitmiyor</b>
+      <b>Hikaye burada bitmiyor</b>
       <span>Telefonunla QR'ı okut;<br>Nizamiye'nin dünyasını keşfetmeye devam et</span>
       <small id="qrUrl"></small>
     </div>
