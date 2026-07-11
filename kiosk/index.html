@@ -216,7 +216,7 @@
   <p class="eyebrow">Hoş Geldin</p>
   <p class="rule" id="selectRule"></p>
   <div class="cards" id="charCards"></div>
-  <p class="hint">Bir âlim seç; seni kendisi selamlayacak</p>
+  <p class="hint">Bir karakter seç; seni kendisi selamlayacak</p>
 </section>
 
 <!-- SORULAR -->
@@ -398,7 +398,7 @@ function buildAttract(){
     `<div class="m"><img src="${c.img}" alt="${c.name}"></div>`).join("");
 }
 function buildSelect(){
-  $("selectRule").textContent = `İstediğin âlime toplam ${S ? S.rights : CFG.rights} soru sorabilirsin`;
+  $("selectRule").textContent = `İstediğin karaktere toplam ${S ? S.rights : CFG.rights} soru sorabilirsin`;
   $("charCards").innerHTML = chars.map(c => `
     <button class="card" data-char="${c.id}">
       <div class="m"><img src="${c.img}" alt=""></div>
@@ -424,7 +424,7 @@ function buildAsk(){
       }).join("")}
     </div>`).join("");
   const others = chars.filter(x => x.id !== S.char);
-  $("switchRow").innerHTML = `<span>Başka bir âlime sormak istersen:</span>` +
+  $("switchRow").innerHTML = `<span>Başka bir karaktere sormak istersen:</span>` +
     others.map(o => `
       <button class="sw" data-sw="${o.id}"><span class="m"><img src="${o.img}" alt=""></span>${o.name}</button>`).join("");
 }

@@ -50,7 +50,8 @@ data = {
         "pin": "1206", "rights": 3, "idleMs": 75000, "thanksMs": 20000,
         "skipAfterMs": 6000, "mediaBase": "../sesler/", "mediaExt": ".mp3",
         "videoBase": "../videolar/", "videoExt": ".mp4",
-        "webUrl": "",  # kiosk_qr.py doldurur (yerel ag IP'siyle)
+        # Canli site adresi (QR bununla gosterilir). Ozel durum icin kiosk_qr.py override eder.
+        "webUrl": "https://nizamiyeweb.vercel.app/",
     },
     "characters": [chars[c] for c in ORDER],
 }
