@@ -219,7 +219,7 @@ window.KIOSK_DATA = {
        ]
       },
       {
-       "q": "Neden her öğrenciye burs verdin?",
+       "q": "İlim sadece zenginler için mi?",
        "variants": [
         {
          "code": "nizamulmulk_k1_s2",
@@ -433,7 +433,7 @@ window.KIOSK_DATA = {
      ]
     },
     {
-     "name": "İnsan Melikşah",
+     "name": "Sultanın Dünyası",
      "questions": [
       {
        "q": "Sultanlık zor mu?",
