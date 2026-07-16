@@ -15,7 +15,7 @@ META = {
 }
 CATS = {
     "gazali": {1: "Hayat & Medrese", 2: "İlim & Öğrenme", 3: "Kalp & Nasihat"},
-    "nizamulmulk": {1: "Medreseler & Eğitim", 2: "Devlet & Adalet", 3: "Sultan & Dönem"},
+    "nizamulmulk": {1: "Medreseler & Eğitim", 2: "Devlet & Adalet", 3: "Sultanlık & Dönem"},
     "meliksah": {1: "Saltanat & Devlet", 2: "İlmin Himayesi", 3: "İnsan Melikşah"},
 }
 ORDER = ["gazali", "nizamulmulk", "meliksah"]

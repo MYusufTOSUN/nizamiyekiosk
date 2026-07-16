@@ -105,7 +105,7 @@ window.KIOSK_DATA = {
        ]
       },
       {
-       "q": "İlim öğrenmek neden önemli?",
+       "q": "İlim öğrenmek neden önemlidir?",
        "variants": [
         {
          "code": "gazali_k2_s2",
@@ -279,7 +279,7 @@ window.KIOSK_DATA = {
      ]
     },
     {
-     "name": "Sultan & Dönem",
+     "name": "Sultanlık & Dönem",
      "questions": [
       {
        "q": "Melikşah nasıl bir sultandı?",
