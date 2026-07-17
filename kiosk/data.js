@@ -81,6 +81,15 @@ window.KIOSK_DATA = {
          "dur": 47.9
         }
        ]
+      },
+      {
+       "q": "Kaç yaşında baş müderris oldun?",
+       "variants": [
+        {
+         "code": "gazali_k1_s4",
+         "dur": 37.0
+        }
+       ]
       }
      ]
     },
@@ -121,6 +130,15 @@ window.KIOSK_DATA = {
          "dur": 45.6
         }
        ]
+      },
+      {
+       "q": "Derslerin nasıl işlenirdi?",
+       "variants": [
+        {
+         "code": "gazali_k2_s4",
+         "dur": 41.2
+        }
+       ]
       }
      ]
     },
@@ -159,6 +177,15 @@ window.KIOSK_DATA = {
         {
          "code": "gazali_k3_s3",
          "dur": 51.7
+        }
+       ]
+      },
+      {
+       "q": "Yalnız din mi okutulurdu?",
+       "variants": [
+        {
+         "code": "gazali_k3_s4",
+         "dur": 36.3
         }
        ]
       }
@@ -235,6 +262,15 @@ window.KIOSK_DATA = {
          "dur": 44.9
         }
        ]
+      },
+      {
+       "q": "Bu medreseleri kurma fikri nereden çıktı?",
+       "variants": [
+        {
+         "code": "nizamulmulk_k1_s4",
+         "dur": 41.9
+        }
+       ]
       }
      ]
     },
@@ -275,6 +311,15 @@ window.KIOSK_DATA = {
          "dur": 46.5
         }
        ]
+      },
+      {
+       "q": "Öven mi, eleştiren alim mi makbuldü?",
+       "variants": [
+        {
+         "code": "nizamulmulk_k2_s4",
+         "dur": 38.7
+        }
+       ]
       }
      ]
     },
@@ -313,6 +358,15 @@ window.KIOSK_DATA = {
         {
          "code": "nizamulmulk_k3_s3",
          "dur": 45.6
+        }
+       ]
+      },
+      {
+       "q": "Sen sadece bir vezir misin?",
+       "variants": [
+        {
+         "code": "nizamulmulk_k3_s4",
+         "dur": 38.1
         }
        ]
       }
@@ -389,6 +443,15 @@ window.KIOSK_DATA = {
          "dur": 47.2
         }
        ]
+      },
+      {
+       "q": "Bağdat medresesi ne kadar büyüktü?",
+       "variants": [
+        {
+         "code": "meliksah_k1_s4",
+         "dur": 36.4
+        }
+       ]
       }
      ]
     },
@@ -429,6 +492,15 @@ window.KIOSK_DATA = {
          "dur": 47.0
         }
        ]
+      },
+      {
+       "q": "Sadece medrese mi kurdurdun?",
+       "variants": [
+        {
+         "code": "meliksah_k2_s4",
+         "dur": 37.6
+        }
+       ]
       }
      ]
     },
@@ -467,6 +539,15 @@ window.KIOSK_DATA = {
         {
          "code": "meliksah_k3_s3",
          "dur": 44.9
+        }
+       ]
+      },
+      {
+       "q": "İsfahan'ın bir sırrı var mıydı?",
+       "variants": [
+        {
+         "code": "meliksah_k3_s4",
+         "dur": 32.4
         }
        ]
       }
