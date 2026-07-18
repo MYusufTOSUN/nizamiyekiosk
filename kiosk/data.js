@@ -398,11 +398,11 @@ window.KIOSK_DATA = {
    "outros": [
     {
      "code": "gazali_out_1",
-     "dur": 15.3
+     "dur": 15.2
     },
     {
      "code": "gazali_out_2",
-     "dur": 14.8
+     "dur": 14.7
     }
    ],
    "categories": [
