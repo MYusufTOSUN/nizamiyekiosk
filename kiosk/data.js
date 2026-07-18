@@ -136,7 +136,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k2_s4",
-         "dur": 41.2
+         "dur": 41.3
         }
        ]
       }
@@ -268,7 +268,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k1_s4",
-         "dur": 41.9
+         "dur": 41.8
         }
        ]
       }
@@ -449,7 +449,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k1_s4",
-         "dur": 36.4
+         "dur": 36.0
         }
        ]
       }
