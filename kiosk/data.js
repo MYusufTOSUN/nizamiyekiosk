@@ -52,7 +52,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k1_s1_v1",
-         "dur": 45.3
+         "dur": 45.2
         },
         {
          "code": "meliksah_k1_s1_v2",
