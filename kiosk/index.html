@@ -115,7 +115,9 @@
   .q{background:linear-gradient(180deg,#222c50,var(--ink3));border:1px solid rgba(227,181,82,.45);
     border-radius:1.6vmin;color:var(--cream);
     box-shadow:0 .5vmin 1.6vmin rgba(0,0,0,.5),inset 0 1px 0 rgba(246,217,138,.14);
-    font-size:2.5vmin;line-height:1.4;padding:2vmin 1.8vmin;text-align:start;min-height:9.5vmin;
+    font-family:var(--serif);font-weight:600;font-size:3vmin;line-height:1.24;letter-spacing:.01em;
+    padding:1.8vmin 2vmin;text-align:start;min-height:9.5vmin;
+    flex:1;display:flex;align-items:center;
     transition:transform .12s,border-color .12s,box-shadow .12s;position:relative}
   .q:active{transform:scale(.97);border-color:var(--goldb);box-shadow:0 .2vmin .6vmin rgba(0,0,0,.5)}
   .q.asked{opacity:.38}
@@ -240,7 +242,6 @@
 
 <!-- TEŞEKKÜR -->
 <section id="thanks" class="screen">
-  <p class="eyebrow">Nizamiye Medresesi</p>
   <h1>Teşekkürler!</h1>
   <p>Bin yıl öncesiyle sohbet ettin.<br>Sergiyi gezmeye devam et; kapımız herkese açık.</p>
   <div class="qrbox" id="qrBox" style="display:none">
