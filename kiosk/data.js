@@ -13,179 +13,179 @@ window.KIOSK_DATA = {
  },
  "characters": [
   {
-   "id": "gazali",
-   "name": "İmam Gazâlî",
-   "title": "Hüccetü'l-İslâm · Baş Müderris",
-   "img": "img/gazali_o.svg",
-   "imgB": "img/gazali_b.svg",
-   "imgK": "img/gazali_k.svg",
+   "id": "meliksah",
+   "name": "Sultan Melikşah",
+   "title": "Büyük Selçuklu Hükümdarı",
+   "img": "img/meliksah_o.svg",
+   "imgB": "img/meliksah_b.svg",
+   "imgK": "img/meliksah_k.svg",
    "intros": [
     {
-     "code": "gazali_int_1",
+     "code": "meliksah_int_1",
      "dur": 14.6
     },
     {
-     "code": "gazali_int_2",
-     "dur": 15.0
+     "code": "meliksah_int_2",
+     "dur": 12.1
     },
     {
-     "code": "gazali_int_3",
-     "dur": 14.4
+     "code": "meliksah_int_3",
+     "dur": 14.5
     }
    ],
    "outros": [
     {
-     "code": "gazali_out_1",
+     "code": "meliksah_out_1",
      "dur": 15.3
     },
     {
-     "code": "gazali_out_2",
-     "dur": 14.8
+     "code": "meliksah_out_2",
+     "dur": 12.7
     }
    ],
    "categories": [
     {
-     "name": "Hayat & Medrese",
+     "name": "Saltanat & Devlet",
      "questions": [
       {
-       "q": "Bin yıl önce medresede okumak nasıldı?",
+       "q": "İmparatorluğun ne kadar büyüktü?",
        "variants": [
         {
-         "code": "gazali_k1_s1_v1",
-         "dur": 48.4
+         "code": "meliksah_k1_s1_v1",
+         "dur": 45.3
         },
         {
-         "code": "gazali_k1_s1_v2",
-         "dur": 48.4
+         "code": "meliksah_k1_s1_v2",
+         "dur": 47.3
         },
         {
-         "code": "gazali_k1_s1_v3",
-         "dur": 46.8
+         "code": "meliksah_k1_s1_v3",
+         "dur": 45.2
         }
        ]
       },
       {
-       "q": "Bize kendini tanıtır mısın?",
+       "q": "Nasıl sultan oldun?",
        "variants": [
         {
-         "code": "gazali_k1_s2",
-         "dur": 45.0
-        }
-       ]
-      },
-      {
-       "q": "Bağdat'ta ders vermek nasıldı?",
-       "variants": [
-        {
-         "code": "gazali_k1_s3",
-         "dur": 47.9
-        }
-       ]
-      },
-      {
-       "q": "Kaç yaşında baş müderris oldun?",
-       "variants": [
-        {
-         "code": "gazali_k1_s4",
-         "dur": 37.0
-        }
-       ]
-      }
-     ]
-    },
-    {
-     "name": "İlim & Öğrenme",
-     "questions": [
-      {
-       "q": "Nasıl daha iyi ders çalışabilirim?",
-       "variants": [
-        {
-         "code": "gazali_k2_s1_v1",
-         "dur": 48.9
-        },
-        {
-         "code": "gazali_k2_s1_v2",
-         "dur": 47.8
-        },
-        {
-         "code": "gazali_k2_s1_v3",
+         "code": "meliksah_k1_s2",
          "dur": 48.8
         }
        ]
       },
       {
-       "q": "İlim öğrenmek neden önemlidir?",
+       "q": "Vezirin Nizamülmülk'e neden bu kadar güvendin?",
        "variants": [
         {
-         "code": "gazali_k2_s2",
-         "dur": 46.4
+         "code": "meliksah_k1_s3",
+         "dur": 47.2
         }
        ]
       },
       {
-       "q": "Mantık nedir, ne işe yarar?",
+       "q": "Bağdat medresesi ne kadar büyüktü?",
        "variants": [
         {
-         "code": "gazali_k2_s3",
-         "dur": 45.6
-        }
-       ]
-      },
-      {
-       "q": "Derslerin nasıl işlenirdi?",
-       "variants": [
-        {
-         "code": "gazali_k2_s4",
-         "dur": 41.3
+         "code": "meliksah_k1_s4",
+         "dur": 36.0
         }
        ]
       }
      ]
     },
     {
-     "name": "Kalp & Nasihat",
+     "name": "İlmin Himayesi",
      "questions": [
       {
-       "q": "Mutluluğun sırrı nedir?",
+       "q": "Neden bir rasathane kurdun?",
        "variants": [
         {
-         "code": "gazali_k3_s1_v1",
+         "code": "meliksah_k2_s1_v1",
          "dur": 45.2
         },
         {
-         "code": "gazali_k3_s1_v2",
-         "dur": 45.1
+         "code": "meliksah_k2_s1_v2",
+         "dur": 46.6
         },
         {
-         "code": "gazali_k3_s1_v3",
-         "dur": 46.4
+         "code": "meliksah_k2_s1_v3",
+         "dur": 49.0
         }
        ]
       },
       {
-       "q": "Bize bir nasihat verir misin?",
+       "q": "Ömer Hayyam kimdir?",
        "variants": [
         {
-         "code": "gazali_k3_s2",
-         "dur": 47.5
+         "code": "meliksah_k2_s2",
+         "dur": 45.6
         }
        ]
       },
       {
-       "q": "Gerçek dost nasıl anlaşılır?",
+       "q": "Bir sultan neden ilme para harcar?",
        "variants": [
         {
-         "code": "gazali_k3_s3",
-         "dur": 51.7
+         "code": "meliksah_k2_s3",
+         "dur": 47.0
         }
        ]
       },
       {
-       "q": "Yalnız din mi okutulurdu?",
+       "q": "Sadece medrese mi kurdurdun?",
        "variants": [
         {
-         "code": "gazali_k3_s4",
-         "dur": 36.3
+         "code": "meliksah_k2_s4",
+         "dur": 37.6
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Sultanın Dünyası",
+     "questions": [
+      {
+       "q": "Sultanlık zor mu?",
+       "variants": [
+        {
+         "code": "meliksah_k3_s1_v1",
+         "dur": 47.8
+        },
+        {
+         "code": "meliksah_k3_s1_v2",
+         "dur": 45.3
+        },
+        {
+         "code": "meliksah_k3_s1_v3",
+         "dur": 45.7
+        }
+       ]
+      },
+      {
+       "q": "Başkentin İsfahan nasıl bir yerdi?",
+       "variants": [
+        {
+         "code": "meliksah_k3_s2",
+         "dur": 48.4
+        }
+       ]
+      },
+      {
+       "q": "Bağdat'taki alim Gazali'yi duydun mu?",
+       "variants": [
+        {
+         "code": "meliksah_k3_s3",
+         "dur": 44.9
+        }
+       ]
+      },
+      {
+       "q": "İsfahan'ın bir sırrı var mıydı?",
+       "variants": [
+        {
+         "code": "meliksah_k3_s4",
+         "dur": 32.4
         }
        ]
       }
@@ -375,179 +375,179 @@ window.KIOSK_DATA = {
    ]
   },
   {
-   "id": "meliksah",
-   "name": "Sultan Melikşah",
-   "title": "Büyük Selçuklu Hükümdarı",
-   "img": "img/meliksah_o.svg",
-   "imgB": "img/meliksah_b.svg",
-   "imgK": "img/meliksah_k.svg",
+   "id": "gazali",
+   "name": "İmam Gazâlî",
+   "title": "Hüccetü'l-İslâm · Baş Müderris",
+   "img": "img/gazali_o.svg",
+   "imgB": "img/gazali_b.svg",
+   "imgK": "img/gazali_k.svg",
    "intros": [
     {
-     "code": "meliksah_int_1",
+     "code": "gazali_int_1",
      "dur": 14.6
     },
     {
-     "code": "meliksah_int_2",
-     "dur": 12.1
+     "code": "gazali_int_2",
+     "dur": 15.0
     },
     {
-     "code": "meliksah_int_3",
-     "dur": 14.5
+     "code": "gazali_int_3",
+     "dur": 14.4
     }
    ],
    "outros": [
     {
-     "code": "meliksah_out_1",
+     "code": "gazali_out_1",
      "dur": 15.3
     },
     {
-     "code": "meliksah_out_2",
-     "dur": 12.7
+     "code": "gazali_out_2",
+     "dur": 14.8
     }
    ],
    "categories": [
     {
-     "name": "Saltanat & Devlet",
+     "name": "Hayat & Medrese",
      "questions": [
       {
-       "q": "İmparatorluğun ne kadar büyüktü?",
+       "q": "Bin yıl önce medresede okumak nasıldı?",
        "variants": [
         {
-         "code": "meliksah_k1_s1_v1",
-         "dur": 45.3
+         "code": "gazali_k1_s1_v1",
+         "dur": 48.4
         },
         {
-         "code": "meliksah_k1_s1_v2",
-         "dur": 47.3
+         "code": "gazali_k1_s1_v2",
+         "dur": 48.4
         },
         {
-         "code": "meliksah_k1_s1_v3",
-         "dur": 45.2
+         "code": "gazali_k1_s1_v3",
+         "dur": 46.8
         }
        ]
       },
       {
-       "q": "Nasıl sultan oldun?",
+       "q": "Bize kendini tanıtır mısın?",
        "variants": [
         {
-         "code": "meliksah_k1_s2",
+         "code": "gazali_k1_s2",
+         "dur": 45.0
+        }
+       ]
+      },
+      {
+       "q": "Bağdat'ta ders vermek nasıldı?",
+       "variants": [
+        {
+         "code": "gazali_k1_s3",
+         "dur": 47.9
+        }
+       ]
+      },
+      {
+       "q": "Kaç yaşında baş müderris oldun?",
+       "variants": [
+        {
+         "code": "gazali_k1_s4",
+         "dur": 37.0
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "İlim & Öğrenme",
+     "questions": [
+      {
+       "q": "Nasıl daha iyi ders çalışabilirim?",
+       "variants": [
+        {
+         "code": "gazali_k2_s1_v1",
+         "dur": 48.9
+        },
+        {
+         "code": "gazali_k2_s1_v2",
+         "dur": 47.8
+        },
+        {
+         "code": "gazali_k2_s1_v3",
          "dur": 48.8
         }
        ]
       },
       {
-       "q": "Vezirin Nizamülmülk'e neden bu kadar güvendin?",
+       "q": "İlim öğrenmek neden önemlidir?",
        "variants": [
         {
-         "code": "meliksah_k1_s3",
-         "dur": 47.2
+         "code": "gazali_k2_s2",
+         "dur": 46.4
         }
        ]
       },
       {
-       "q": "Bağdat medresesi ne kadar büyüktü?",
+       "q": "Mantık nedir, ne işe yarar?",
        "variants": [
         {
-         "code": "meliksah_k1_s4",
-         "dur": 36.0
-        }
-       ]
-      }
-     ]
-    },
-    {
-     "name": "İlmin Himayesi",
-     "questions": [
-      {
-       "q": "Neden bir rasathane kurdun?",
-       "variants": [
-        {
-         "code": "meliksah_k2_s1_v1",
-         "dur": 45.2
-        },
-        {
-         "code": "meliksah_k2_s1_v2",
-         "dur": 46.6
-        },
-        {
-         "code": "meliksah_k2_s1_v3",
-         "dur": 49.0
-        }
-       ]
-      },
-      {
-       "q": "Ömer Hayyam kimdir?",
-       "variants": [
-        {
-         "code": "meliksah_k2_s2",
+         "code": "gazali_k2_s3",
          "dur": 45.6
         }
        ]
       },
       {
-       "q": "Bir sultan neden ilme para harcar?",
+       "q": "Derslerin nasıl işlenirdi?",
        "variants": [
         {
-         "code": "meliksah_k2_s3",
-         "dur": 47.0
-        }
-       ]
-      },
-      {
-       "q": "Sadece medrese mi kurdurdun?",
-       "variants": [
-        {
-         "code": "meliksah_k2_s4",
-         "dur": 37.6
+         "code": "gazali_k2_s4",
+         "dur": 41.3
         }
        ]
       }
      ]
     },
     {
-     "name": "Sultanın Dünyası",
+     "name": "Kalp & Nasihat",
      "questions": [
       {
-       "q": "Sultanlık zor mu?",
+       "q": "Mutluluğun sırrı nedir?",
        "variants": [
         {
-         "code": "meliksah_k3_s1_v1",
-         "dur": 47.8
+         "code": "gazali_k3_s1_v1",
+         "dur": 45.2
         },
         {
-         "code": "meliksah_k3_s1_v2",
-         "dur": 45.3
+         "code": "gazali_k3_s1_v2",
+         "dur": 45.1
         },
         {
-         "code": "meliksah_k3_s1_v3",
-         "dur": 45.7
+         "code": "gazali_k3_s1_v3",
+         "dur": 46.4
         }
        ]
       },
       {
-       "q": "Başkentin İsfahan nasıl bir yerdi?",
+       "q": "Bize bir nasihat verir misin?",
        "variants": [
         {
-         "code": "meliksah_k3_s2",
-         "dur": 48.4
+         "code": "gazali_k3_s2",
+         "dur": 47.5
         }
        ]
       },
       {
-       "q": "Bağdat'taki alim Gazali'yi duydun mu?",
+       "q": "Gerçek dost nasıl anlaşılır?",
        "variants": [
         {
-         "code": "meliksah_k3_s3",
-         "dur": 44.9
+         "code": "gazali_k3_s3",
+         "dur": 51.7
         }
        ]
       },
       {
-       "q": "İsfahan'ın bir sırrı var mıydı?",
+       "q": "Yalnız din mi okutulurdu?",
        "variants": [
         {
-         "code": "meliksah_k3_s4",
-         "dur": 32.4
+         "code": "gazali_k3_s4",
+         "dur": 36.3
         }
        ]
       }

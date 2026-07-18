@@ -18,7 +18,7 @@ CATS = {
     "nizamulmulk": {1: "Medreseler & Eğitim", 2: "Devlet & Adalet", 3: "Sultanlık & Dönem"},
     "meliksah": {1: "Saltanat & Devlet", 2: "İlmin Himayesi", 3: "Sultanın Dünyası"},
 }
-ORDER = ["gazali", "nizamulmulk", "meliksah"]
+ORDER = ["meliksah", "nizamulmulk", "gazali"]
 
 rows = list(csv.DictReader(open(ROOT / "senaryolar" / "manifest.csv", encoding="utf-8-sig")))
 chars: dict[str, dict] = {
