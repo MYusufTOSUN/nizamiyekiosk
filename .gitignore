@@ -100,3 +100,11 @@ afc/
 data/*.wav
 data/voices/**/*.m4a
 data/voices/**/*.aac
+
+# Ses uretim/test calisma klasorleri (yerel; Vercel'e gitmesin)
+kiosk/sesler/_test/
+kiosk/sesler/_yeni/
+kiosk/sesler/_final/
+kiosk/sesler/_retake/
+kiosk/sesler/_ses_test/
+kiosk/sesler/_yedek_eski/
