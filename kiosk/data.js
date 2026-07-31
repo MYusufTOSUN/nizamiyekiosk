@@ -543,7 +543,7 @@ window.KIOSK_DATA = {
        ]
       },
       {
-       "q": "Yalnız din mi okutulurdu?",
+       "q": "Medresede yalnız din mi okutulurdu?",
        "variants": [
         {
          "code": "gazali_k3_s4",
