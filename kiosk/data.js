@@ -22,25 +22,25 @@ window.KIOSK_DATA = {
    "intros": [
     {
      "code": "meliksah_int_1",
-     "dur": 14.3
+     "dur": 16.4
     },
     {
      "code": "meliksah_int_2",
-     "dur": 12.1
+     "dur": 15.0
     },
     {
      "code": "meliksah_int_3",
-     "dur": 14.5
+     "dur": 15.8
     }
    ],
    "outros": [
     {
      "code": "meliksah_out_1",
-     "dur": 15.3
+     "dur": 16.4
     },
     {
      "code": "meliksah_out_2",
-     "dur": 12.7
+     "dur": 13.5
     }
    ],
    "categories": [
@@ -52,15 +52,15 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k1_s1_v1",
-         "dur": 44.9
+         "dur": 50.2
         },
         {
          "code": "meliksah_k1_s1_v2",
-         "dur": 47.2
+         "dur": 50.2
         },
         {
          "code": "meliksah_k1_s1_v3",
-         "dur": 45.0
+         "dur": 50.2
         }
        ]
       },
@@ -69,7 +69,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k1_s2",
-         "dur": 48.7
+         "dur": 52.5
         }
        ]
       },
@@ -78,7 +78,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k1_s3",
-         "dur": 47.1
+         "dur": 48.8
         }
        ]
       },
@@ -87,7 +87,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k1_s4",
-         "dur": 36.0
+         "dur": 41.2
         }
        ]
       }
@@ -101,15 +101,15 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k2_s1_v1",
-         "dur": 45.1
+         "dur": 49.2
         },
         {
          "code": "meliksah_k2_s1_v2",
-         "dur": 46.4
+         "dur": 50.9
         },
         {
          "code": "meliksah_k2_s1_v3",
-         "dur": 48.9
+         "dur": 51.9
         }
        ]
       },
@@ -118,7 +118,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k2_s2",
-         "dur": 45.6
+         "dur": 49.8
         }
        ]
       },
@@ -127,7 +127,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k2_s3",
-         "dur": 46.6
+         "dur": 52.2
         }
        ]
       },
@@ -136,7 +136,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k2_s4",
-         "dur": 38.4
+         "dur": 39.7
         }
        ]
       }
@@ -150,15 +150,15 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k3_s1_v1",
-         "dur": 47.8
+         "dur": 53.7
         },
         {
          "code": "meliksah_k3_s1_v2",
-         "dur": 45.3
+         "dur": 52.4
         },
         {
          "code": "meliksah_k3_s1_v3",
-         "dur": 45.7
+         "dur": 49.2
         }
        ]
       },
@@ -167,7 +167,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k3_s2",
-         "dur": 48.4
+         "dur": 52.8
         }
        ]
       },
@@ -176,7 +176,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k3_s3",
-         "dur": 44.7
+         "dur": 47.4
         }
        ]
       },
@@ -185,7 +185,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k3_s4",
-         "dur": 32.5
+         "dur": 36.7
         }
        ]
       }
@@ -203,25 +203,25 @@ window.KIOSK_DATA = {
    "intros": [
     {
      "code": "nizamulmulk_int_1",
-     "dur": 14.2
+     "dur": 14.9
     },
     {
      "code": "nizamulmulk_int_2",
-     "dur": 12.7
+     "dur": 15.3
     },
     {
      "code": "nizamulmulk_int_3",
-     "dur": 13.8
+     "dur": 14.6
     }
    ],
    "outros": [
     {
      "code": "nizamulmulk_out_1",
-     "dur": 14.8
+     "dur": 13.7
     },
     {
      "code": "nizamulmulk_out_2",
-     "dur": 14.1
+     "dur": 15.2
     }
    ],
    "categories": [
@@ -233,15 +233,15 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k1_s1_v1",
-         "dur": 47.0
+         "dur": 50.8
         },
         {
          "code": "nizamulmulk_k1_s1_v2",
-         "dur": 47.0
+         "dur": 54.4
         },
         {
          "code": "nizamulmulk_k1_s1_v3",
-         "dur": 46.5
+         "dur": 52.1
         }
        ]
       },
@@ -250,7 +250,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k1_s2",
-         "dur": 45.6
+         "dur": 51.7
         }
        ]
       },
@@ -259,7 +259,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k1_s3",
-         "dur": 44.5
+         "dur": 45.2
         }
        ]
       },
@@ -268,7 +268,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k1_s4",
-         "dur": 41.5
+         "dur": 50.2
         }
        ]
       }
@@ -282,15 +282,15 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k2_s1_v1",
-         "dur": 46.4
+         "dur": 47.5
         },
         {
          "code": "nizamulmulk_k2_s1_v2",
-         "dur": 44.9
+         "dur": 49.7
         },
         {
          "code": "nizamulmulk_k2_s1_v3",
-         "dur": 43.9
+         "dur": 46.2
         }
        ]
       },
@@ -299,7 +299,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k2_s2",
-         "dur": 45.9
+         "dur": 46.2
         }
        ]
       },
@@ -308,7 +308,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k2_s3",
-         "dur": 46.5
+         "dur": 49.7
         }
        ]
       },
@@ -317,7 +317,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k2_s4",
-         "dur": 38.7
+         "dur": 39.6
         }
        ]
       }
@@ -331,15 +331,15 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k3_s1_v1",
-         "dur": 46.5
+         "dur": 50.5
         },
         {
          "code": "nizamulmulk_k3_s1_v2",
-         "dur": 47.2
+         "dur": 47.0
         },
         {
          "code": "nizamulmulk_k3_s1_v3",
-         "dur": 47.6
+         "dur": 45.0
         }
        ]
       },
@@ -348,7 +348,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k3_s2",
-         "dur": 47.1
+         "dur": 50.4
         }
        ]
       },
@@ -357,7 +357,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k3_s3",
-         "dur": 45.4
+         "dur": 54.1
         }
        ]
       },
@@ -366,7 +366,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k3_s4",
-         "dur": 37.6
+         "dur": 38.1
         }
        ]
       }
@@ -384,25 +384,25 @@ window.KIOSK_DATA = {
    "intros": [
     {
      "code": "gazali_int_1",
-     "dur": 14.3
+     "dur": 13.6
     },
     {
      "code": "gazali_int_2",
-     "dur": 14.7
+     "dur": 16.8
     },
     {
      "code": "gazali_int_3",
-     "dur": 14.4
+     "dur": 17.4
     }
    ],
    "outros": [
     {
      "code": "gazali_out_1",
-     "dur": 15.1
+     "dur": 14.2
     },
     {
      "code": "gazali_out_2",
-     "dur": 14.7
+     "dur": 16.2
     }
    ],
    "categories": [
@@ -414,15 +414,15 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k1_s1_v1",
-         "dur": 48.3
+         "dur": 54.3
         },
         {
          "code": "gazali_k1_s1_v2",
-         "dur": 48.4
+         "dur": 51.5
         },
         {
          "code": "gazali_k1_s1_v3",
-         "dur": 47.2
+         "dur": 53.3
         }
        ]
       },
@@ -431,7 +431,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k1_s2",
-         "dur": 45.0
+         "dur": 51.1
         }
        ]
       },
@@ -440,16 +440,16 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k1_s3",
-         "dur": 47.6
+         "dur": 51.5
         }
        ]
       },
       {
-       "q": "Kaç yaşında baş müderris oldun?",
+       "q": "Kaç yaşında müderris oldun?",
        "variants": [
         {
          "code": "gazali_k1_s4",
-         "dur": 37.0
+         "dur": 44.4
         }
        ]
       }
@@ -463,15 +463,15 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k2_s1_v1",
-         "dur": 48.9
+         "dur": 54.7
         },
         {
          "code": "gazali_k2_s1_v2",
-         "dur": 47.8
+         "dur": 53.2
         },
         {
          "code": "gazali_k2_s1_v3",
-         "dur": 48.8
+         "dur": 51.1
         }
        ]
       },
@@ -480,7 +480,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k2_s2",
-         "dur": 46.4
+         "dur": 52.2
         }
        ]
       },
@@ -489,7 +489,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k2_s3",
-         "dur": 45.4
+         "dur": 47.6
         }
        ]
       },
@@ -498,7 +498,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k2_s4",
-         "dur": 41.3
+         "dur": 45.0
         }
        ]
       }
@@ -512,15 +512,15 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k3_s1_v1",
-         "dur": 45.1
+         "dur": 48.6
         },
         {
          "code": "gazali_k3_s1_v2",
-         "dur": 45.1
+         "dur": 49.4
         },
         {
          "code": "gazali_k3_s1_v3",
-         "dur": 46.4
+         "dur": 49.4
         }
        ]
       },
@@ -529,7 +529,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k3_s2",
-         "dur": 47.9
+         "dur": 52.8
         }
        ]
       },
@@ -538,7 +538,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k3_s3",
-         "dur": 51.6
+         "dur": 56.4
         }
        ]
       },
@@ -547,7 +547,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k3_s4",
-         "dur": 36.3
+         "dur": 46.7
         }
        ]
       }

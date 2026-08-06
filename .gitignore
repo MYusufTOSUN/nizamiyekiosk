@@ -112,3 +112,11 @@ kiosk/sesler/_ses_test2/
 kiosk/sesler/_yeni2/
 kiosk/sesler/_final2/
 kiosk/sesler/_yedek_eski2/
+# TDV denetimi retake turlari (6 Agustos 2026) — yedekler KALICI, silinmez
+kiosk/sesler/_retake_tdv/
+kiosk/sesler/_retake_tdv_final/
+kiosk/sesler/_retake_tdv2/
+kiosk/sesler/_retake_tdv2_final/
+kiosk/sesler/_test_ab2/
+kiosk/sesler/_test_ab2_final/
+kiosk/sesler/_yedek_tur0/

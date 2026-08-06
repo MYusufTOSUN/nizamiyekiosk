@@ -2,11 +2,36 @@
 import csv
 import json
 import re
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 KIOSK = ROOT / "kiosk"
 KIOSK.mkdir(exist_ok=True)
+
+
+def gercek_sure(kod: str) -> float | None:
+    """Uretilmis medyanin OLCULEN suresi. Yoksa None.
+
+    Onemli: kiosk oynaticisi bu degeri bekci zamanlayicisinda kullaniyor
+    (index.html -> setTimeout(..., (dur + 8) * 1000)). manifest.csv'deki
+    'tahmini_sn' karakter sayisindan hesaplaniyor ve gercekten 10 sn'ye kadar
+    sapabiliyor; sapma 8 sn'yi gecince bekci klibi BITMEDEN kesiyor.
+    Bu yuzden dosya varsa daima olculen sure kullanilir.
+    """
+    for alt, uzanti in (("videolar", ".mp4"), ("sesler", ".mp3")):
+        p = KIOSK / alt / f"{kod}{uzanti}"
+        if not p.exists():
+            continue
+        try:
+            r = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                 "-of", "csv=p=0", str(p)],
+                capture_output=True, text=True, timeout=30)
+            return round(float(r.stdout.strip()), 1)
+        except (ValueError, OSError, subprocess.SubprocessError):
+            return None
+    return None
 
 META = {
     "gazali": {"name": "İmam Gazâlî", "title": "Hüccetü'l-İslâm · Baş Müderris"},
@@ -30,9 +55,13 @@ chars: dict[str, dict] = {
     for c in ORDER
 }
 qmap: dict[tuple, dict] = {}
+tahmine_dusen: list[str] = []
 for r in rows:
     kod = r["kod"]
-    dur = float(r["tahmini_sn"])
+    dur = gercek_sure(kod)
+    if dur is None:                      # medya henuz uretilmemis -> tahmine dus
+        dur = float(r["tahmini_sn"])
+        tahmine_dusen.append(kod)
     ch = kod.split("_")[0]
     item = {"code": kod, "dur": dur}
     if "_int_" in kod:
@@ -64,3 +93,8 @@ out.write_text("window.KIOSK_DATA = " + json.dumps(data, ensure_ascii=False, ind
 nq = sum(len(cat["questions"]) for c in data["characters"] for cat in c["categories"])
 nv = sum(len(q["variants"]) for c in data["characters"] for cat in c["categories"] for q in cat["questions"])
 print(f"yazildi: {out} | {len(data['characters'])} karakter, {nq} soru, {nv} cevap klibi")
+if tahmine_dusen:
+    print(f"UYARI: {len(tahmine_dusen)} klipte medya bulunamadi, tahmini sure kullanildi:")
+    print("  " + ", ".join(tahmine_dusen))
+else:
+    print("tum sureler medyadan OLCULDU (bekci zamanlayicisi icin kritik)")
