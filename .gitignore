@@ -124,3 +124,9 @@ kiosk/sesler/_k2v3_deneme/
 kiosk/sesler/_k2v3_deneme_final/
 kiosk/sesler/_k2v3_inat/
 kiosk/sesler/_k2v3_inat_final/
+
+# Video uretim calisma klasorleri (GB'larca ham cikti; master'lar ve loglar TAKIPLI)
+video/02_ham/
+video/03_post/
+video/04_upscale/
+video/_tmp/
