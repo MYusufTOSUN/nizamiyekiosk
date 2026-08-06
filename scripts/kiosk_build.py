@@ -84,7 +84,8 @@ data = {
         "skipAfterMs": 6000, "mediaBase": "sesler/", "mediaExt": ".mp3",
         "videoBase": "videolar/", "videoExt": ".mp4",
         # Canli site adresi (QR bununla gosterilir). Ozel durum icin kiosk_qr.py override eder.
-        "webUrl": "https://nizamiyeweb.vercel.app/",
+        # 6 Agustos 2026: Vercel'den GitHub Pages + kendi alan adina tasindi.
+        "webUrl": "https://nizamiyedebirgun.com/",
     },
     "characters": [chars[c] for c in ORDER],
 }

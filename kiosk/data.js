@@ -9,7 +9,7 @@ window.KIOSK_DATA = {
   "mediaExt": ".mp3",
   "videoBase": "videolar/",
   "videoExt": ".mp4",
-  "webUrl": "https://nizamiyeweb.vercel.app/"
+  "webUrl": "https://nizamiyedebirgun.com/"
  },
  "characters": [
   {
@@ -471,7 +471,7 @@ window.KIOSK_DATA = {
         },
         {
          "code": "gazali_k2_s1_v3",
-         "dur": 51.1
+         "dur": 56.8
         }
        ]
       },
