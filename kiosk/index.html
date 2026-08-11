@@ -275,6 +275,10 @@
       <input type="range" id="vVol" min="0" max="100" step="5"></div>
     <div class="arow"><span>Medya kaynağı</span>
       <button class="abtn" id="vMedia"></button></div>
+    <div class="arow" id="holoRow"><span>Hologram ekranı <small style="color:var(--soft)">(yalnız yerel)</small></span>
+      <span><button class="abtn" id="holoBtn">Aç</button>
+      <button class="abtn" id="holoTest">Sına</button>
+      <span class="val" id="holoStat" style="margin-left:1.2vmin"></span></span></div>
     <div class="arow"><span>Ses testi</span>
       <span><button class="abtn" data-test="gazali">Gazâlî</button>
       <button class="abtn" data-test="nizamulmulk">Nizamülmülk</button>
@@ -340,6 +344,80 @@ function newSession(){
   S = { rights: CFG.rights, char: null, met: {}, asked: {}, playedVar: {} };
 }
 
+/* ---------- ikinci ekran: hologram penceresi ----------
+   YALNIZ LOKALDE. Vercel'de (nizamiyekiosk.vercel.app) tamamen olu:
+   dugme cikmaz, pencere acilmaz, oynatma davranisi degismez. Sebep: ikinci
+   ekran kabinin televizyonu ve videolar 4,8 GB — dagitima girmiyorlar. */
+const YEREL = ["localhost", "127.0.0.1", "::1", ""].includes(location.hostname)
+              || location.protocol === "file:";
+let holoWin = null, holoHazir = false, holoOynatiyor = false, holoSonSes = 0;
+
+/* Tasima: BroadcastChannel birincil — baslatici iki pencereyi BAGIMSIZ aciyor,
+   aralarinda opener yok. window.open ile acildiysa postMessage de calisir.
+   BroadcastChannel ayni koken ister: file:// ile DEGIL, http://127.0.0.1 ile
+   servis edilmeli (kiosk_baslat.bat bunu yapiyor). */
+let holoKanal = null;
+if (YEREL) { try { holoKanal = new BroadcastChannel("nizamiye_hologram"); } catch(e){} }
+
+// "Bagli" olcutu: son 4 sn icinde hologramdan haber geldi mi.
+function holoAcik(){
+  if (!YEREL) return false;
+  if (holoWin && !holoWin.closed) return true;
+  return holoHazir && (Date.now() - holoSonSes) < 4000;
+}
+function holoYolla(tip, ek){
+  if (!YEREL) return false;
+  const m = Object.assign({ nizamiye: "kiosk", tip: tip }, ek || {});
+  let gitti = false;
+  if (holoKanal) { try { holoKanal.postMessage(m); gitti = true; } catch(e){} }
+  if (holoWin && !holoWin.closed) { try { holoWin.postMessage(m, "*"); gitti = true; } catch(e){} }
+  return gitti && holoAcik();
+}
+
+async function holoAc(){
+  if (!YEREL) { toast("Hologram ekranı yalnız yerel kurulumda çalışır"); return; }
+  if (holoAcik()) { holoWin.focus(); return; }
+  let ozellik = "width=1280,height=720";
+  // Window Management API: ikinci ekrani bulup pencereyi dogrudan oraya koy.
+  // Yalniz guvenli baglamda (localhost) var; file:// icinde yok, sorun degil.
+  try {
+    if (window.getScreenDetails) {
+      const d = await window.getScreenDetails();
+      const ik = d.screens.find(s => !s.isPrimary) || d.currentScreen;
+      ozellik = `left=${ik.availLeft},top=${ik.availTop},` +
+                `width=${ik.availWidth},height=${ik.availHeight}`;
+    }
+  } catch(e){ /* izin verilmedi — elle tasinir */ }
+  holoWin = window.open("hologram.html", "nizamiye_hologram", ozellik + ",menubar=no,toolbar=no,location=no,status=no");
+  if (!holoWin) { toast("Açılır pencere engellendi — tarayıcıdan izin ver"); return; }
+  holoHazir = false;
+  setTimeout(() => { if (!holoHazir) toast("Hologram penceresi açıldı — F ile tam ekran yap"); }, 1200);
+}
+
+function holoKapat(){
+  if (holoWin && !holoWin.closed) { try { holoWin.close(); } catch(e){} }
+  holoWin = null; holoHazir = false; holoOynatiyor = false;
+}
+
+function holoCevap(m){
+  if (!m || m.nizamiye !== "hologram") return;
+  holoSonSes = Date.now();
+  if (m.tip === "hazirim") {
+    if (!holoHazir) { holoHazir = true; toast("Hologram ekranı bağlandı"); holoDurum(); }
+  }
+  else if (m.tip === "hata") {
+    // Video yoksa/acilmadiysa ses yerelde calmaya devam etsin — sessiz kalmayalim.
+    holoOynatiyor = false; audio.muted = false;
+  }
+  else if (m.tip === "kapandi") {
+    holoHazir = false; holoOynatiyor = false; audio.muted = false; holoDurum();
+  }
+}
+addEventListener("message", (e) => holoCevap(e.data));
+if (holoKanal) holoKanal.onmessage = (e) => holoCevap(e.data);
+// Hologram once acilmis olabilir: acilista ve duzenli olarak yokla.
+if (YEREL) { holoYolla("yokla"); setInterval(() => holoYolla("yokla"), 3000); }
+
 /* ---------- medya motoru ---------- */
 const audio = $("player"), video = $("vplayer");
 let watchdog = null, onEndCb = null, playing = false;
@@ -348,6 +426,8 @@ function stopMedia(){
   clearTimeout(watchdog); watchdog = null; onEndCb = null; playing = false;
   [audio, video].forEach(el => { el.onended = el.onerror = null; try { el.pause(); } catch(e){} });
   video.style.display = "none";
+  if (holoOynatiyor) { holoYolla("dur"); holoOynatiyor = false; }
+  audio.muted = false;
 }
 function playClip(code, dur, onEnd){
   stopMedia();
@@ -357,6 +437,13 @@ function playClip(code, dur, onEnd){
   el.src = base + code + CFG.mediaExt;
   el.volume = (CFG.volume == null ? 100 : CFG.volume) / 100;
   if (el === video) video.style.display = "block";
+  // Hologram bagliysa: ses ORADAN gelsin (videonun kendi sesi = kusursuz
+  // dudak senkronu), buradaki ses sadece zamanlayici olarak sessiz kossun.
+  // Video acilamazsa 'hata' mesaji gelir ve ses aninda geri acilir.
+  if (holoAcik() && holoYolla("oynat", { kod: code, ses: (CFG.volume == null ? 100 : CFG.volume) / 100 })) {
+    holoOynatiyor = true;
+    audio.muted = true;
+  }
   const finish = (ok) => {
     if (!playing) return;
     const cb = onEndCb; stopMedia();
@@ -551,11 +638,19 @@ $("pinPad").addEventListener("click", e => {
     else { pinBuf = ""; drawPin(); toast("Hatalı PIN"); }
   }
 });
+function holoDurum(){
+  const s = $("holoStat"), b = $("holoBtn");
+  if (!YEREL) { s.textContent = "sunucuda kapalı"; b.disabled = true; b.textContent = "—"; return; }
+  b.disabled = false;
+  if (holoAcik()) { s.textContent = holoHazir ? "bağlı" : "açıldı, bekleniyor"; b.textContent = "Kapat"; }
+  else { s.textContent = "kapalı"; b.textContent = "Aç"; }
+}
 function openAdmin(){
   $("vRights").textContent = CFG.rights;
   $("vIdle").textContent = Math.round(CFG.idleMs / 1000);
   $("vVol").value = CFG.volume == null ? 100 : CFG.volume;
   $("vMedia").textContent = CFG.mediaExt === ".mp4" ? "Video (videolar/)" : "Ses (sesler/)";
+  holoDurum();
   const s = stats();
   $("vStats").textContent = `oturum ${s.oturum || 0} · tamamlanan ${s.tamamlanan || 0} · terk ${s.terk || 0}` +
     ` (seçim ${s.terk_select || 0} · soru ${s.terk_ask || 0} · oynatma ${s.terk_play || 0} · elle ${s.terk_manuel || 0})`;
@@ -575,7 +670,20 @@ function playClipAdminTest(i){
   stopMedia(); audio.src = CFG.mediaBase + i.code + ".mp3";
   audio.volume = (CFG.volume == null ? 100 : CFG.volume) / 100; audio.play().catch(()=>toast("Çalınamadı"));
 }
-$("vVol").addEventListener("input", e => { saveCfg({ volume: +e.target.value }); audio.volume = (+e.target.value)/100; });
+$("holoBtn").addEventListener("click", async () => {
+  if (holoAcik()) holoKapat(); else await holoAc();
+  setTimeout(holoDurum, 300);
+});
+$("holoTest").addEventListener("click", () => {
+  if (!holoAcik()) { toast("Önce hologram ekranını aç"); return; }
+  const i = byId.gazali.intros[0];
+  holoYolla("oynat", { kod: i.code, ses: (CFG.volume == null ? 100 : CFG.volume) / 100 });
+});
+$("vVol").addEventListener("input", e => {
+  saveCfg({ volume: +e.target.value });
+  audio.volume = (+e.target.value)/100;
+  holoYolla("ses", { ses: (+e.target.value)/100 });
+});
 $("vMedia").addEventListener("click", () => {
   saveCfg({ mediaExt: CFG.mediaExt === ".mp4" ? ".mp3" : ".mp4" }); openAdmin();
 });

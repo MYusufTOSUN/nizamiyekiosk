@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nizamiye - Hologram Ekrani</title>
+<style>
+  /* Pepper's Ghost: toplamali optik. RGB(0,0,0) isik yaymaz, yani camda
+     GORUNMEZ. Bu yuzden zeminin her pikseli tam siyah olmali - en ufak gri
+     bile camda asili duran parlak bir dikdortgen olarak gorunur. */
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #000; overflow: hidden;
+  }
+  body { cursor: none; }
+
+  #sahne {
+    position: fixed; inset: 0;
+    background: #000;
+    display: grid; place-items: center;
+    overflow: hidden;
+  }
+  video {
+    max-width: 100%; max-height: 100%;
+    object-fit: contain;          /* kirpma yok - kadraj master'dan gelir */
+    background: #000;
+    display: none;
+    /* Kabin hizalamasi: TV overscan yapiyorsa ya da gorunur alan kadraji
+       kirpiyorsa buradan kucultup kaydiriyoruz. Degerler localStorage'da. */
+    transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(var(--olcek, 1));
+    transform-origin: center center;
+    will-change: transform;
+  }
+  video.acik { display: block; }
+
+  /* --- kurulum / hizalama katmani (yalniz C ile acilir) --- */
+  #kurulum {
+    position: fixed; inset: 0; display: grid; place-items: center;
+    color: #1d1d1d; background: #000;
+    font: 400 2.2vmin/1.7 "Segoe UI", system-ui, sans-serif;
+    text-align: center; letter-spacing: .04em;
+  }
+  #kurulum b { color: #2e2e2e; font-weight: 600; }
+  #kurulum.gizli { display: none; }
+  kbd {
+    border: 1px solid #262626; border-radius: 4px; padding: 1px 7px;
+    font: 400 .9em/1 Consolas, monospace; color: #2e2e2e;
+  }
+
+  #hiza { position: fixed; inset: 0; display: none; pointer-events: none; }
+  #hiza.acik { display: block; }
+  #hiza .cerceve {
+    position: absolute; inset: 0;
+    border: 2px solid #0a4b4a;                 /* kadrajin gercek siniri */
+  }
+  #hiza .guvenli {
+    position: absolute; inset: 5%;
+    border: 1px dashed #3a2a00;                /* %5 overscan payi */
+  }
+  #hiza .arti {
+    position: absolute; left: 50%; top: 50%; width: 40px; height: 40px;
+    transform: translate(-50%, -50%);
+  }
+  #hiza .arti::before, #hiza .arti::after {
+    content: ""; position: absolute; background: #0a4b4a;
+  }
+  #hiza .arti::before { left: 50%; top: 0; width: 1px; height: 100%; }
+  #hiza .arti::after  { top: 50%; left: 0; height: 1px; width: 100%; }
+  #bilgi {
+    position: fixed; left: 12px; bottom: 10px;
+    font: 400 13px/1.5 Consolas, monospace; color: #2b2b2b;
+    white-space: pre; display: none;
+  }
+  #bilgi.acik { display: block; }
+</style>
+</head>
+<body>
+
+<div id="sahne">
+  <video id="v" playsinline preload="auto"></video>
+</div>
+
+<div id="hiza"><div class="cerceve"></div><div class="guvenli"></div><div class="arti"></div></div>
+<div id="bilgi"></div>
+
+<div id="kurulum">
+  <div>
+    <b>Hologram ekrani hazir</b><br>
+    Kiosk'tan bir soru secildiginde video burada otomatik oynar.<br><br>
+    <kbd>F</kbd> tam ekran &nbsp; <kbd>C</kbd> hizalama kilavuzu &nbsp;
+    <kbd>yon tuslari</kbd> kaydir &nbsp; <kbd>+</kbd> <kbd>-</kbd> olcek &nbsp;
+    <kbd>0</kbd> sifirla
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const v = document.getElementById("v");
+const kurulum = document.getElementById("kurulum");
+const hiza = document.getElementById("hiza");
+const bilgi = document.getElementById("bilgi");
+let kaynak = null;              // window.open ile acildiysa kiosk penceresi
+let sonKod = null;
+
+/* Iki tasima birden:
+   1) BroadcastChannel - iki pencere BAGIMSIZ acildiginda tek yol budur
+      (baslatici her ekrana ayri pencere aciyor, aralarinda opener yok).
+      Ayni kokende calisir, yani http://127.0.0.1:PORT uzerinden servis sart.
+   2) postMessage - pencere yonetici panelinden window.open ile acildiysa. */
+let kanal = null;
+try { kanal = new BroadcastChannel("nizamiye_hologram"); } catch(e){}
+
+function bildir(tip, ek){
+  const m = Object.assign({ nizamiye: "hologram", tip: tip }, ek || {});
+  if (kanal) { try { kanal.postMessage(m); } catch(e){} }
+  if (kaynak) { try { kaynak.postMessage(m, "*"); } catch(e){} }
+}
+
+/* ---------- kabin hizalamasi ----------
+   TV'ler cogu zaman overscan yapar (kenarlardan %3-5 kirpar) ve Pepper's Ghost
+   kabininde gorunur alan panelden kucuk olabilir. Ikisinde de goruntuyu
+   kucultup kaydirmak gerekir - ELLER en altta oldugu icin ilk kaybolan onlar.
+   Ayarlar bu ekrana ozel, localStorage'da kalici. */
+const AY = "nizamiye_hologram_hiza";
+let H = { olcek: 1, dx: 0, dy: 0 };
+try { H = Object.assign(H, JSON.parse(localStorage.getItem(AY) || "{}")); } catch(e){}
+
+function uygula(){
+  v.style.setProperty("--olcek", H.olcek);
+  v.style.setProperty("--dx", H.dx + "px");
+  v.style.setProperty("--dy", H.dy + "px");
+  bilgi.textContent =
+    "olcek " + (H.olcek * 100).toFixed(1) + "%   kaydirma " + H.dx + "," + H.dy +
+    "\npencere " + innerWidth + "x" + innerHeight +
+    "   video " + (v.videoWidth || "-") + "x" + (v.videoHeight || "-") +
+    "\nyon tuslari kaydirir  +/- olcek  0 sifirlar  C kilavuz  F tam ekran";
+  try { localStorage.setItem(AY, JSON.stringify(H)); } catch(e){}
+}
+uygula();
+
+function karart(){
+  try { v.pause(); } catch(e){}
+  v.removeAttribute("src");
+  v.load();
+  v.classList.remove("acik");
+}
+
+function oynat(kod, ses){
+  sonKod = kod;
+  kurulum.classList.add("gizli");
+  v.classList.add("acik");
+  v.volume = ses == null ? 1 : Math.max(0, Math.min(1, ses));
+  v.src = "videolar/" + kod + ".mp4";
+  v.currentTime = 0;
+  v.play().then(() => bildir("basladi", { kod: kod }))
+          .catch(err => { karart(); bildir("hata", { kod: kod, mesaj: String(err).slice(0,120) }); });
+}
+
+v.addEventListener("loadedmetadata", uygula);
+v.addEventListener("ended", () => { karart(); bildir("bitti", { kod: sonKod }); });
+v.addEventListener("error", () => { karart(); bildir("hata", { kod: sonKod, mesaj: "video acilamadi" }); });
+
+function komut(m, kaynakPencere){
+  if (!m || m.nizamiye !== "kiosk") return;
+  if (kaynakPencere) kaynak = kaynakPencere;
+  if (m.tip === "oynat")      oynat(m.kod, m.ses);
+  else if (m.tip === "dur")   karart();
+  else if (m.tip === "ses")   v.volume = Math.max(0, Math.min(1, m.ses));
+  else if (m.tip === "yokla") bildir("hazirim");
+}
+window.addEventListener("message", (e) => komut(e.data, e.source));
+if (kanal) kanal.onmessage = (e) => komut(e.data, null);
+
+/* Tam ekran: acilis bir kullanici hareketiyle tetiklendigi icin genelde
+   dogrudan calisir; olmazsa F ya da tiklama ile. */
+function tamEkran(){
+  const el = document.documentElement;
+  const f = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (f) f.call(el).catch(() => {});
+}
+
+addEventListener("keydown", (e) => {
+  const k = e.key;
+  const adim = e.shiftKey ? 20 : 4;
+  if (k === "ArrowLeft")  { H.dx -= adim; uygula(); e.preventDefault(); }
+  else if (k === "ArrowRight") { H.dx += adim; uygula(); e.preventDefault(); }
+  else if (k === "ArrowUp")    { H.dy -= adim; uygula(); e.preventDefault(); }
+  else if (k === "ArrowDown")  { H.dy += adim; uygula(); e.preventDefault(); }
+  else if (k === "+" || k === "=") { H.olcek = Math.min(2, +(H.olcek + 0.01).toFixed(3)); uygula(); }
+  else if (k === "-" || k === "_") { H.olcek = Math.max(0.3, +(H.olcek - 0.01).toFixed(3)); uygula(); }
+  else if (k === "0") { H = { olcek: 1, dx: 0, dy: 0 }; uygula(); }
+  else if (k.toLowerCase() === "c") {
+    hiza.classList.toggle("acik"); bilgi.classList.toggle("acik");
+    kurulum.classList.toggle("gizli", !hiza.classList.contains("acik") || v.classList.contains("acik"));
+  }
+  else if (k.toLowerCase() === "f") tamEkran();
+  else if (k === "Escape" && document.fullscreenElement) document.exitFullscreen();
+});
+addEventListener("click", tamEkran);
+addEventListener("resize", uygula);
+setTimeout(tamEkran, 60);
+
+/* Acilir acilmaz kiosk'a haber ver. Kiosk once acilmis olabilir, sonra da -
+   ikisi de olsa calissin diye hem hemen hem de kisa araliklarla duyuruyoruz. */
+if (window.opener) kaynak = window.opener;
+bildir("hazirim");
+let duyuru = 0;
+const duyuruT = setInterval(() => { bildir("hazirim"); if (++duyuru >= 10) clearInterval(duyuruT); }, 1000);
+addEventListener("beforeunload", () => bildir("kapandi"));
+})();
+</script>
+</body>
+</html>

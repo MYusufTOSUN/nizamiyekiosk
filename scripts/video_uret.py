@@ -39,10 +39,8 @@ Kullanim:
 from __future__ import annotations
 
 import argparse
-import base64
 import hashlib
 import json
-import mimetypes
 import os
 import subprocess
 import sys
@@ -53,26 +51,131 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+import fal_client
+
 KOK = Path(__file__).resolve().parent.parent
 SES = KOK / "kiosk" / "sesler"
 VIDEO = KOK / "video"
 # Kadrajli surumler: figur cercevenin %90'ini kapliyor (modele maksimum piksel),
 # nihai kadraj post-prodüksiyonda kuruluyor. Ham surumler bir ust klasorde.
-MASTER = VIDEO / "00_master" / "kadrajli"
+MASTER = VIDEO / "00_master" / "kadrajli" / "_v7"
 HAM = VIDEO / "02_ham"
 LOG = VIDEO / "_log"
 MANIFEST = LOG / "manifest.jsonl"
 
 # --------------------------------------------------------------------- AYARLAR
-UC = "fal-ai/kling-video/ai-avatar/v2/standard"
-SANIYE_UCRET = 0.0562                      # 6 Agustos 2026, fal model sayfasi
+UC = "fal-ai/heygen/avatar4/image-to-video"
+SANIYE_UCRET = 0.10                        # 7 Agustos 2026, fal fiyat API teyitli
 ESZAMANLI = 29                             # hesap limiti 30, bir tanesi pay
 BAKIYE_ALT_SINIR = 80.0                    # bunun altinda parti baslatma
 YOKLAMA_SN = 15                            # kuyruk durumu kac saniyede bir sorulacak
 AZAMI_BEKLEME_SN = 60 * 45                 # tek klip icin ust sinir
 
-# Model prompt alani varsayilan "." — pilotta once varsayilanla kosulacak.
-PROMPT = "."
+# ------------------------------------------------------------------ HEYGEN AYAR
+# MODEL SECIMI: kullanici uc modeli ayni ses+gorselle yan yana dinledi ve HeyGen'i
+# secti ("dudak senkronizasyonu mukemmel"). Olculen ustunlukler:
+#   1440x1080 (Kling 1104x816 — %32 daha fazla dikey cozunurluk)
+#   1,5 dk/klip (Kling 23,3 dk — 15 kat hizli)
+#   sure farki +0,03 sn (Kling +1,07 sn)
+#   oran tam 1,333 — master'in 4:3'unu korudu
+#
+# ALAN KARARLARI (semadan, her biri bilincli):
+#   resolution   "1080p"  — secenekler 360p/480p/540p/720p/1080p, varsayilan 720p
+#   aspect_ratio "auto"   — listede 4:3 YOK. 'auto' kaynak orani koruyor.
+#   background   #000000  ** KRITIK ** varsayilan #FFFFFF yani BEYAZ. Bos birakilirsa
+#                siyah zemin beyaza doner, Pepper's Ghost'ta felaket.
+#   talking_style "stable" — "minimal movement". Vakur tarihi sahsiyet icin dogru;
+#                'expressive' asiri jest uretip elleri kadraj disina tasiyabilir.
+#   caption      False    — altyazi GOMULMESIN
+#   prompt       GONDERILMIYOR — HeyGen'de prompt = avatarin SOYLEYECEGI METIN,
+#                jest promptu degil (Kling'den yapisal fark). audio_url onu geciyor.
+#   expression   GONDERILMIYOR — semada const "happy", tek gecerli deger o.
+#                Vakur bir alim icin yanlis; bos birakmak notr veriyor.
+#   voice        GONDERILMIYOR — audio_url geciyor.
+# Klip bazli anlatim stili — KULLANICI TALIMATI: her klip kendi ses icerigine gore
+# ayarlanir, tek tip ayar KULLANILMAZ. Siniflandirma senaryolar/eleven/*.txt
+# metinlerinden: anlati ve soru sinyalleri hareketi artirir, liste ve nasihat
+# sinyalleri sakinlik ister. Intro/outro daima expressive — ziyaretciyle
+# dogrudan temas kurulan yerler.
+KLIP_STILI = {
+    "gazali_int_1": "expressive",
+    "gazali_int_2": "expressive",
+    "gazali_int_3": "expressive",
+    "gazali_k1_s1_v1": "stable",
+    "gazali_k1_s1_v2": "expressive",
+    "gazali_k1_s1_v3": "expressive",
+    "gazali_k1_s2": "stable",
+    "gazali_k1_s3": "stable",
+    "gazali_k1_s4": "stable",
+    "gazali_k2_s1_v1": "stable",
+    "gazali_k2_s1_v2": "expressive",
+    "gazali_k2_s1_v3": "stable",
+    "gazali_k2_s2": "expressive",
+    "gazali_k2_s3": "expressive",
+    "gazali_k2_s4": "stable",
+    "gazali_k3_s1_v1": "stable",
+    "gazali_k3_s1_v2": "expressive",
+    "gazali_k3_s1_v3": "stable",
+    "gazali_k3_s2": "stable",
+    "gazali_k3_s3": "stable",
+    "gazali_k3_s4": "stable",
+    "gazali_out_1": "expressive",
+    "gazali_out_2": "expressive",
+    "meliksah_int_1": "expressive",
+    "meliksah_int_2": "expressive",
+    "meliksah_int_3": "expressive",
+    "meliksah_k1_s1_v1": "expressive",
+    "meliksah_k1_s1_v2": "stable",
+    "meliksah_k1_s1_v3": "expressive",
+    "meliksah_k1_s2": "stable",
+    "meliksah_k1_s3": "expressive",
+    "meliksah_k1_s4": "stable",
+    "meliksah_k2_s1_v1": "expressive",
+    "meliksah_k2_s1_v2": "expressive",
+    "meliksah_k2_s1_v3": "stable",
+    "meliksah_k2_s2": "stable",
+    "meliksah_k2_s3": "stable",
+    "meliksah_k2_s4": "stable",
+    "meliksah_k3_s1_v1": "expressive",
+    "meliksah_k3_s1_v2": "stable",
+    "meliksah_k3_s1_v3": "expressive",
+    "meliksah_k3_s2": "stable",
+    "meliksah_k3_s3": "expressive",
+    "meliksah_k3_s4": "stable",
+    "meliksah_out_1": "expressive",
+    "meliksah_out_2": "expressive",
+    "nizamulmulk_int_1": "expressive",
+    "nizamulmulk_int_2": "expressive",
+    "nizamulmulk_int_3": "expressive",
+    "nizamulmulk_k1_s1_v1": "expressive",
+    "nizamulmulk_k1_s1_v2": "stable",
+    "nizamulmulk_k1_s1_v3": "stable",
+    "nizamulmulk_k1_s2": "stable",
+    "nizamulmulk_k1_s3": "stable",
+    "nizamulmulk_k1_s4": "expressive",
+    "nizamulmulk_k2_s1_v1": "expressive",
+    "nizamulmulk_k2_s1_v2": "stable",
+    "nizamulmulk_k2_s1_v3": "stable",
+    "nizamulmulk_k2_s2": "stable",
+    "nizamulmulk_k2_s3": "stable",
+    "nizamulmulk_k2_s4": "stable",
+    "nizamulmulk_k3_s1_v1": "stable",
+    "nizamulmulk_k3_s1_v2": "stable",
+    "nizamulmulk_k3_s1_v3": "stable",
+    "nizamulmulk_k3_s2": "stable",
+    "nizamulmulk_k3_s3": "stable",
+    "nizamulmulk_k3_s4": "stable",
+    "nizamulmulk_out_1": "expressive",
+    "nizamulmulk_out_2": "expressive",
+}
+
+# Klipten BAGIMSIZ sabitler
+HEYGEN_AYAR = {
+    "resolution": "1080p",
+    "aspect_ratio": "auto",
+    "background": {"type": "color", "value": "#000000"},
+    "caption": False,
+}     # olcum klipleri icin; karsilastirma tabani
 
 MASTERLAR = {
     "gazali": MASTER / "gazali_master.png",
@@ -83,27 +186,32 @@ MASTERLAR = {
 # Kademeli taahhut. Sira: en uzun klipler once — cakacaksa orada cakar.
 PARTILER = {"deneme": 3, "ilk": 30, "kalan": None}
 
+_duz_prompt = False          # --duz-prompt ile "." kullanilir (karsilastirma icin)
 _kilit = threading.Lock()
 _dur = threading.Event()          # 4xx gelince tum parti durur
 
 
 # ------------------------------------------------------------------ yardimcilar
 def anahtar() -> str:
+    """Anahtari bulur ve os.environ'a KOYAR — fal_client oradan okuyor."""
     k = os.environ.get("FAL_KEY") or os.environ.get("FAL_API_KEY")
-    if k:
-        return k
-    try:
-        import winreg
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as h:
-            for ad in ("FAL_KEY", "FAL_API_KEY"):
-                try:
-                    return winreg.QueryValueEx(h, ad)[0]
-                except FileNotFoundError:
-                    continue
-    except ImportError:
-        pass
-    sys.exit("HATA: FAL_KEY bulunamadi. Ortam degiskeni olarak ekleyin "
-             "(setx FAL_KEY \"...\") ve terminali yeniden acin.")
+    if not k:
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as h:
+                for ad in ("FAL_KEY", "FAL_API_KEY"):
+                    try:
+                        k = winreg.QueryValueEx(h, ad)[0]
+                        break
+                    except FileNotFoundError:
+                        continue
+        except ImportError:
+            pass
+    if not k:
+        sys.exit("HATA: FAL_KEY bulunamadi. Ortam degiskeni olarak ekleyin "
+                 "(setx FAL_KEY \"...\") ve terminali yeniden acin.")
+    os.environ["FAL_KEY"] = k
+    return k
 
 
 def sure(p: Path) -> float:
@@ -120,9 +228,24 @@ def sha256(p: Path) -> str:
     return h.hexdigest()
 
 
-def veri_uri(p: Path) -> str:
-    tur = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
-    return f"data:{tur};base64,{base64.b64encode(p.read_bytes()).decode()}"
+_yukleme_onbellek: dict[str, str] = {}
+
+
+def yukle(p: Path) -> str:
+    """Dosyayi fal storage'a yukler, URL doner. Yukleme UCRETSIZ.
+
+    NEDEN data URI DEGIL: ilk denemede gorsel+ses base64 olarak govdeye gomulmustu
+    (3,78 MB). Istek fal'a hic ulasmadi — TCP `SynSent` durumunda 16 dakika asili
+    kaldi, dashboard'da kayit olusmadi, ucret islemedi. Ayni dosyalar fal storage'a
+    3,1 ve 2,1 saniyede sorunsuz yuklendi. Belgelenmis yol budur.
+
+    Onbellek onemli: master gorsel bir karakterin 23 klibinde de ayni — 23 kez
+    yuklemenin anlami yok.
+    """
+    a = str(p.resolve())
+    if a not in _yukleme_onbellek:
+        _yukleme_onbellek[a] = fal_client.upload_file(a)
+    return _yukleme_onbellek[a]
 
 
 def istek(url: str, *, veri: dict | None = None, api: str, zaman_asimi: int = 120):
@@ -136,6 +259,19 @@ def istek(url: str, *, veri: dict | None = None, api: str, zaman_asimi: int = 12
     r = urllib.request.Request(url, data=govde, headers=basliklar)
     with urllib.request.urlopen(r, timeout=zaman_asimi) as y:
         return json.loads(y.read())
+
+
+def iptal(istek_id: str, api: str) -> bool:
+    """fal'da istek iptali POST ile oluyor. PUT 405 donuyor — ilk denemede
+       Kling isini bu yuzden durduramamistik."""
+    u = f"https://queue.fal.run/{UC}/requests/{istek_id}/cancel"
+    try:
+        r = urllib.request.Request(u, method="POST",
+                                   headers={"Authorization": f"Key {api}"})
+        with urllib.request.urlopen(r, timeout=30):
+            return True
+    except Exception:
+        return False
 
 
 def manifest_oku() -> dict[str, dict]:
@@ -196,28 +332,32 @@ def uret_bir(kod: str, kar: str, sn: float, api: str) -> dict:
     if _dur.is_set():
         return {"kod": kod, "durum": "atlandi", "sebep": "parti durduruldu"}
     t0 = time.time()
-    govde = {
-        "image_url": veri_uri(MASTERLAR[kar]),
-        "audio_url": veri_uri(SES / f"{kod}.mp3"),
-        "prompt": PROMPT,
-    }
     try:
-        k = istek(f"https://queue.fal.run/{UC}", veri=govde, api=api, zaman_asimi=180)
-    except urllib.error.HTTPError as e:
-        govde_hata = e.read()[:400].decode(errors="replace")
-        if 400 <= e.code < 500:
+        govde = {
+            "image_url": yukle(MASTERLAR[kar]),
+            "audio_url": yukle(SES / f"{kod}.mp3"),
+            **HEYGEN_AYAR,
+            # 7 Agu 2026 OLCUM: 'expressive' legacy-only bir secenek ve
+            # aspect_ratio="auto" ile 422 veriyor ("requires the v3-compatible
+            # path"). Listede 4:3 olmadigi icin 'auto' bizim tek dogru
+            # secenegimiz -> 69 klibin hepsi 'stable'. KLIP_STILI asagida
+            # niyet kaydi olarak duruyor, kullanilmiyor.
+            # Ayrica olculdu: stable auto(v3) ve 5:4(legacy) yollarinda birebir
+            # ayni sonucu veriyor (1.79 / 1.79), expressive ise +%17 hareket.
+            "talking_style": "stable",
+        }
+        tutamak = fal_client.submit(UC, arguments=govde)
+        istek_id = tutamak.request_id
+    except Exception as e:
+        mesaj = f"{type(e).__name__}: {e}"[:400]
+        if any(x in mesaj for x in ("422", "400", "401", "403", "404")):
             _dur.set()          # 422 ucretlendirilebilir -> tum partiyi durdur
-            return {"kod": kod, "durum": "hata_4xx", "kod_no": e.code, "mesaj": govde_hata}
-        return {"kod": kod, "durum": "hata", "kod_no": e.code, "mesaj": govde_hata}
+            return {"kod": kod, "durum": "hata_4xx", "mesaj": mesaj}
+        return {"kod": kod, "durum": "gonderilemedi", "mesaj": mesaj}
 
-    istek_id = k.get("request_id")
-    durum_url = k.get("status_url") or f"https://queue.fal.run/{UC}/requests/{istek_id}/status"
-    cevap_url = k.get("response_url") or f"https://queue.fal.run/{UC}/requests/{istek_id}"
-
-    # request_id'yi HEMEN yaz. Betik cokerse odenmis sonucu kaybetmeyelim:
-    # kuyruk sonucu bir sure saklaniyor, id ile elle indirilebilir.
+    # request_id'yi HEMEN yaz. Betik cokerse odenmis sonucu kaybetmeyelim.
     manifest_yaz({"kod": kod, "durum": "gonderildi", "istek_id": istek_id,
-                  "endpoint_id": UC, "cevap_url": cevap_url, "ses_sn": round(sn, 3)})
+                  "endpoint_id": UC, "ses_sn": round(sn, 3)})
     print(f"       {kod:<24} gonderildi  id={istek_id}", flush=True)
 
     while True:
@@ -227,19 +367,19 @@ def uret_bir(kod: str, kar: str, sn: float, api: str) -> dict:
             return {"kod": kod, "durum": "zaman_asimi", "istek_id": istek_id}
         time.sleep(YOKLAMA_SN)
         try:
-            d = istek(durum_url, api=api, zaman_asimi=60)
-        except urllib.error.HTTPError as e:
-            if 400 <= e.code < 500 and e.code != 404:
-                _dur.set()
-                return {"kod": kod, "durum": "hata_4xx", "kod_no": e.code}
+            d = fal_client.status(UC, istek_id)
+        except Exception:
             continue
-        except (urllib.error.URLError, TimeoutError):
-            continue
-        if d.get("status") == "COMPLETED":
+        if type(d).__name__ == "Completed":
             break
 
-    sonuc = istek(cevap_url, api=api, zaman_asimi=120)
-    url = (sonuc.get("video") or {}).get("url") if isinstance(sonuc.get("video"), dict) else None
+    try:
+        sonuc = fal_client.result(UC, istek_id)
+    except Exception as e:
+        return {"kod": kod, "durum": "sonuc_alinamadi", "istek_id": istek_id,
+                "mesaj": f"{type(e).__name__}: {e}"[:300]}
+    v = sonuc.get("video")
+    url = v.get("url") if isinstance(v, dict) else (v if isinstance(v, str) else None)
     if not url:
         return {"kod": kod, "durum": "cikti_yok", "istek_id": istek_id,
                 "ham": json.dumps(sonuc)[:400]}
@@ -252,7 +392,7 @@ def uret_bir(kod: str, kar: str, sn: float, api: str) -> dict:
 
     return {
         "kod": kod, "durum": "tamam", "karakter": kar,
-        "endpoint_id": UC, "istek_id": istek_id, "prompt": PROMPT,
+        "endpoint_id": UC, "istek_id": istek_id, "ayar": HEYGEN_AYAR,
         "ses_sn": round(sn, 3), "ses_sha256": sha256(SES / f"{kod}.mp3"),
         "gorsel_sha256": sha256(MASTERLAR[kar]),
         "video_sn": round(sure(hedef), 3), "video_sha256": sha256(hedef),
@@ -269,7 +409,11 @@ def main() -> None:
     ap.add_argument("--klip", help="tek klip uret (olcum icin). Ornek: gazali_k2_s1_v3")
     ap.add_argument("--uret", action="store_true", help="GERCEKTEN uretir ve para harcar")
     ap.add_argument("--durum", action="store_true", help="manifest ozeti yazip cikar")
+    ap.add_argument("--duz-prompt", action="store_true",
+                    help="prompt yerine '.' gonder (A/B karsilastirmasi icin)")
     a = ap.parse_args()
+    global _duz_prompt
+    _duz_prompt = a.duz_prompt
 
     kayit = manifest_oku()
     bitmis = {k for k, v in kayit.items() if v.get("durum") == "tamam"}

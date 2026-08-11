@@ -130,3 +130,18 @@ video/02_ham/
 video/03_post/
 video/04_upscale/
 video/_tmp/
+
+# ---------------------------------------------------------------------------
+# Kiosk video klasoru: 69 klip x ~70 MB = 4,5 GB. Ham cikti video/02_ham'dan
+# sabit bag ile geliyor, yeniden uretilebilir/kopyalanabilir -> git'e GIRMEZ.
+# Yeni PC'ye flash bellekle tasinir (bkz. DEVIR.md).
+kiosk/videolar/
+
+# Video master calisma turleri: ara denemeler (v2..v6, *son*.png, *yeni.png).
+# Yalniz KULLANILAN surum (_v7) ve kadrajli/*_master.png takip edilir.
+video/00_master/kadrajli/_v2/
+video/00_master/kadrajli/_v3/
+video/00_master/kadrajli/_v4/
+video/00_master/kadrajli/_v5/
+video/00_master/kadrajli/_v6/
+video/01_pilot/
