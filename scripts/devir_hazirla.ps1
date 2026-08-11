@@ -86,7 +86,10 @@ if ($AtlaModeller) { $disla += "data\models" }
 $xd = @()
 foreach ($d in $disla) { $xd += "/XD"; $xd += (Join-Path $Kok $d) }
 
-$rc = @($Kok, $Var, "/MIR", "/R:2", "/W:3", "/MT:8", "/NFL", "/NDL", "/NP",
+# /E (alt klasorler dahil kopyala) kullaniliyor, /MIR DEGIL.
+# /MIR aynalama yapar: hedefte olup kaynakta olmayani SILER. USB'de baska
+# projeler ve onyukleme medyasi olabilir - hicbir kosulda silme riski almiyoruz.
+$rc = @($Kok, $Var, "/E", "/R:2", "/W:3", "/MT:8", "/NFL", "/NDL", "/NP",
         "/XF", "*.pyc", "uvicorn.out", "uvicorn.err") + $xd
 Write-Host "  disarida: $($disla -join ', ')" -ForegroundColor DarkGray
 robocopy @rc | Out-Null
@@ -100,7 +103,7 @@ Write-Host "[4/5] Web sitesi deposu..." -ForegroundColor Yellow
 $site = Join-Path (Split-Path -Parent $Kok) "nizamiye"
 if (Test-Path $site) {
   $siteVar = Join-Path $Hedef "nizamiye"
-  robocopy $site $siteVar /MIR /R:2 /W:3 /MT:8 /NFL /NDL /NP /XD (Join-Path $site "node_modules") (Join-Path $site "dist") | Out-Null
+  robocopy $site $siteVar /E /R:2 /W:3 /MT:8 /NFL /NDL /NP /XD (Join-Path $site "node_modules") (Join-Path $site "dist") | Out-Null
   Write-Host "  kopyalandi: nizamiye (node_modules ve dist haric)" -ForegroundColor Green
 } else {
   Write-Host "  bulunamadi: $site - atlandi" -ForegroundColor Yellow
