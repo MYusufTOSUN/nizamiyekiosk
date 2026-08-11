@@ -24,6 +24,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Festival isi (kiosk + video uretimi). GPU ISTEMEZ, model dosyasi ISTEMEZ.
+# Yeni bir PC'de yalniz festival icin bu yeter:  pip install -e ".[festival]"
+# Bu paketler 8 Agustos 2026'ya kadar hicbir yerde beyan edilmemisti; yalniz
+# .venv'e elle kurulmuslardi ve temiz kurulumda betikler ImportError veriyordu.
+festival = [
+    "fal-client>=1.0.0",   # scripts/video_uret.py — 69 klibin uretildigi betik
+    "pillow>=10.0.0",      # master gorsel isleme (kirpma, siyah kirpma, olcum)
+    "requests>=2.31.0",    # scripts/resumable_download.py
+    "qrcode[pil]>=8.0",    # scripts/kiosk_qr.py — kiosk QR kodu
+    "openpyxl>=3.1.0",     # scripts/excel_v4*.py — satin alma listesi
+    "psutil>=5.9.0",       # scripts/hardware_check.py
+]
 stt = [
     # Üst tavan: festival kurulumu reproducible olsun; breaking minor gelmesin.
     "faster-whisper>=1.0.3,<2.0",
