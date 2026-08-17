@@ -64,12 +64,15 @@ def karakter(kod: str) -> str:
     raise ValueError(f"karakter cozulemedi: {kod}")
 
 
-def komut(kaynak: Path, hedef: Path, kar: str) -> list:
+def komut(kaynak: Path, hedef: Path, kar: str, pson: str = "") -> list:
+    # pson: partikul dosya soneki. Kaynak 50 fps ise "_50" gelir; 25 fps'lik
+    # dongu 50 fps ciktida kare tekrarina duser ve FIGUR AKARKEN PARTIKUL
+    # BASAMAKLANIR. Bu yuzden dongulerin de ayni fps'te olmasi sart.
     return [
         "ffmpeg", "-v", "error", "-stats", "-y",
         "-i", str(kaynak),
-        "-stream_loop", "-1", "-i", str(VAR / "partikul" / "arka.mp4"),
-        "-stream_loop", "-1", "-i", str(VAR / "partikul" / "on.mp4"),
+        "-stream_loop", "-1", "-i", str(VAR / "partikul" / f"arka{pson}.mp4"),
+        "-stream_loop", "-1", "-i", str(VAR / "partikul" / f"on{pson}.mp4"),
         "-loop", "1", "-i", str(VAR / "mask_alt16.png"),
         "-loop", "1", "-i", str(VAR / f"atmf_{kar}_arka.png"),
         "-loop", "1", "-i", str(VAR / f"atmf_{kar}_on.png"),
@@ -105,11 +108,17 @@ def main():
     ap.add_argument("--durum", action="store_true", help="ozet goster")
     ap.add_argument("--klip", help="tek klip kodu")
     ap.add_argument("--zorla", action="store_true", help="yapilmis olsa da yeniden uret")
+    ap.add_argument("--kaynak", default="02b_50fps",
+                    help="video/ altinda kaynak dizin (varsayilan 02b_50fps; "
+                         "ara kare uretimi atlanacaksa 02_ham)")
     a = ap.parse_args()
 
-    for p in (VAR / "partikul" / "arka.mp4", VAR / "mask_alt16.png"):
-        if not p.exists():
-            sys.exit(f"HATA: varlik eksik -> {p}\n  video/_post_varlik/ eksiksiz mi?")
+    KAY = KOK / "video" / a.kaynak
+    if not KAY.is_dir():
+        sys.exit(f"HATA: kaynak dizin yok -> {KAY}\n"
+                 f"  Once ara kareleri uret: python scripts\\video_fps.py --uret\n"
+                 f"  Ya da ara kare olmadan: --kaynak 02_ham")
+    desen = "*__50.mp4" if a.kaynak != "02_ham" else "*__ham.mp4"
 
     # --- HAM KLIPLERI KORUMA ---
     # 02_ham 69 klibin TEK gercek kopyasi ($289,52'lik uretimin ciktisi) ve
@@ -121,9 +130,29 @@ def main():
     if ham_sayi < 69:
         print(f"!! UYARI: video/02_ham icinde {ham_sayi} klip var, 69 bekleniyordu.")
     print(f"ham klipler: {ham_sayi} adet, SALT OKUNUR ({HAM})")
+    print(f"kaynak     : {KAY}")
     print(f"cikti      : {CIK}  (ayri dizin, ham dosyalara dokunulmaz)")
 
-    kaynaklar = sorted(HAM.glob("*__ham.mp4"))
+    kaynaklar = sorted(KAY.glob(desen))
+    if not kaynaklar:
+        sys.exit(f"HATA: {KAY} icinde {desen} bulunamadi.")
+
+    # Kaynagin fps'i partikul dongulerinin fps'ini belirler.
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                        "-show_entries", "stream=avg_frame_rate", "-of", "csv=p=0:nk=1",
+                        str(kaynaklar[0])], capture_output=True, text=True)
+    pay, _, bol = r.stdout.strip().partition("/")
+    kfps = round(float(pay) / float(bol or 1))
+    pson = "" if kfps == 25 else f"_{kfps}"
+    print(f"kaynak fps : {kfps}   partikul dongusu: arka{pson}.mp4 / on{pson}.mp4")
+
+    gerekli = [VAR / "partikul" / f"arka{pson}.mp4", VAR / "partikul" / f"on{pson}.mp4",
+               VAR / "mask_alt16.png"]
+    for p in gerekli:
+        if not p.exists():
+            sys.exit(f"HATA: varlik eksik -> {p}\n"
+                     f"  {kfps} fps dongu icin: python scripts\\video_fps.py --partikul --uret")
+
     if a.klip:
         kaynaklar = [p for p in kaynaklar if p.name.startswith(a.klip + "__")]
     bitmis = yapildi()
@@ -144,8 +173,9 @@ def main():
         if kalan:
             print("\nornek komut:")
             k = kalan[0]
-            print("  " + " ".join(komut(k, CIK / k.name.replace("__ham", "__post"),
-                                        karakter(k.name.split("__")[0]))[:14]) + " …")
+            kod = k.name.split("__")[0]
+            print("  " + " ".join(komut(k, CIK / f"{kod}__post.mp4",
+                                        karakter(kod), pson)[:14]) + " …")
         return
 
     t0 = time.time()
@@ -154,7 +184,7 @@ def main():
         hedef = CIK / f"{kod}__post.mp4"
         kar = karakter(kod)
         print(f"\n[{i}/{len(kalan)}] {kod}  ({kar})")
-        r = subprocess.run(komut(kaynak, hedef, kar))
+        r = subprocess.run(komut(kaynak, hedef, kar, pson))
         if r.returncode != 0 or not hedef.exists():
             sys.exit(f"HATA: {kod} islenemedi (donus {r.returncode}). Parti durduruldu.")
         with LOG.open("a", encoding="utf-8") as f:
