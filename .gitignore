@@ -148,3 +148,14 @@ video/01_pilot/
 
 # rapor PDF ara ciktisi
 docs/.rapor.html
+
+# Rapor/kilavuz PDF ara ciktilari
+docs/.kilavuz.html
+
+# Hologram/derinlik makaleleri: TELIFLI PDF'ler, 81 MB. Kullanici karari
+# (17 Agu 2026): depoya girmeyecek. Sentezleri KABIN_DERINLIK_RAPORU.md'de.
+makaleler/hologram/
+
+# Ara kare uretimi ciktisi (video/02_ham gibi flash ile tasinir)
+video/02b_50fps/
+video/03_post/

@@ -42,6 +42,14 @@
   }
   #kurulum b { color: #2e2e2e; font-weight: 600; }
   #kurulum.gizli { display: none; }
+  /* Tazeleme uyarisi. Kabin canliyken bu ekran da camda goruntu verir, o yuzden
+     renkler kisik tutuldu - ama sorun varsa operator TV'nin onunde dururken
+     okuyabilmeli. Ilk video baslar baslamaz ekran zaten kararir. */
+  #tazeleme { margin-top: 3.4vmin; font: 400 1.9vmin/1.7 Consolas, monospace;
+    letter-spacing: .03em; color: #232323; }
+  #tazeleme .deger { color: #3d3d3d; }
+  #tazeleme .iyi   { color: #26382c; }
+  #tazeleme .kotu  { color: #6b5317; }
   kbd {
     border: 1px solid #262626; border-radius: 4px; padding: 1px 7px;
     font: 400 .9em/1 Consolas, monospace; color: #2e2e2e;
@@ -90,6 +98,7 @@
     <kbd>F</kbd> tam ekran &nbsp; <kbd>C</kbd> hizalama kilavuzu &nbsp;
     <kbd>yon tuslari</kbd> kaydir &nbsp; <kbd>+</kbd> <kbd>-</kbd> olcek &nbsp;
     <kbd>0</kbd> sifirla
+    <div id="tazeleme">ekran tazelemesi olculuyor&hellip;</div>
   </div>
 </div>
 
@@ -126,6 +135,9 @@ const AY = "nizamiye_hologram_hiza";
 let H = { olcek: 1, dx: 0, dy: 0 };
 try { H = Object.assign(H, JSON.parse(localStorage.getItem(AY) || "{}")); } catch(e){}
 
+let hz = 0;        // olculen ekran tazelemesi
+let olcFps = 0;    // rVFC ile olculen GERCEK sunum hizi (oynarken dolar)
+
 function uygula(){
   v.style.setProperty("--olcek", H.olcek);
   v.style.setProperty("--dx", H.dx + "px");
@@ -134,16 +146,84 @@ function uygula(){
     "olcek " + (H.olcek * 100).toFixed(1) + "%   kaydirma " + H.dx + "," + H.dy +
     "\npencere " + innerWidth + "x" + innerHeight +
     "   video " + (v.videoWidth || "-") + "x" + (v.videoHeight || "-") +
+    "\nekran " + (hz || "-") + " Hz   sunulan " + (olcFps ? olcFps.toFixed(1) : "-") + " fps" +
     "\nyon tuslari kaydirir  +/- olcek  0 sifirlar  C kilavuz  F tam ekran";
   try { localStorage.setItem(AY, JSON.stringify(H)); } catch(e){}
 }
 uygula();
+
+/* ---------- ekran tazelemesi ----------
+   50 fps klip 50 Hz'de 1:1 akar. Tazeleme klibin fps'inin TAM KATI degilse
+   kareler sirayla farkli sure durur (60 Hz'de 25 fps -> 2,2,3,2,3) ve goz bunu
+   titreme olarak gorur; "fps dusuk" diye okunan sey genelde budur.
+   Windows'ta bu ayar TV cikarilip takilinca ya da surucu guncellenince
+   sifirlanabiliyor. Sessizce bozulmasin diye acilis ekraninda gosteriyoruz.
+   rAF olcumu YALNIZ acilis ekraninda calisir; video oynarken durdurulur ki
+   oynatmaya en ufak yuk binmesin. */
+const tazEl = document.getElementById("tazeleme");
+let araliklar = [], sonKare = 0, rafId = 0;
+
+function tazYaz(){
+  if (!hz) return;
+  const parcalar = [25, 50].map(f => {
+    const kat = hz / f, tam = hz % f === 0;
+    return '<span class="' + (tam ? "iyi" : "kotu") + '">' + f + " fps " +
+           (tam ? kat + ":1 duzgun" : "TITRER (" + kat.toFixed(2) + ")") + "</span>";
+  });
+  tazEl.innerHTML = 'ekran <span class="deger">' + hz + " Hz</span> &nbsp;&nbsp; " +
+                    parcalar.join(" &nbsp;&middot;&nbsp; ") +
+                    (hz % 50 ? "<br>50 Hz'e al: Ayarlar &rsaquo; Sistem &rsaquo; Ekran &rsaquo; Gelismis ekran" : "");
+}
+
+function rafTik(t){
+  if (sonKare) {
+    const d = t - sonKare;
+    if (d > 1 && d < 100) {                 // sekme arka plana dustuyse at
+      araliklar.push(d);
+      if (araliklar.length > 180) araliklar.shift();
+      if (araliklar.length >= 60) {
+        // MEDYAN: ortalama tek bir takilmadan bozuluyor
+        const s = araliklar.slice().sort((a, b) => a - b);
+        const yeni = Math.round(1000 / s[s.length >> 1]);
+        if (yeni !== hz) { hz = yeni; tazYaz(); uygula(); }
+      }
+    }
+  }
+  sonKare = t;
+  rafId = requestAnimationFrame(rafTik);
+}
+function tazBasla(){ if (!rafId) { sonKare = 0; araliklar = []; rafId = requestAnimationFrame(rafTik); } }
+function tazDurdur(){ if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } }
+tazBasla();
+
+/* Oynarken tarayicinin EKRANA SUNDUGU kareleri say. Beklenenin altindaysa
+   ya cozucu yetismiyor ya da cadence bozuk. C ile acilan panelde gorunur. */
+function videoOlc(){
+  if (!v.requestVideoFrameCallback) return;
+  let bas = null, ilk = 0;
+  const f = (now, meta) => {
+    if (v.paused || !v.classList.contains("acik")) { olcFps = 0; return; }
+    if (bas === null) { bas = now; ilk = meta.presentedFrames; }
+    else {
+      const gecen = (now - bas) / 1000;
+      if (gecen > 1.5) {
+        olcFps = (meta.presentedFrames - ilk) / gecen;
+        uygula();
+        bas = now; ilk = meta.presentedFrames;
+      }
+    }
+    v.requestVideoFrameCallback(f);
+  };
+  v.requestVideoFrameCallback(f);
+}
 
 function karart(){
   try { v.pause(); } catch(e){}
   v.removeAttribute("src");
   v.load();
   v.classList.remove("acik");
+  olcFps = 0;
+  tazBasla();            // acilis ekranina donuldu, tazeleme olcumu yeniden acilir
 }
 
 function oynat(kod, ses){
@@ -153,7 +233,8 @@ function oynat(kod, ses){
   v.volume = ses == null ? 1 : Math.max(0, Math.min(1, ses));
   v.src = "videolar/" + kod + ".mp4";
   v.currentTime = 0;
-  v.play().then(() => bildir("basladi", { kod: kod }))
+  tazDurdur();           // oynatmaya en ufak yuk binmesin
+  v.play().then(() => { bildir("basladi", { kod: kod }); videoOlc(); })
           .catch(err => { karart(); bildir("hata", { kod: kod, mesaj: String(err).slice(0,120) }); });
 }
 
