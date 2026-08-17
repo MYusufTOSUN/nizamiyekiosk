@@ -45,6 +45,17 @@ CATS = {
 }
 ORDER = ["meliksah", "nizamulmulk", "gazali"]
 
+# Kiosktan CIKARILAN sorular. Ses/video dosyalari ve senaryo metni YERINDE DURUR;
+# bu kodlar yalnizca data.js'e yazilmaz. Geri almak icin kumeden cikarmak yeterli,
+# yeniden uretim gerekmez. Varyantli soru icin "_v1" olmadan yazilir; hepsi duser.
+#   meliksah_k2_s2 "Omer Hayyam kimdir?" -- 17 Agustos 2026, kullanici karari.
+KIOSK_DISI = {"meliksah_k2_s2"}
+
+
+def kiosk_disi(kod: str) -> bool:
+    return kod in KIOSK_DISI or re.sub(r"_v\d$", "", kod) in KIOSK_DISI
+
+
 rows = list(csv.DictReader(open(ROOT / "senaryolar" / "manifest.csv", encoding="utf-8-sig")))
 chars: dict[str, dict] = {
     c: {"id": c, **META[c],
@@ -56,8 +67,12 @@ chars: dict[str, dict] = {
 }
 qmap: dict[tuple, dict] = {}
 tahmine_dusen: list[str] = []
+atlanan: list[str] = []
 for r in rows:
     kod = r["kod"]
+    if kiosk_disi(kod):
+        atlanan.append(kod)
+        continue
     dur = gercek_sure(kod)
     if dur is None:                      # medya henuz uretilmemis -> tahmine dus
         dur = float(r["tahmini_sn"])
@@ -94,6 +109,8 @@ out.write_text("window.KIOSK_DATA = " + json.dumps(data, ensure_ascii=False, ind
 nq = sum(len(cat["questions"]) for c in data["characters"] for cat in c["categories"])
 nv = sum(len(q["variants"]) for c in data["characters"] for cat in c["categories"] for q in cat["questions"])
 print(f"yazildi: {out} | {len(data['characters'])} karakter, {nq} soru, {nv} cevap klibi")
+if atlanan:
+    print(f"kiosk disi birakildi ({len(atlanan)} klip, dosyalar yerinde): {', '.join(atlanan)}")
 if tahmine_dusen:
     print(f"UYARI: {len(tahmine_dusen)} klipte medya bulunamadi, tahmini sure kullanildi:")
     print("  " + ", ".join(tahmine_dusen))

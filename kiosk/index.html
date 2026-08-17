@@ -122,6 +122,15 @@
   .q:active{transform:scale(.97);border-color:var(--goldb);box-shadow:0 .2vmin .6vmin rgba(0,0,0,.5)}
   .q.asked{opacity:.38}
   .q.asked::after{content:"✓";position:absolute;top:.6vmin;inset-inline-end:1.2vmin;color:var(--good);font-size:2.4vmin}
+  /* Kategoride 4'ten az soru varsa butonlar flex:1 ile zaten uzuyor; yazi ayni kalirsa
+     kutu bos kalip yanindaki sutunlardan dengesiz gorunuyor. Puntolar TAHMIN DEGIL,
+     1920x1080'de olculdu: metin yuksekligi / kutu yuksekligi orani 4 soruluk sutunda
+     %28,4. Bunu esitleyen degerler -> 3 soru: 3,4vmin (%28,3) · 2 soru: 4vmin.
+     Soru metni degisirse oran satir kirilmasina duyarlidir, yeniden olculmeli. */
+  .cat[data-n="3"] .q{font-size:3.4vmin;padding:2.4vmin;min-height:12vmin;border-radius:1.9vmin}
+  .cat[data-n="3"] .q.asked::after{font-size:2.7vmin;top:.8vmin;inset-inline-end:1.5vmin}
+  .cat[data-n="2"] .q{font-size:4vmin;padding:3vmin;min-height:16vmin;border-radius:2.2vmin}
+  .cat[data-n="2"] .q.asked::after{font-size:3vmin;top:1vmin;inset-inline-end:1.8vmin}
   .switchrow{width:100%;max-width:170vmin;display:flex;align-items:center;gap:2vmin;margin-top:2vmin;
     padding-top:1.6vmin;border-top:1px solid var(--line)}
   .switchrow span{color:var(--muted);font-size:2vmin}
@@ -492,7 +501,7 @@ function buildAsk(){
   $("askImg").src = c.img; $("askName").textContent = c.name; $("askTitle").textContent = c.title;
   rightsUI();
   $("cats").innerHTML = c.categories.map((cat, ci) => `
-    <div class="cat"><h3>${cat.name}</h3>
+    <div class="cat" data-n="${cat.questions.length}"><h3>${cat.name}</h3>
       ${cat.questions.map((q, qi) => {
         const key = S.char + "_" + ci + "_" + qi;
         const asked = S.asked[key] ? " asked" : "";

@@ -26,7 +26,7 @@ window.KIOSK_DATA = {
     },
     {
      "code": "meliksah_int_2",
-     "dur": 15.0
+     "dur": 15.1
     },
     {
      "code": "meliksah_int_3",
@@ -69,7 +69,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k1_s2",
-         "dur": 52.5
+         "dur": 52.6
         }
        ]
       },
@@ -114,15 +114,6 @@ window.KIOSK_DATA = {
        ]
       },
       {
-       "q": "Ömer Hayyam kimdir?",
-       "variants": [
-        {
-         "code": "meliksah_k2_s2",
-         "dur": 49.8
-        }
-       ]
-      },
-      {
        "q": "Bir sultan neden ilme para harcar?",
        "variants": [
         {
@@ -150,7 +141,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k3_s1_v1",
-         "dur": 53.7
+         "dur": 53.8
         },
         {
          "code": "meliksah_k3_s1_v2",
@@ -167,7 +158,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k3_s2",
-         "dur": 52.8
+         "dur": 52.9
         }
        ]
       },
@@ -185,7 +176,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k3_s4",
-         "dur": 36.7
+         "dur": 36.8
         }
        ]
       }
@@ -308,7 +299,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k2_s3",
-         "dur": 49.7
+         "dur": 49.8
         }
        ]
       },
@@ -331,7 +322,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k3_s1_v1",
-         "dur": 50.5
+         "dur": 50.6
         },
         {
          "code": "nizamulmulk_k3_s1_v2",
@@ -366,7 +357,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k3_s4",
-         "dur": 38.1
+         "dur": 38.2
         }
        ]
       }
@@ -414,7 +405,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k1_s1_v1",
-         "dur": 54.3
+         "dur": 54.4
         },
         {
          "code": "gazali_k1_s1_v2",
@@ -489,7 +480,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k2_s3",
-         "dur": 47.6
+         "dur": 47.7
         }
        ]
       },
