@@ -11,7 +11,14 @@
 
 param(
   [int]$Port = 8777,
-  [switch]$TekEkran          # ikinci ekran yokken/ istemezken
+  [switch]$TekEkran,         # ikinci ekran yokken/ istemezken
+  [int]$TvGenislik  = 3840,  # kabin TV panelinin DOGAL cozunurlugu (EDID)
+  [int]$TvYukseklik = 2160,
+  [int]$TvHz        = 50,    # 25 fps klipler icin 2:2 kadans - bkz. asagidaki not
+  [switch]$ModaDokunma,      # ekran moduna hic dokunma
+  # Analitik toplayicisinin dinleyecegi adres. Ziyaretcilerin TELEFONU da
+  # (QR ile gelen web sitesi) yazacaksa "0.0.0.0" ver.
+  [string]$Dinle    = "127.0.0.1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -36,9 +43,19 @@ if (Sunucu-Ayakta) {
   if (-not (Test-Path $py)) { $py = (Get-Command python -ErrorAction SilentlyContinue).Source }
   if (-not $py) { Write-Host "HATA: python bulunamadi." -ForegroundColor Red; exit 1 }
   Write-Host "Yerel sunucu baslatiliyor: http://127.0.0.1:$Port"
-  Start-Process -FilePath $py `
-    -ArgumentList @("-m","http.server",$Port,"--bind","127.0.0.1","--directory",$KioskD) `
-    -WindowStyle Hidden
+  # http.server yerine analitik_sunucu: AYNI statik servisi verir, ustune
+  # /a/olay ucunu acar (kiosk ve web sitesi olaylari diske yazsin diye).
+  # Ziyaretcilerin telefonu da yazacaksa -Dinle 0.0.0.0 ile calistir.
+  $toplayici = Join-Path $Kok "scripts\analitik_sunucu.py"
+  if (Test-Path $toplayici) {
+    Start-Process -FilePath $py `
+      -ArgumentList @($toplayici,"--port",$Port,"--kok","kiosk","--dinle",$Dinle) `
+      -WindowStyle Hidden
+  } else {
+    Start-Process -FilePath $py `
+      -ArgumentList @("-m","http.server",$Port,"--bind","127.0.0.1","--directory",$KioskD) `
+      -WindowStyle Hidden
+  }
   $bekle = 0
   while (-not (Sunucu-Ayakta)) {
     Start-Sleep -Milliseconds 300; $bekle++
@@ -62,10 +79,82 @@ public class NizDpi {
   }
 }
 "@
+# --------------------------------------------------------------- TV modu
+# NEDEN: TV kapaliyken acilinca / HDMI yeniden takilinca Windows ikinci ekrani
+# 4096x2160'a (DCI-4K) dusuruyor. Panelin DOGAL cozunurlugu 3840x2160 (EDID ile
+# dogrulandi), yani TV yeniden olcekliyor ve 1:1 piksel eslemesi kayboluyor -
+# kabin geometrisi ve post reciptesi (pad=3840:2160) bunu varsayiyor.
+# HZ: 69 klibin hepsi tam 25 fps. 50 Hz her kareyi TAM 2 tazelemede gosterir
+# (2:2, titremesiz). 60 Hz'de kadans 2,4 olur ve yavas kafa hareketinde titrer.
+# 120 Hz de temiz DEGIL (120/25 = 4,8). Dogru hedef 50 Hz, gerekirse 100 Hz.
+Add-Type -TypeDefinition @"
+using System; using System.Runtime.InteropServices;
+[StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
+public struct NIZDEVMODE {
+  [MarshalAs(UnmanagedType.ByValTStr, SizeConst=32)] public string dmDeviceName;
+  public short dmSpecVersion, dmDriverVersion, dmSize, dmDriverExtra;
+  public int dmFields;
+  public int dmPositionX, dmPositionY, dmDisplayOrientation, dmDisplayFixedOutput;
+  public short dmColor, dmDuplex, dmYResolution, dmTTOption, dmCollate;
+  [MarshalAs(UnmanagedType.ByValTStr, SizeConst=32)] public string dmFormName;
+  public short dmLogPixels; public int dmBitsPerPel, dmPelsWidth, dmPelsHeight;
+  public int dmDisplayFlags, dmDisplayFrequency, dmICMMethod, dmICMIntent;
+  public int dmMediaType, dmDitherType, dmReserved1, dmReserved2, dmPanningWidth, dmPanningHeight;
+}
+public class NizMod {
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern bool EnumDisplaySettings(string d, int m, ref NIZDEVMODE dm);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int ChangeDisplaySettingsEx(string d, ref NIZDEVMODE dm, IntPtr h, uint f, IntPtr l);
+}
+"@
+
+function Ekran-Modu-Zorla($dev, $w, $h, $hz) {
+  $simdi = New-Object NIZDEVMODE
+  $simdi.dmSize = [Runtime.InteropServices.Marshal]::SizeOf($simdi)
+  if ([NizMod]::EnumDisplaySettings($dev, -1, [ref]$simdi)) {
+    if ($simdi.dmPelsWidth -eq $w -and $simdi.dmPelsHeight -eq $h -and $simdi.dmDisplayFrequency -eq $hz) {
+      Write-Host ("  TV modu zaten dogru: {0}x{1} @ {2}Hz" -f $w, $h, $hz) -ForegroundColor DarkGray
+      return $false
+    }
+    Write-Host ("  TV modu {0}x{1}@{2}Hz -> {3}x{4}@{5}Hz yapiliyor..." -f `
+      $simdi.dmPelsWidth, $simdi.dmPelsHeight, $simdi.dmDisplayFrequency, $w, $h, $hz) -ForegroundColor Yellow
+  }
+  # Timing uydurma: modu surucunun listesinden AYNEN al.
+  $hedef = New-Object NIZDEVMODE; $bulundu = $false
+  for ($i = 0; $i -lt 800; $i++) {
+    $d = New-Object NIZDEVMODE; $d.dmSize = [Runtime.InteropServices.Marshal]::SizeOf($d)
+    if (-not [NizMod]::EnumDisplaySettings($dev, $i, [ref]$d)) { break }
+    if ($d.dmPelsWidth -eq $w -and $d.dmPelsHeight -eq $h -and
+        $d.dmDisplayFrequency -eq $hz -and $d.dmBitsPerPel -eq 32) { $hedef = $d; $bulundu = $true; break }
+  }
+  if (-not $bulundu) {
+    Write-Host ("  UYARI: {0}x{1}@{2}Hz bu ekranda listelenmiyor - moda dokunulmadi." -f $w, $h, $hz) -ForegroundColor Yellow
+    return $false
+  }
+  $hedef.dmFields = 0x40000 -bor 0x80000 -bor 0x100000 -bor 0x400000   # BPP|W|H|FREQ
+  if ([NizMod]::ChangeDisplaySettingsEx($dev, [ref]$hedef, [IntPtr]::Zero, 0x02, [IntPtr]::Zero) -ne 0) {
+    Write-Host "  UYARI: mod testi basarisiz - moda dokunulmadi." -ForegroundColor Yellow
+    return $false
+  }
+  # UPDATEREGISTRY|GLOBAL: yeniden baslatma ve HDMI takip-cikarmalarinda kalici olsun.
+  $r = [NizMod]::ChangeDisplaySettingsEx($dev, [ref]$hedef, [IntPtr]::Zero, (0x01 -bor 0x08), [IntPtr]::Zero)
+  if ($r -eq 0) { Write-Host "  TV modu ayarlandi ve kaydedildi." -ForegroundColor Green; return $true }
+  Write-Host ("  UYARI: mod uygulanamadi (kod {0})." -f $r) -ForegroundColor Yellow
+  return $false
+}
+
 $ekranlar = [System.Windows.Forms.Screen]::AllScreens
 $birincil = $ekranlar | Where-Object { $_.Primary } | Select-Object -First 1
 $ikincil  = $ekranlar | Where-Object { -not $_.Primary } | Select-Object -First 1
 if ($TekEkran) { $ikincil = $null }
+
+if ($ikincil -and -not $ModaDokunma) {
+  if (Ekran-Modu-Zorla $ikincil.DeviceName $TvGenislik $TvYukseklik $TvHz) {
+    Start-Sleep -Milliseconds 1500          # mod oturmadan sinirlari okumak yanlis verir
+    $ekranlar = [System.Windows.Forms.Screen]::AllScreens
+    $birincil = $ekranlar | Where-Object { $_.Primary } | Select-Object -First 1
+    $ikincil  = $ekranlar | Where-Object { -not $_.Primary } | Select-Object -First 1
+  }
+}
 
 $fiz = [NizDpi]::Fiziksel()
 $olcekYuzde = [math]::Round($fiz[0] / $birincil.Bounds.Width * 100)
@@ -73,7 +162,15 @@ Write-Host ("Birincil (kiosk)  : {0}x{1} @ {2},{3}   [fiziksel {4}x{5}, DPI %{6}
   $birincil.Bounds.Width, $birincil.Bounds.Height, $birincil.Bounds.X, $birincil.Bounds.Y, `
   $fiz[0], $fiz[1], $olcekYuzde)
 if ($ikincil) {
-  Write-Host ("Ikincil (hologram): {0}x{1} @ {2},{3}" -f $ikincil.Bounds.Width, $ikincil.Bounds.Height, $ikincil.Bounds.X, $ikincil.Bounds.Y)
+  # Bounds MANTIKSAL px verir; DPI %200 ise 3840x2160 panel "1920x1080" gorunur.
+  # Yanlis teshis konmasin diye gercek sinyali de yaziyoruz.
+  $tv = New-Object NIZDEVMODE; $tv.dmSize = [Runtime.InteropServices.Marshal]::SizeOf($tv)
+  $tvBilgi = ""
+  if ([NizMod]::EnumDisplaySettings($ikincil.DeviceName, -1, [ref]$tv)) {
+    $olcek = if ($ikincil.Bounds.Width) { [math]::Round($tv.dmPelsWidth / $ikincil.Bounds.Width * 100) } else { 100 }
+    $tvBilgi = "   [gercek sinyal {0}x{1} @ {2}Hz, DPI %{3}]" -f $tv.dmPelsWidth, $tv.dmPelsHeight, $tv.dmDisplayFrequency, $olcek
+  }
+  Write-Host ("Ikincil (hologram): {0}x{1} @ {2},{3}{4}" -f $ikincil.Bounds.Width, $ikincil.Bounds.Height, $ikincil.Bounds.X, $ikincil.Bounds.Y, $tvBilgi)
 } else {
   Write-Host "Ikinci ekran yok - yalniz kiosk acilacak." -ForegroundColor Yellow
 }

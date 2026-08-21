@@ -159,3 +159,11 @@ makaleler/hologram/
 # Ara kare uretimi ciktisi (video/02_ham gibi flash ile tasinir)
 video/02b_50fps/
 video/03_post/
+
+# Analitik olay deposu - saha verisi, depoya girmez (kisiye ozel olmasa da hacimli)
+analitik/olaylar/
+
+# Post/aynalama denemeleri (17 Agu 2026). Yeniden uretilebilir, ~640 MB.
+# Dosyalar diskte DURUYOR, yalnizca git'e girmiyor.
+video/_deneme/
+

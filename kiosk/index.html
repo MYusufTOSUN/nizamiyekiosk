@@ -313,6 +313,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="data.js"></script>
+<script src="analitik.js"></script>
 <script>
 (function(){
 "use strict";
@@ -340,6 +341,21 @@ function bump(key){
   const s = stats(); s[key] = (s[key] || 0) + 1;
   try { localStorage.setItem(LS + "_stats", JSON.stringify(s)); } catch(e){}
 }
+
+/* ---------- analitik ----------
+   localStorage sayaclari (yukaridaki bump) admin panelinden sifirlanabiliyor ve
+   yalniz bu tarayici profilinde duruyor. Analitik ondan BAGIMSIZ: olaylar diske
+   yazilir, silinmez, gun gun filtrelenir. Toplayici kapaliysa istemci kuyrukta
+   bekletir, acilinca gonderir - festivalde veri kaybi olmasin diye.               */
+try {
+  Analitik.baslat({ kaynak: "kiosk", dil: "tr" });
+  Analitik.olay("kiosk_acildi", { ek: {
+    ekran: screen.width + "x" + screen.height,
+    dpr: window.devicePixelRatio || 1,
+    medya: CFG.mediaExt,
+  }, acil: true });
+} catch(e) {}
+function an(ad, veri){ try { Analitik.olay(ad, veri); } catch(e){} }
 
 /* ---------- ekran yönetimi ---------- */
 const screens = ["attract","select","ask","play","thanks"];
@@ -453,8 +469,16 @@ function playClip(code, dur, onEnd){
     holoOynatiyor = true;
     audio.muted = true;
   }
+  const t0 = Date.now();
+  an("klip_basladi", { kod: code, karakter: S && S.char,
+                       ek: { hologram: holoOynatiyor, sure_sn: dur } });
   const finish = (ok) => {
     if (!playing) return;
+    // Bekci sureyi asarak bitirdiyse klip TAM izlenmemis demektir; ayirt et.
+    const gecen = Date.now() - t0;
+    an(ok ? "klip_bitti" : "klip_atlandi",
+       { kod: code, karakter: S && S.char, sure_ms: gecen,
+         ek: { beklenen_sn: dur, bekci: gecen >= (dur + 8) * 1000 - 200 } });
     const cb = onEndCb; stopMedia();
     if (!ok) toast("Ses dosyası açılamadı — devam ediliyor");
     if (cb) cb(ok);
@@ -521,15 +545,25 @@ function toAttract(){
     bump("terk");
     const scr = document.querySelector(".screen.active");
     if (scr && scr.id !== "attract") bump("terk_" + scr.id);
+    an("terk", { karakter: S.char, sure_ms: Date.now() - (S.t0 || Date.now()),
+                 ek: { ekran: scr ? scr.id : null, kalan_hak: S.rights,
+                       sorulan: Object.keys(S.asked || {}).length } });
   }
+  if (S) an("oturum_bitti", { karakter: S.char, sure_ms: Date.now() - (S.t0 || Date.now()),
+                              ek: { tamamlandi: !!S.completed }, acil: true });
   stopMedia(); S = null; show("attract");
 }
 function startSession(){
   newSession(); bump("oturum");
+  S.t0 = Date.now();
+  try { Analitik.yeniOturum(); } catch(e){}
+  an("oturum_basladi", { ek: { hak: CFG.rights }, acil: true });
   buildSelect(); show("select");
 }
 function selectChar(id, viaSwitch){
   S.char = id;
+  an("karakter_secildi", { karakter: id,
+                           ek: { degistirme: !!viaSwitch, ilk_kez: !S.met[id] } });
   const c = byId[id];
   if (!S.met[id]) {
     S.met[id] = true;
@@ -552,8 +586,15 @@ function askQuestion(ci, qi){
   if (S.asked[key] || S.rights <= 0) return;
   S.asked[key] = true;
   S.rights -= 1;
-  bump("soru_" + q.variants[0].code.replace(/_v\d$/, ""));
+  const kokKod = q.variants[0].code.replace(/_v\d$/, "");
+  bump("soru_" + kokKod);
   const v = pick(q.variants, key);
+  // kod = varyantsiz KOK kod (rapor soruyu tek satirda toplasin);
+  // hangi varyantin caldigi ek.varyant'ta durur.
+  an("soru_secildi", { karakter: S.char, kod: kokKod, baslik: q.q,
+                       ek: { kategori: c.categories[ci].name || ("k" + (ci + 1)),
+                             varyant: v.code, kalan_hak: S.rights,
+                             kacinci_soru: CFG.rights - S.rights }, acil: true });
   playScreen(c, "“" + q.q + "”");
   playClip(v.code, v.dur, () => {
     if (S.rights > 0) { buildAsk(); show("ask"); }
@@ -573,9 +614,15 @@ function finishSession(){
       $("qrBox").style.display = "flex";
       $("qrUrl").textContent = CFG.webUrl;
       $("qrImg").src = "img/qr.svg?" + Date.now(); // guncel QR (onbellege takilmasin)
+      // QR'in KAC KEZ OKUTULDUGU kiosktan olculemez - okutma telefonda olur.
+      // Burada yalniz "gosterildi" sayilir; "okutuldu" tarafini web sitesi
+      // qr_ile_geldi olayiyla bildirir (QR adresinde ?k=kiosk isareti var).
+      an("qr_gosterildi", { karakter: S.char, ek: { adres: CFG.webUrl } });
     } else {
       $("qrBox").style.display = "none";
     }
+    an("tesekkur_goruldu", { karakter: S.char,
+                             sure_ms: Date.now() - (S.t0 || Date.now()), acil: true });
     show("thanks");
     clearTimeout(thanksTimer);
     thanksTimer = setTimeout(toAttract, CFG.thanksMs);
