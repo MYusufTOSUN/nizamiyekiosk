@@ -49,7 +49,16 @@ ORDER = ["meliksah", "nizamulmulk", "gazali"]
 # bu kodlar yalnizca data.js'e yazilmaz. Geri almak icin kumeden cikarmak yeterli,
 # yeniden uretim gerekmez. Varyantli soru icin "_v1" olmadan yazilir; hepsi duser.
 #   meliksah_k2_s2 "Omer Hayyam kimdir?" -- 17 Agustos 2026, kullanici karari.
-KIOSK_DISI = {"meliksah_k2_s2"}
+KIOSK_DISI = {
+    "meliksah_k2_s2",     # Omer Hayyam sorusu, 17 Agu 2026 kaldirildi
+    # 17 Agu 2026: ham klibin H.264 akisi BOZUK ("Invalid NAL unit size"), 1310
+    # karenin 1156'si cozulebiliyor -> goruntu ve ses 6,1 sn erken bitiyor.
+    # SHA256 manifestle tutuyor, yani bozulma fal.ai indirmesinde olmus.
+    # Ayni sorunun v1 ve v3 varyantlari SAGLAM, o yuzden soru kioskta kaliyor;
+    # yalnizca bu varyant dusuruluyor. Duzeltmek icin klibin yeniden uretilmesi
+    # gerekir (~$5,2). Dosyalar yerinde duruyor.
+    "meliksah_k3_s1_v2",
+}
 
 
 def kiosk_disi(kod: str) -> bool:
@@ -96,6 +105,11 @@ data = {
     "config": {
         "pin": "1206", "rights": 3, "idleMs": 75000, "thanksMs": 20000,
         # Yollar kiosk klasorune GORECE (hem file:// hem Vercel'de calisir; Root Dir = kiosk)
+        # mediaExt = KIOSK EKRANININ ne calacagi. ".mp3" DOGRU DEGER:
+        # videoyu HOLOGRAM penceresi oynatir, kiosktaki eleman yalniz zamanlayici.
+        # 17 Agu 2026'da ".mp4" denendi ve GERI ALINDI: kiosk ekraninda ikinci bir
+        # video katmani beliriyor ve ayni ses iki yerden calinca faz farkiyla
+        # cift/patlamis duyuluyor. Tek ekranda denemek icin admin panelinden (PIN 1206).
         "skipAfterMs": 6000, "mediaBase": "sesler/", "mediaExt": ".mp3",
         "videoBase": "videolar/", "videoExt": ".mp4",
         # Canli site adresi (QR bununla gosterilir). Ozel durum icin kiosk_qr.py override eder.

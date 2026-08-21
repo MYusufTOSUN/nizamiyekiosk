@@ -69,7 +69,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k1_s2",
-         "dur": 52.6
+         "dur": 52.5
         }
        ]
       },
@@ -141,11 +141,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k3_s1_v1",
-         "dur": 53.8
-        },
-        {
-         "code": "meliksah_k3_s1_v2",
-         "dur": 52.4
+         "dur": 53.7
         },
         {
          "code": "meliksah_k3_s1_v3",
@@ -176,7 +172,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "meliksah_k3_s4",
-         "dur": 36.8
+         "dur": 36.7
         }
        ]
       }
@@ -299,7 +295,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k2_s3",
-         "dur": 49.8
+         "dur": 49.7
         }
        ]
       },
@@ -322,7 +318,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k3_s1_v1",
-         "dur": 50.6
+         "dur": 50.5
         },
         {
          "code": "nizamulmulk_k3_s1_v2",
@@ -357,7 +353,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "nizamulmulk_k3_s4",
-         "dur": 38.2
+         "dur": 38.1
         }
        ]
       }
@@ -405,7 +401,7 @@ window.KIOSK_DATA = {
        "variants": [
         {
          "code": "gazali_k1_s1_v1",
-         "dur": 54.4
+         "dur": 54.3
         },
         {
          "code": "gazali_k1_s1_v2",
