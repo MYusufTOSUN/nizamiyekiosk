@@ -167,3 +167,73 @@ analitik/olaylar/
 # Dosyalar diskte DURUYOR, yalnizca git'e girmiyor.
 video/_deneme/
 
+# Akademik makaleler: TELIFLI ucuncu taraf yayinlari. Depo public,
+# bu dosyalar depoya girmez. Sentezleri docs/ altindaki raporlarda.
+makaleler/
+
+# ---------------------------------------------------------------------------
+# Kiosk video klasoru: 69 klip x ~70 MB = 4,5 GB. Ham cikti video/02_ham'dan
+# sabit bag ile geliyor, yeniden uretilebilir/kopyalanabilir -> git'e GIRMEZ.
+# Yeni PC'ye flash bellekle tasinir (bkz. DEVIR.md).
+kiosk/videolar/
+
+# Video master calisma turleri: ara denemeler (v2..v6, *son*.png, *yeni.png).
+# Yalniz KULLANILAN surum (_v7) ve kadrajli/*_master.png takip edilir.
+video/00_master/kadrajli/_v2/
+video/00_master/kadrajli/_v3/
+video/00_master/kadrajli/_v4/
+video/00_master/kadrajli/_v5/
+video/00_master/kadrajli/_v6/
+video/01_pilot/
+
+# rapor PDF ara ciktisi
+docs/.rapor.html
+
+# Rapor/kilavuz PDF ara ciktilari
+docs/.kilavuz.html
+
+# Hologram/derinlik makaleleri: TELIFLI PDF'ler, 81 MB. Kullanici karari
+# (17 Agu 2026): depoya girmeyecek. Sentezleri KABIN_DERINLIK_RAPORU.md'de.
+makaleler/hologram/
+
+# Ara kare uretimi ciktisi (video/02_ham gibi flash ile tasinir)
+video/02b_50fps/
+video/03_post/
+
+# Akademik makaleler: TELIFLI ucuncu taraf yayinlari. Depo public,
+# bu dosyalar depoya girmez. Sentezleri docs/ altindaki raporlarda.
+makaleler/
+
+# ---------------------------------------------------------------------------
+# Depo YALNIZ KODU tasir. Asagidakiler kasitli olarak disarida:
+#   icerik  : senaryo metinleri, ElevenLabs export'lari, master gorseller
+#   medya   : ses ve video kayitlari, karakter gorselleri
+#   ic notlar: ajan hafizasi, devir belgeleri, satin alma listeleri,
+#              kabin raporlari, uretim promptlari
+# ---------------------------------------------------------------------------
+senaryolar/
+video/
+kiosk/sesler/
+kiosk/videolar/
+kiosk/_ses_arsivi.json
+kiosk/eski_sesler.html
+data/char_images/
+data/voices/
+data/eval_persona.json
+static/characters/*.jpg
+docs/
+coworker_brief/
+pilot/
+prompts, readme and pipeline/
+CLAUDE.md
+AGENTS.md
+DEVIR*.md
+DEVIR*.txt
+SETUP.md
+LAPTOP_SETUP.md
+PORTRE_PROMPTLARI.md
+EK_MALZEME_MAKALELER.md
+ARASTIRMA_*.md
+SATINALMA_*.xlsx
+excel_dump*.txt
+kiosk-*.pdf
